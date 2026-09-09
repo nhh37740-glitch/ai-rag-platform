@@ -69,3 +69,13 @@
 - `DEEPSEEK_API_KEY` 经 `.env` 注入，不入库；单用户单租户演示；可选简单 API key。
 - MCP connector（Git/Issue/工单）v1 用本地 mock，接口与真实连接器一致，便于日后插真。
 - "SKILL" 采用 Agent Skills 的 SKILL.md 开放格式；前端为 agent-server 托管单页聊天（SSE）。
+
+## 实现状态（2026-09-10）
+
+已落地并跑通（离线纯 Python 版）：
+
+- 11 个独立包：`core_contracts`、`observability`、`memory`、`rag_core`、`llm_gateway`、`tool_runtime`、`skill_runtime`、`agent_runtime`、`mcp_gateway`、`mcp_servers`、`evaluation`。
+- 主进程 `apps/agent-server`：FastAPI + Agent 编排 + 聊天页（`/api/chat`、`/api/kb/ingest`、`/api/trace/{id}`）。
+- 6 个演示场景全部通过；20 个单元测试全绿；评测基线生成于 `docs/eval_report.md`。
+- 源码隔离按"集成侧只 import 二进制 + 工作区不放实现源码"原则落地，`build_artifacts.py` 产出 `artifacts/<pkg>/<version>/` + `registry.json` + checksum。
+- 二进制交付（`.pyd/.so/.exe`）步骤见 `docs/build_binary.md`：本地无 Docker/MSVC，故 v1 以纯 Python 包跑通，编译作为 CI 步骤。
