@@ -4,13 +4,29 @@ import glob
 import json
 import os
 import sys
+from pathlib import Path
 from typing import List
 
 from ingestion import chunk, parse
 
 
+def _load_dotenv(path: str) -> None:
+    import os as _os
+
+    if not _os.path.exists(path):
+        return
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            _os.environ.setdefault(k.strip(), v.strip())
+
+
 def main(argv: List[str] | None = None) -> int:
     """独立进程：解析一个目录→分块→embed→写出索引 JSON，供主进程加载。"""
+    _load_dotenv(str(Path(__file__).resolve().parents[2] / ".env"))
     args = sys.argv[1:] if argv is None else argv
     docs_dir = "data/kb"
     out = "data/index.json"

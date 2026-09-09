@@ -23,6 +23,9 @@ data/*.sqlite
 data/_tests/
 data/index.json
 
+# vendored models (large, downloaded locally; not committed)
+models/
+
 # generated binaries / packages live in artifacts; keep structure via .gitkeep
 artifacts/**/*.pyd
 artifacts/**/*.so

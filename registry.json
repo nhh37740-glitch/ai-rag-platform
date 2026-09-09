@@ -16,7 +16,7 @@
     "ingestion": {
       "name": "ingestion",
       "version": "0.1.0",
-      "checksum": "b830a423065a2353d24e37c2c88b867ec006d1759a7d9c577d73267b3ef7d934",
+      "checksum": "da1934c20707eb66c577c8aced43f52801bf929091e7504f3aa171b8ded8887d",
       "path": "artifacts\\ingestion\\0.1.0"
     },
     "llm_gateway": {
