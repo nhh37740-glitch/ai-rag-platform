@@ -84,3 +84,4 @@
 - **整条 Agent 链路可纯用编译产物运行**：`scripts/build_binary_all.py` 在 MSVC 下把 11 个模块批量 cythonize 成 `.pyd` 归入 `artifacts/<pkg>/<version>/<pkg>/`，`scripts/demo_compiled.py` 只从 artifacts 加载并跑通提问→检索→作答，输出 `COMPILED_AGENT_OK`。
 - 新增 **`storage` 统一持久层**模块：组合 memory + vector_store + SQLite（评测结果），暴露 `Storage` 接口（记忆/文档向量/评测），与 PostgreSQL+pgvector 同构可切换；测试通过（共 12 个包，22 条测试，CI ALL GREEN）。
 - **真实 DeepSeek 端到端已验证**（2026-09-10，提供 key 后）：`.env` 注入 `DEEPSEEK_API_KEY`，app 自动切 `DeepSeekProvider`；RAG 问答引用了知识库（§2 认证/§3 超时/§4 限流），工具调用 `create_issue` 返回 issue 编号并给多步答复。期间修复了"工具调用后 assistant 消息需回带 `tool_calls`"（否则 DeepSeek 400）。`scripts/demo.py` 在有 `.env` 时即走真实模型。
+- **评测基线已切到真实 DeepSeek**：`scripts/eval_run.py` 在有 `.env` 时用真实模型作答与 LLM-as-Judge，最新 `avg_recall=1.0`、`avg_llm_judge=7.67`（`docs/eval_report.md`）。并统一了 ingestion 产出的源 ID（`stem`，无扩展名）与评测期望一致。

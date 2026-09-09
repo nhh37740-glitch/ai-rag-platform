@@ -27,7 +27,7 @@ def main(argv: List[str] | None = None) -> int:
         if os.path.splitext(f)[1].lower() in (".md", ".txt", ".docx"):
             chunks = chunk(parse(f))
             if chunks:
-                sources.append({"id": os.path.basename(f), "chunks": chunks, "embs": embed(chunks)})
+                sources.append({"id": os.path.splitext(os.path.basename(f))[0], "chunks": chunks, "embs": embed(chunks)})
                 total += len(chunks)
     os.makedirs(os.path.dirname(os.path.abspath(out)) or ".", exist_ok=True)
     with open(out, "w", encoding="utf-8") as fh:
