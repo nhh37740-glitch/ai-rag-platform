@@ -25,6 +25,7 @@ data/index.json
 
 # vendored models (large, downloaded locally; not committed)
 models/
+bin/
 
 # generated binaries / packages live in artifacts; keep structure via .gitkeep
 artifacts/**/*.pyd

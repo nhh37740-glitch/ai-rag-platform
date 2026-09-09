@@ -68,6 +68,10 @@ cmd /c "call \"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC
 - MCP 连接器：本地 mock 默认；设 `MCP_GITHUB_REPO=owner/repo`（可选 `GITHUB_TOKEN`）即用真实 GitHub 连接器；`scripts/mcp_github_demo.py` 演示真实拉取 commits/issues。存储用 SQLite + 本地向量库（无需 PostgreSQL）。
 
 设计模式、模块清单与各模块接口的**人类可读架构说明**见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
+
+前端与编译产物：
+- **Web 前端**：`GET http://127.0.0.1:8000/` 即聊天页（SSE 流式）；非纯命令行。
+- **编译产物**：进程内模块已可由 `scripts/build_binary_all.py` 编成 `.pyd`；独立进程入口由 `scripts/build_exe.ps1` 编成 `bin/*.exe`（已生成 `bin/mcp_servers.exe`；ingestion_worker 加 `-All`）。运行时也可直接 `python -m mcp_servers`、`python -m ingestion`。
 - 向量化用本地兜底 embed（可换 BGE）；存储默认 SQLite + 本地向量库，接口与 PostgreSQL+pgvector 同构。
 - 聊天页用 SSE（`/api/chat/stream`），`/api/chat` 也可 JSON 调用；`/api/trace/{trace_id}` 看全链路。
 - 二进制交付见 [`docs/build_binary.md`](docs/build_binary.md)；总体计划见 [`docs/PLAN.md`](docs/PLAN.md)；约定见 [`AGENTS.md`](AGENTS.md)。

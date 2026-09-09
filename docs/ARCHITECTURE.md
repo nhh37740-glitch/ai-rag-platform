@@ -98,6 +98,10 @@ FastAPI：`GET /`（聊天页）、`POST /api/chat`、`GET /api/chat/stream`（S
 持久化：SQLite + 本地向量库（storage 接口可切 pgvector）
 ```
 
+前端与产物：
+- **Web 前端**：`apps/agent-server/webui/index.html` 聊天页（`EventSource` 走 `/api/chat/stream`），由 FastAPI 托管，非纯命令行。
+- **编译产物**：进程内模块 → `scripts/build_binary_all.py` 用 Cython 编成 `.pyd`（`artifacts/<pkg>/<version>/<pkg>/`）；独立进程入口 `mcp_servers`/`ingestion_worker` → `scripts/build_exe.ps1` 用 Nuitka 编成 `bin/*.exe`（避开中文路径的 LNK1104，先在 ASCII 目录编译再拷回）。两者均可在运行时以 `python -m` 直接跑。
+
 ## 5. 关键设计决策
 
 - **契约先行**：接口/类型先用 `contracts/` 定死，各模块按 `INTERFACE.md` 实现，减少联调返工。
