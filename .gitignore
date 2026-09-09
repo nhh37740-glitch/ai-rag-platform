@@ -1,0 +1,32 @@
+# env / secrets
+.env
+.env.local
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# resume / job-search notes (not part of repo)
+boss上搜的岗位.docx
+boss上搜的岗位.txt
+新建 文本文档.txt
+~$*.docx
+
+# local data (keep data/kb sample; ignore db + test scratch)
+data/*.db
+data/*.sqlite
+data/_tests/
+
+# generated binaries / packages live in artifacts; keep structure via .gitkeep
+artifacts/**/*.pyd
+artifacts/**/*.so
+artifacts/**/*.exe
+artifacts/**/*.whl
+
+# pytest cache
+.pytest_cache/

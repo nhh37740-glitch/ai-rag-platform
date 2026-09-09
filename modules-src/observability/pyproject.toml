@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "observability"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["core_contracts"]
+
+[tool.setuptools]
+packages = ["observability"]
+
+# 二进制交付（可选，见 docs/build_binary.md）
+# [tool.mypyc] package = "observability"

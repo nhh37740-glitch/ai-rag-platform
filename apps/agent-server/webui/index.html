@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <title>Dev Knowledge Agent</title>
+  <style>
+    body{font-family:system-ui,"Microsoft YaHei",sans-serif;max-width:720px;margin:40px auto;padding:0 16px}
+    #log{border:1px solid #ddd;border-radius:8px;min-height:220px;padding:12px;background:#fafafa;white-space:pre-wrap;overflow:auto}
+    .b{font-weight:600;color:#0b5}
+    form{display:flex;gap:8px;margin-top:12px}
+    input{flex:1;padding:8px}
+    button{padding:8px 16px}
+  </style>
+</head>
+<body>
+  <h2>Dev Knowledge Agent</h2>
+  <div id="log"></div>
+  <form id="f">
+    <input id="m" placeholder="问：XX API 如何认证？或：帮我建一个 Bug" autofocus>
+    <button>发送</button>
+  </form>
+  <script>
+    const log=document.getElementById('log'),f=document.getElementById('f'),m=document.getElementById('m');
+    const show=(t)=>log.innerText+=t+"\n";
+    f.onsubmit=async(e)=>{e.preventDefault();const q=m.value;if(!q)return;show("你: "+q);m.value='';show("...");
+      try{const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,user_id:'anon',session_id:'s1'})});
+      const d=await r.json();show("Agent: "+d.answer+"\n[trace: "+(d.trace_id||'')+"]\n");}
+      catch(err){show("错误: "+err)}
+    };
+  </script>
+</body>
+</html>

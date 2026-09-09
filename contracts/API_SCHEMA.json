@@ -1,0 +1,190 @@
+{
+  "format": 2,
+  "contract_version": "0.1.0",
+  "context": {
+    "type": "RequestContext",
+    "package": "contracts.core_contracts",
+    "fields": {
+      "trace_id": "str",
+      "request_id": "str",
+      "user_id": "str",
+      "session_id": "str"
+    },
+    "note": "Every public facade method MUST accept this as its first argument, named 'ctx'."
+  },
+  "shared_types": {
+    "ChatMessage": { "role": "str", "content": "str", "tool_call_id": "str", "name": "str" },
+    "ToolCall": { "id": "str", "name": "str", "arguments": "dict" },
+    "ToolDef": { "name": "str", "description": "str", "parameters": "dict(json schema)" },
+    "Citation": { "source_id": "str", "title": "str", "text": "str", "score": "float", "metadata": "dict" },
+    "RetrievalResult": { "query": "str", "contexts": "list[str]", "citations": "list[Citation]" },
+    "MemoryEntry": { "id": "str", "namespace": "session|user", "key": "str", "content": "str", "created": "str", "importance": "float" },
+    "SkillDef": { "name": "str", "description": "str", "version": "str", "load": "callable|null" },
+    "SpanEvent": { "trace_id": "str", "span": "str", "start_ns": "int", "end_ns": "int", "status": "ok|error", "error": "str", "meta": "dict" }
+  },
+  "rules": {
+    "dependency_ceiling": ["stdlib", "httpx", "numpy", "sklearn"],
+    "tests": "unittest (no pytest)",
+    "ctx_first": true,
+    "compile_default": "mypyc",
+    "compile_fallback": "Cython",
+    "concurrency": "sync methods that block IO are wrapped by caller via asyncio.to_thread"
+  },
+  "modules": {
+    "rag-core": {
+      "package": "rag_core",
+      "delivery": "mypyc",
+      "version": "0.0.0",
+      "facade": {
+        "RagClient": {
+          "kind": "class",
+          "init": { "store": "VectorStore", "embed_fn": "callable", "top_k": "int=5" },
+          "methods": {
+            "retrieve": { "params": { "ctx": "RequestContext", "query": "str", "scope": "str", "top_k": "int" }, "returns": "RetrievalResult", "blocking_io": true }
+          }
+        },
+        "embed": { "kind": "function", "params": { "texts": "list[str]" }, "returns": "list[list[float]]", "blocking_io": false },
+        "VectorStore": { "kind": "protocol", "methods": { "add": { "params": { "source_id": "str", "chunks": "list[str]", "embeddings": "obj" } }, "search": { "params": { "embedding": "obj", "top_k": "int" }, "returns": "list[tuple[str,float]]" } } },
+        "InMemoryVectorStore": { "kind": "class" },
+        "SqliteVectorStore": { "kind": "class" }
+      }
+    },
+    "memory": {
+      "package": "memory",
+      "delivery": "mypyc",
+      "version": "0.0.0",
+      "facade": {
+        "MemoryStore": {
+          "kind": "class",
+          "methods": {
+            "get": { "params": { "ctx": "RequestContext", "namespace": "str", "key": "str" }, "returns": "MemoryEntry|null" },
+            "write": { "params": { "ctx": "RequestContext", "namespace": "str", "key": "str", "content": "str", "importance": "float" }, "returns": "MemoryEntry" },
+            "search": { "params": { "ctx": "RequestContext", "namespace": "str", "query": "str", "top_k": "int" }, "returns": "list[MemoryEntry]" },
+            "forget": { "params": { "ctx": "RequestContext", "namespace": "str", "key": "str" }, "returns": "None" }
+          }
+        },
+        "make_memory": { "kind": "function", "params": { "db_path": "str" }, "returns": "MemoryStore" }
+      }
+    },
+    "llm-gateway": {
+      "package": "llm_gateway",
+      "delivery": "mypyc",
+      "version": "0.0.0",
+      "facade": {
+        "LLMProvider": {
+          "kind": "protocol",
+          "methods": {
+            "generate": { "async": true, "params": { "ctx": "RequestContext", "messages": "list[ChatMessage]", "tools": "list[ToolDef]|null" }, "returns": "tuple[str,list[ToolCall]]" },
+            "stream": { "async": true, "params": { "ctx": "RequestContext", "messages": "list[ChatMessage]", "tools": "list[ToolDef]|null" }, "returns": "async iterator[str]" }
+          }
+        },
+        "DeepSeekProvider": { "kind": "class", "init": { "api_key": "str", "base_url": "str=https://api.deepseek.com", "model": "str=deepseek-chat" }, "env": ["DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL"] },
+        "MockProvider": { "kind": "class", "init": { "scenario": "str=qa" } }
+      }
+    },
+    "tool-runtime": {
+      "package": "tool_runtime",
+      "delivery": "mypyc",
+      "version": "0.0.0",
+      "facade": {
+        "tool": { "kind": "function", "params": { "name": "str", "description": "str", "parameters": "dict" }, "returns": "callable(decorator)" },
+        "ToolRegistry": {
+          "kind": "class",
+          "methods": {
+            "register": { "params": { "t": "ToolDef", "fn": "callable" }, "returns": "None" },
+            "list": { "params": { "ctx": "RequestContext" }, "returns": "list[ToolDef]" },
+            "execute": { "params": { "ctx": "RequestContext", "call": "ToolCall" }, "returns": "str" }
+          }
+        }
+      }
+    },
+    "mcp-gateway": {
+      "package": "mcp_gateway",
+      "delivery": "mypyc",
+      "version": "0.0.0",
+      "facade": {
+        "McpServerClient": {
+          "kind": "protocol",
+          "methods": {
+            "connect": { "async": true, "params": { "name": "str" }, "returns": "None" },
+            "list_tools": { "async": true, "params": {}, "returns": "list[ToolDef]" },
+            "call_tool": { "async": true, "params": { "name": "str", "arguments": "dict" }, "returns": "str" }
+          }
+        },
+        "MockClient": { "kind": "class", "implements": "McpServerClient" },
+        "normalize_to_tool": { "kind": "function", "params": { "mcp_tool": "dict" }, "returns": "ToolDef" }
+      }
+    },
+    "skill-runtime": {
+      "package": "skill_runtime",
+      "delivery": "mypyc",
+      "version": "0.0.0",
+      "facade": {
+        "SkillRegistry": {
+          "kind": "class",
+          "methods": {
+            "list": { "params": { "ctx": "RequestContext" }, "returns": "list[SkillDef]" },
+            "load": { "params": { "ctx": "RequestContext", "name": "str" }, "returns": "SkillDef" },
+            "load_dir": { "params": { "path": "str" }, "returns": "None" }
+          }
+        }
+      }
+    },
+    "agent-runtime": {
+      "package": "agent_runtime",
+      "delivery": "mypyc",
+      "version": "0.0.0",
+      "facade": {
+        "AgentRuntime": {
+          "kind": "class",
+          "init": { "provider": "LLMProvider", "rag": "RagClient", "memory": "MemoryStore", "tools": "ToolRegistry", "skills": "SkillRegistry", "tracing": "TraceStore" },
+          "methods": {
+            "run": { "async": true, "params": { "ctx": "RequestContext", "user_input": "str" }, "returns": "str" }
+          }
+        }
+      }
+    },
+    "observability": {
+      "package": "observability",
+      "delivery": "mypyc",
+      "version": "0.0.0",
+      "facade": {
+        "Span": { "kind": "class", "init": { "ctx": "RequestContext", "name": "str" }, "notes": "async context manager" },
+        "TraceStore": {
+          "kind": "class",
+          "methods": {
+            "record": { "params": { "span": "SpanEvent" }, "returns": "None" },
+            "get": { "params": { "trace_id": "str" }, "returns": "list[SpanEvent]" }
+          }
+        }
+      }
+    },
+    "evaluation": {
+      "package": "evaluation",
+      "delivery": "mypyc",
+      "version": "0.0.0",
+      "facade": {
+        "evaluate_qa": { "kind": "function", "params": { "ctx": "RequestContext", "qa_set": "dict" }, "returns": "dict" },
+        "evaluate_agent": { "kind": "function", "params": { "ctx": "RequestContext", "trajectory": "list" }, "returns": "dict" }
+      }
+    },
+    "ingestion": {
+      "package": "ingestion",
+      "delivery": "mypyc + standalone worker",
+      "version": "0.0.0",
+      "facade": {
+        "parse": { "kind": "function", "params": { "path": "str" }, "returns": "list[str]" },
+        "chunk": { "kind": "function", "params": { "texts": "list[str]", "size": "int=500", "overlap": "int=50" }, "returns": "list[str]" },
+        "build_index": { "kind": "function", "params": { "ctx": "RequestContext", "docs_dir": "str", "store": "VectorStore" }, "returns": "int", "blocking_io": true }
+      },
+      "standalone": { "entrypoint": "ingestion-worker", "delivery": "Nuitka exe", "http": { "POST /ingest": { "body": { "docs_dir": "str", "scope": "str" }, "returns": { "indexed": "int" } } } }
+    },
+    "mcp-servers": {
+      "package": "mcp_servers",
+      "delivery": "Nuitka exe",
+      "version": "0.0.0",
+      "facade": { "note": "Standalone connectors for Git / Issue / Ticket. JSON-RPC over stdio (MCP) plus optional HTTP." },
+      "standalone": { "entrypoint": "mcp-servers", "rpc": { "tools/list": "list[ToolDef]", "tools/call": { "name": "str", "arguments": "dict" } }, "mock": true }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "qa": [
+    {
+      "question": "XX API 如何认证？",
+      "recall": 1.0,
+      "precision": 0.5,
+      "faithfulness": 0.5,
+      "answer_relevance": 1.0,
+      "llm_judge": 3
+    },
+    {
+      "question": "连接超时怎么排查？",
+      "recall": 1.0,
+      "precision": 0.5,
+      "faithfulness": 0.0,
+      "answer_relevance": 1.0,
+      "llm_judge": 10
+    },
+    {
+      "question": "系统是怎么分层的（记忆、工具、技能）？",
+      "recall": 1.0,
+      "precision": 0.5,
+      "faithfulness": 0.0,
+      "answer_relevance": 1.0,
+      "llm_judge": 5
+    }
+  ],
+  "trajectory": [
+    {
+      "tool_accuracy": 1.0,
+      "task_success": 1.0,
+      "avg_latency_ms": 30.0
+    }
+  ],
+  "summary": {
+    "avg_recall": 1.0,
+    "avg_faithfulness": 0.167,
+    "avg_answer_relevance": 1.0,
+    "avg_llm_judge": 6.0
+  }
+}

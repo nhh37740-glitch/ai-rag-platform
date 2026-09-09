@@ -1,0 +1,18 @@
+{
+  "module": "evaluation",
+  "version": "0.1.0",
+  "public_api": [
+    [
+      "evaluate_qa",
+      ""
+    ],
+    [
+      "llm_as_judge",
+      ""
+    ],
+    [
+      "evaluate_agent",
+      ""
+    ]
+  ]
+}

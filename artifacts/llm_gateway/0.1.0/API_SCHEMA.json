@@ -1,0 +1,18 @@
+{
+  "module": "llm_gateway",
+  "version": "0.1.0",
+  "public_api": [
+    [
+      "LLMProvider",
+      ""
+    ],
+    [
+      "MockProvider",
+      ""
+    ],
+    [
+      "DeepSeekProvider",
+      ""
+    ]
+  ]
+}

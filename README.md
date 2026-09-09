@@ -1,0 +1,55 @@
+# Dev Knowledge Agent
+
+基于 **RAG、MCP、Agent Skills、Function Calling 与双层记忆** 的模块化企业研发知识与协作智能体系统。它以"契约先行 + 源码隔离 + 二进制交付"落地：集成侧只消费接口契约与编译后成品，看不到各模块实现源码。
+
+## 演示能力（6 个场景）
+
+1. **XX API 如何认证？** → RAG + 引用
+2. **昨天的故障跟历史哪次最像？** → Memory + RAG + Issue 检索
+3. **帮我按公司 Bug 流程分析** → `bug-triage` Skill
+4. **建立一个 P1 Bug** → Function Calling
+5. **看看最近相关 commit** → MCP 工具（mock 连接器）
+6. **上次处理到哪了？** → User/Session 记忆
+
+## 结构
+
+```text
+contracts/       # 契约层（接口/共享类型，唯一共享"源码"）
+modules-src/     # 各模块源码仓库（对集成侧不可见）
+artifacts/       # 版本化成品 + 契约文档 + checksum
+apps/agent-server# 主进程：FastAPI + Agent 编排 + 聊天页
+data/            # 知识库、SQLite 数据
+skills/          # SKILL.md 技能目录
+scripts/         # demo / integration / eval / build_artifacts
+```
+
+11 个独立 Python 包：`core_contracts/observability/memory/rag_core/llm_gateway/tool_runtime/skill_runtime/agent_runtime/mcp_gateway/mcp_servers/evaluation`。
+
+## 运行
+
+```bash
+# 环境
+uv venv .venv && uv pip install -e contracts -e modules-src/observability -e modules-src/memory -e modules-src/rag_core -e modules-src/llm_gateway -e modules-src/tool-runtime -e modules-src/skill-runtime -e modules-src/agent_runtime -e modules-src/evaluation -e modules-src/ingestion -e modules-src/mcp-gateway -e modules-src/mcp-servers fastapi uvicorn pytest python-docx
+
+# 启动（默认 Mock；设 DEEPSEEK_API_KEY 用真实 DeepSeek）
+.\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server app:app --port 8000
+
+# 6 个演示
+.\.venv\Scripts\python.exe scripts/demo.py
+
+# 端到端 + 评测
+.\.venv\Scripts\python.exe scripts/integration_test.py
+.\.venv\Scripts\python.exe scripts/eval_run.py          # 生成 docs/eval_report.md
+
+# 测试（全部模块）
+.\.venv\Scripts\python.exe -m pytest modules-src -q
+
+# 生成 artifacts + registry
+.\.venv\Scripts\python.exe scripts/build_artifacts.py
+```
+
+## 说明
+
+- 默认离线可跑：`MockProvider` 兜底，`DEEPSEEK_API_KEY` 存在时自动切真实 `DeepSeekProvider`。
+- 向量化用本地兜底 embed（可换 BGE）；存储默认 SQLite + 本地向量库，接口与 PostgreSQL+pgvector 同构。
+- 二进制交付见 [`docs/build_binary.md`](docs/build_binary.md)；总体计划见 [`docs/PLAN.md`](docs/PLAN.md)；约定见 [`AGENTS.md`](AGENTS.md)。

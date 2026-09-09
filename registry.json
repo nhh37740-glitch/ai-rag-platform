@@ -1,0 +1,71 @@
+{
+  "format": 1,
+  "modules": {
+    "agent_runtime": {
+      "name": "agent_runtime",
+      "version": "0.1.0",
+      "checksum": "c2f4494ac330e87e3d788ac38dcbcdff68d92f679522bdcdabcaa5136d361c61",
+      "path": "artifacts\\agent_runtime\\0.1.0"
+    },
+    "evaluation": {
+      "name": "evaluation",
+      "version": "0.1.0",
+      "checksum": "9fdd3f7b4b50a5eabc018a22b195b2d634c33f7a07ad63e753557d4e3240aaae",
+      "path": "artifacts\\evaluation\\0.1.0"
+    },
+    "ingestion": {
+      "name": "ingestion",
+      "version": "0.1.0",
+      "checksum": "7487e275345f8b7c5761f625279ebc96b136698c43d4f1994ad7d7cd5b770fcc",
+      "path": "artifacts\\ingestion\\0.1.0"
+    },
+    "llm_gateway": {
+      "name": "llm_gateway",
+      "version": "0.1.0",
+      "checksum": "90c8f7a731e506e0ced692c4f5dbab748cbb17d05899c657957a000a32396f11",
+      "path": "artifacts\\llm_gateway\\0.1.0"
+    },
+    "mcp_gateway": {
+      "name": "mcp_gateway",
+      "version": "0.1.0",
+      "checksum": "85b8395c5d8d4819d81adf5006baba96c6da4a99626f381b4ecb23bd8e6bcd9a",
+      "path": "artifacts\\mcp_gateway\\0.1.0"
+    },
+    "mcp_servers": {
+      "name": "mcp_servers",
+      "version": "0.1.0",
+      "checksum": "1ee697a1a5d4c5bf908ce1ed9129c80cd01ad6d091cabc3451a8985f34e6e4bb",
+      "path": "artifacts\\mcp_servers\\0.1.0"
+    },
+    "memory": {
+      "name": "memory",
+      "version": "0.1.0",
+      "checksum": "60a0210ec8aadb54b3bad1f8f5d22be009bf8b652989f8d23902e93b2b129776",
+      "path": "artifacts\\memory\\0.1.0"
+    },
+    "observability": {
+      "name": "observability",
+      "version": "0.1.0",
+      "checksum": "093f13dfdff0fa70599d71e55de2b20a0e474af6873ce75382952408ecea2924",
+      "path": "artifacts\\observability\\0.1.0"
+    },
+    "rag_core": {
+      "name": "rag_core",
+      "version": "0.1.0",
+      "checksum": "45b9f4df8b5deb177476eb36b5451f3783004f4fb05011ee68a6194bb272ff66",
+      "path": "artifacts\\rag_core\\0.1.0"
+    },
+    "skill_runtime": {
+      "name": "skill_runtime",
+      "version": "0.1.0",
+      "checksum": "178fabf44f934abf20fb40d24840b8c380afb0beaa12c9e5bb8fdc3379c197ce",
+      "path": "artifacts\\skill_runtime\\0.1.0"
+    },
+    "tool_runtime": {
+      "name": "tool_runtime",
+      "version": "0.1.0",
+      "checksum": "cb1f0487f7781c02bd6d9299c60ab4dcb051a65ffb205c7c152cf11cf1102add",
+      "path": "artifacts\\tool_runtime\\0.1.0"
+    }
+  }
+}
