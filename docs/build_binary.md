@@ -41,4 +41,11 @@ python scripts/build_artifacts.py         # 生成 artifacts/<pkg>/<version>/ + 
 
 ## 已知限制
 
-- 机器级"看不到源码"需要容器隔离（当前本地无 Docker）；本目录以"集成侧只 import 二进制 + 工作区不放实现源码 + 独立仓库/分支"实现操作/进程级隔离。
+- 机器级"看不到源码"需要容器隔离（本机无 Docker）；本目录以"集成侧只 import 二进制 + 工作区不放实现源码 + 独立仓库/分支"实现操作/进程级隔离。
+
+## 已验证（2026-09-10，本机）
+
+- MSVC 编译器在 `C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools`（cl.exe 14.44）。
+- **Cython 3.3 路线可用**：`cythonize -i modules-src/<mod>/<pkg>/__init__.py` 产出 `__init__.<abi>.pyd`。
+- 已用 **observability** 做证明：把编译产物的 `.pyd` 单独放进 `artifacts/observability/0.1.0/observability/`（该目录无 `.py`），`scripts/binary_demo.py` 将其置于 `sys.path[0]` 后 `import observability`，`__file__` 指向 `.pyd`，功能正常→ `BINARY_DELIVERY_OK`。
+- mypyc 路线需前置 `mypy`+`librt`，并以 `--no-build-isolation` 安装；本机此路线较曲折，故二进制优先用 Cython。

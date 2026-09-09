@@ -78,4 +78,4 @@
 - 主进程 `apps/agent-server`：FastAPI + Agent 编排 + 聊天页（`/api/chat`、`/api/kb/ingest`、`/api/trace/{id}`）。
 - 6 个演示场景全部通过；20 个单元测试全绿；评测基线生成于 `docs/eval_report.md`。
 - 源码隔离按"集成侧只 import 二进制 + 工作区不放实现源码"原则落地，`build_artifacts.py` 产出 `artifacts/<pkg>/<version>/` + `registry.json` + checksum。
-- 二进制交付（`.pyd/.so/.exe`）步骤见 `docs/build_binary.md`：本地无 Docker/MSVC，故 v1 以纯 Python 包跑通，编译作为 CI 步骤。
+- 二进制交付已打通：本机有 MSVC，**Cython** 可把模块编译成 `.pyd`；已用 observability 做证明——编译产物单独置于 `artifacts/observability/0.1.0/observability/`（无 `.py`），`scripts/binary_demo.py` 直接 `import` 该 `.pyd` 并运行成功。多模块批量 `.pyd/.so/.exe` 编译是后续批次步骤，步骤见 `docs/build_binary.md`。

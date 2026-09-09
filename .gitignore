@@ -30,3 +30,4 @@ artifacts/**/*.whl
 
 # pytest cache
 .pytest_cache/
+pytest-cache-files-*

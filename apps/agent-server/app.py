@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import re
 import uuid
 from pathlib import Path
 
@@ -11,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from agent_runtime import AgentRuntime
 from core_contracts import RequestContext
+from ingestion import chunk as chunk_text, parse as parse_doc
 from llm_gateway import DeepSeekProvider, MockProvider
 from memory import make_memory
 from observability import make_trace_store
@@ -57,8 +57,7 @@ def _load_kb() -> InMemoryVectorStore:
     store = InMemoryVectorStore()
     files = sorted(KB_DIR.glob("*.md"))
     for f in files:
-        text = f.read_text(encoding="utf-8")
-        chunks = [c.strip() for c in re.split(r"\n\s*\n", text) if c.strip()]
+        chunks = chunk_text(parse_doc(str(f)))
         store.add(f.stem, chunks, embed(chunks))
     return store
 
@@ -101,8 +100,7 @@ async def ingest(req: Request) -> JSONResponse:
     f = Path(path)
     if not f.exists() or f.suffix.lower() not in (".md", ".txt"):
         return JSONResponse({"error": "仅支持 .md/.txt 本地文件路径"}, status_code=400)
-    text = f.read_text(encoding="utf-8", errors="ignore")
-    chunks = [c.strip() for c in re.split(r"\n\s*\n", text) if c.strip()]
+    chunks = chunk_text(parse_doc(str(f)))
     vector_store.add(f.stem, chunks, embed(chunks))
     return JSONResponse({"ingested": f.stem, "chunks": len(chunks)})
 
