@@ -49,6 +49,9 @@ uv venv .venv && uv pip install -e contracts -e modules-src/observability -e mod
 
 # 生成 artifacts + registry
 .\.venv\Scripts\python.exe scripts/build_artifacts.py
+
+# 一键验收（pytest → 集成 → 评测 → artifacts → binary 演示）
+.\.venv\Scripts\python.exe scripts/ci.py
 ```
 
 ## 说明
