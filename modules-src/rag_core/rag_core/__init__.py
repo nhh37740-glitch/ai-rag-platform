@@ -26,7 +26,7 @@ def _tokens(text: str) -> List[str]:
 
 
 _FASTEMBED = "__unset__"
-_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+_MODEL = "BAAI/bge-small-zh-v1.5"
 
 
 def _embed_hash(texts: List[str]) -> List[List[float]]:

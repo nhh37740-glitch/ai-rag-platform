@@ -85,6 +85,7 @@
 - 新增 **`storage` 统一持久层**模块：组合 memory + vector_store + SQLite（评测结果），暴露 `Storage` 接口（记忆/文档向量/评测），与 PostgreSQL+pgvector 同构可切换；测试通过（共 12 个包，22 条测试，CI ALL GREEN）。
 - **真实 DeepSeek 端到端已验证**（2026-09-10，提供 key 后）：`.env` 注入 `DEEPSEEK_API_KEY`，app 自动切 `DeepSeekProvider`；RAG 问答引用了知识库（§2 认证/§3 超时/§4 限流），工具调用 `create_issue` 返回 issue 编号并给多步答复。期间修复了"工具调用后 assistant 消息需回带 `tool_calls`"（否则 DeepSeek 400）。`scripts/demo.py` 在有 `.env` 时即走真实模型。
 - **评测基线已切到真实 DeepSeek**：`scripts/eval_run.py` 在有 `.env` 时用真实模型作答与 LLM-as-Judge，最新 `avg_recall=1.0`、`avg_llm_judge=7.67`（`docs/eval_report.md`）。并统一了 ingestion 产出的源 ID（`stem`，无扩展名）与评测期望一致。
-- **真实 embedding 已接入**：`rag_core.embed` 支持 `RAG_EMBED=fastembed`（多语言 ONNX 模型，已在本机下载），默认 hash 兜底；`.env` 已开 `RAG_EMBED=fastembed`。真实 DeepSeek + 真实 embedding 下 6 个演示与评测均通过。
+- **真实 embedding（默认=中文优化）**：`rag_core.embed` 用 `RAG_EMBED=fastembed` 加载 **`BAAI/bge-small-zh-v1.5`**（512 维，中文语义强，本机已下载），`hash` 兜底；`.env` 已开。真实 DeepSeek + bge-small-zh 下评测通过（recall 1.0、LLM-judge 7.33）。
 - `scripts/ci.py` 强制 `DEEPSEEK_API_KEY=''`、`RAG_EMBED=hash`，使 CI 离线确定性（不依赖 key/网络）。
 - **真实 MCP 连接器已实现并验证**：`mcp_servers/github.py` 用 httpx 调 **GitHub 公共 API**（无 token 可用，`GITHUB_TOKEN` 提升限额/私有库），`get_commits`/`list_issues`/`get_commit` 已从 `octocat/Hello-World` 取回真实数据；`scripts/mcp_github_demo.py` 可复现。stdio MCP 服务设 `MCP_GITHUB_REPO=owner/repo` 即切真实连接器，否则本地 mock。企业内网工单连接器以同样插拔方式接入（需提供服务 host/token）。
+- 存储保持 **SQLite + 本地向量库**（无需 PostgreSQL）；企业内网工单系统目前不存在，故该连接器不做（machinery 已就绪，接真实系统时插拔即可）。

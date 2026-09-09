@@ -75,9 +75,10 @@ def _load_kb() -> InMemoryVectorStore:
     index = Path(INDEX_PATH)
     if index.exists():
         data = json.loads(index.read_text(encoding="utf-8"))
-        for s in data.get("sources", []):
-            store.add(s["id"], s["chunks"], s["embs"])
-        return store
+        if data.get("embed", "__unknown__") == os.environ.get("RAG_EMBED", "hash"):
+            for s in data.get("sources", []):
+                store.add(s["id"], s["chunks"], s["embs"])
+            return store
     files = sorted(KB_DIR.glob("*.md"))
     for f in files:
         chunks = chunk_text(parse_doc(str(f)))

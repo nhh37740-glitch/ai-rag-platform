@@ -31,7 +31,7 @@ def main(argv: List[str] | None = None) -> int:
                 total += len(chunks)
     os.makedirs(os.path.dirname(os.path.abspath(out)) or ".", exist_ok=True)
     with open(out, "w", encoding="utf-8") as fh:
-        json.dump({"sources": sources, "total_chunks": total}, fh, ensure_ascii=False)
+        json.dump({"embed": os.environ.get("RAG_EMBED", "hash"), "sources": sources, "total_chunks": total}, fh, ensure_ascii=False)
     print(f"ingested {total} chunks from {docs_dir} -> {out}")
     return 0
 
