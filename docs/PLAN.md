@@ -82,3 +82,4 @@
 - `ingestion` 已可作**独立进程**：`python -m ingestion <docs> --out data/index.json` 产索引，主进程 `_load_kb` 优先加载；聊天前端走 **SSE**（`/api/chat/stream`）。
 - 一键验收门禁 `scripts/ci.py`（pytest→集成→评测→artifacts→binary 演示）已跑通并输出 `CI CHECKPOINT: ALL GREEN`。
 - **整条 Agent 链路可纯用编译产物运行**：`scripts/build_binary_all.py` 在 MSVC 下把 11 个模块批量 cythonize 成 `.pyd` 归入 `artifacts/<pkg>/<version>/<pkg>/`，`scripts/demo_compiled.py` 只从 artifacts 加载并跑通提问→检索→作答，输出 `COMPILED_AGENT_OK`。
+- 新增 **`storage` 统一持久层**模块：组合 memory + vector_store + SQLite（评测结果），暴露 `Storage` 接口（记忆/文档向量/评测），与 PostgreSQL+pgvector 同构可切换；测试通过（共 12 个包，22 条测试，CI ALL GREEN）。

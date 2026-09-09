@@ -61,6 +61,12 @@
       "checksum": "178fabf44f934abf20fb40d24840b8c380afb0beaa12c9e5bb8fdc3379c197ce",
       "path": "artifacts\\skill_runtime\\0.1.0"
     },
+    "storage": {
+      "name": "storage",
+      "version": "0.1.0",
+      "checksum": "be3d122801df6203d9b3567d9cb7fd21199de87742f54bd424a277221203858c",
+      "path": "artifacts\\storage\\0.1.0"
+    },
     "tool_runtime": {
       "name": "tool_runtime",
       "version": "0.1.0",

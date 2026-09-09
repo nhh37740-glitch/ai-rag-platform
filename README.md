@@ -23,13 +23,13 @@ skills/          # SKILL.md 技能目录
 scripts/         # demo / integration / eval / build_artifacts
 ```
 
-11 个独立 Python 包：`core_contracts/observability/memory/rag_core/llm_gateway/tool_runtime/skill_runtime/agent_runtime/mcp_gateway/mcp_servers/evaluation`。
+12 个独立 Python 包：`core_contracts/observability/memory/rag_core/llm_gateway/tool_runtime/skill_runtime/agent_runtime/mcp_gateway/mcp_servers/evaluation/storage`。
 
 ## 运行
 
 ```bash
 # 环境
-uv venv .venv && uv pip install -e contracts -e modules-src/observability -e modules-src/memory -e modules-src/rag_core -e modules-src/llm_gateway -e modules-src/tool-runtime -e modules-src/skill-runtime -e modules-src/agent_runtime -e modules-src/evaluation -e modules-src/ingestion -e modules-src/mcp-gateway -e modules-src/mcp-servers fastapi uvicorn pytest python-docx
+uv venv .venv && uv pip install -e contracts -e modules-src/observability -e modules-src/memory -e modules-src/rag_core -e modules-src/llm_gateway -e modules-src/tool-runtime -e modules-src/skill-runtime -e modules-src/agent_runtime -e modules-src/evaluation -e modules-src/ingestion -e modules-src/mcp-gateway -e modules-src/mcp-servers -e modules-src/storage fastapi uvicorn pytest python-docx
 
 # 启动（默认 Mock；设 DEEPSEEK_API_KEY 用真实 DeepSeek）
 .\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server app:app --port 8000

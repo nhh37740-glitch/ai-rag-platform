@@ -1,0 +1,14 @@
+{
+  "module": "storage",
+  "version": "0.1.0",
+  "public_api": [
+    [
+      "Storage",
+      ""
+    ],
+    [
+      "make_storage",
+      ""
+    ]
+  ]
+}
