@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from agent_runtime import AgentRuntime
@@ -25,6 +26,7 @@ DB_PATH = os.environ.get("DB_PATH", str(BASE / ".." / ".." / "data" / "app.db"))
 API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
+INDEX_PATH = os.environ.get("INDEX_PATH", str(BASE / ".." / ".." / "data" / "index.json"))
 
 trace_store = make_trace_store()
 memory = make_memory(DB_PATH)
@@ -55,6 +57,12 @@ def _search_employee(query: str) -> str:
 
 def _load_kb() -> InMemoryVectorStore:
     store = InMemoryVectorStore()
+    index = Path(INDEX_PATH)
+    if index.exists():
+        data = json.loads(index.read_text(encoding="utf-8"))
+        for s in data.get("sources", []):
+            store.add(s["id"], s["chunks"], s["embs"])
+        return store
     files = sorted(KB_DIR.glob("*.md"))
     for f in files:
         chunks = chunk_text(parse_doc(str(f)))
@@ -91,6 +99,17 @@ async def chat(req: Request) -> JSONResponse:
     ctx = RequestContext(trace_id=trace_id, request_id=trace_id, user_id=user_id, session_id=session_id)
     answer = await runtime.run(ctx, message)
     return JSONResponse({"answer": answer, "trace_id": trace_id})
+
+
+@app.get("/api/chat/stream")
+async def chat_stream(message: str, session_id: str = "s1", user_id: str = "u"):
+    async def gen():
+        trace_id = uuid.uuid4().hex
+        ctx = RequestContext(trace_id=trace_id, request_id=trace_id, user_id=user_id, session_id=session_id)
+        answer = await runtime.run(ctx, message)
+        yield f"data: {json.dumps({'answer': answer, 'trace_id': trace_id}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
 
 
 @app.post("/api/kb/ingest")

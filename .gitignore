@@ -21,6 +21,7 @@ boss上搜的岗位.txt
 data/*.db
 data/*.sqlite
 data/_tests/
+data/index.json
 
 # generated binaries / packages live in artifacts; keep structure via .gitkeep
 artifacts/**/*.pyd

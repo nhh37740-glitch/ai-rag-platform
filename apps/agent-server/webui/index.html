@@ -22,10 +22,10 @@
   <script>
     const log=document.getElementById('log'),f=document.getElementById('f'),m=document.getElementById('m');
     const show=(t)=>log.innerText+=t+"\n";
-    f.onsubmit=async(e)=>{e.preventDefault();const q=m.value;if(!q)return;show("你: "+q);m.value='';show("...");
-      try{const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,user_id:'anon',session_id:'s1'})});
-      const d=await r.json();show("Agent: "+d.answer+"\n[trace: "+(d.trace_id||'')+"]\n");}
-      catch(err){show("错误: "+err)}
+    f.onsubmit=(e)=>{e.preventDefault();const q=m.value;if(!q)return;show("你: "+q);m.value='';show("...");
+      const es=new EventSource('/api/chat/stream?message='+encodeURIComponent(q)+'&session_id=s1&user_id=anon');
+      es.onmessage=(ev)=>{const d=JSON.parse(ev.data);show("Agent: "+d.answer+"\n[trace: "+(d.trace_id||'')+"]\n");es.close();};
+      es.onerror=()=>{es.close();show("错误: 连接中断");};
     };
   </script>
 </body>

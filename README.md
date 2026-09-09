@@ -34,6 +34,9 @@ uv venv .venv && uv pip install -e contracts -e modules-src/observability -e mod
 # 启动（默认 Mock；设 DEEPSEEK_API_KEY 用真实 DeepSeek）
 .\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server app:app --port 8000
 
+# 用独立进程产索引（供主进程加载；SKIP_INDEX 存在时 app 回退为启动时内联建索引）
+.\.venv\Scripts\python.exe -m ingestion data/kb --out data/index.json
+
 # 6 个演示
 .\.venv\Scripts\python.exe scripts/demo.py
 
@@ -52,4 +55,5 @@ uv venv .venv && uv pip install -e contracts -e modules-src/observability -e mod
 
 - 默认离线可跑：`MockProvider` 兜底，`DEEPSEEK_API_KEY` 存在时自动切真实 `DeepSeekProvider`。
 - 向量化用本地兜底 embed（可换 BGE）；存储默认 SQLite + 本地向量库，接口与 PostgreSQL+pgvector 同构。
+- 聊天页用 SSE（`/api/chat/stream`），`/api/chat` 也可 JSON 调用；`/api/trace/{trace_id}` 看全链路。
 - 二进制交付见 [`docs/build_binary.md`](docs/build_binary.md)；总体计划见 [`docs/PLAN.md`](docs/PLAN.md)；约定见 [`AGENTS.md`](AGENTS.md)。
