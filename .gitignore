@@ -26,6 +26,8 @@ data/index.json
 # vendored models (large, downloaded locally; not committed)
 models/
 bin/
+nuitka-crash-report.xml
+nuitka-report.xml
 
 # generated binaries / packages live in artifacts; keep structure via .gitkeep
 artifacts/**/*.pyd
