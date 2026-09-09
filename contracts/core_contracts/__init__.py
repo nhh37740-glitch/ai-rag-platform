@@ -20,6 +20,7 @@ class ChatMessage:
     content: str = ""
     tool_call_id: str = ""
     name: str = ""
+    tool_calls: List[ToolCall] = field(default_factory=list)
 
 
 @dataclass

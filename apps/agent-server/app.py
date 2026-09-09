@@ -22,6 +22,21 @@ from tool_runtime import default_registry, tool
 BASE = Path(__file__).resolve().parent
 KB_DIR = BASE / ".." / ".." / "data" / "kb"
 SKILL_DIR = BASE / ".." / ".." / "skills"
+
+
+def _load_dotenv(path: Path) -> None:
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        os.environ.setdefault(key.strip(), val.strip())
+
+
+_load_dotenv(BASE / ".." / ".." / ".env")
+
 DB_PATH = os.environ.get("DB_PATH", str(BASE / ".." / ".." / "data" / "app.db"))
 API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")

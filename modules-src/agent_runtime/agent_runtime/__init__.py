@@ -64,7 +64,7 @@ class AgentRuntime:
                     self.memory.write(ctx, "session", "current_task", user_input, 0.3)
                     self.memory.write(ctx, "user", "last_task", user_input + " -> " + content[:160], 0.6)
                     return content
-                messages.append(ChatMessage("assistant", content))
+                messages.append(ChatMessage("assistant", content, tool_calls=calls))
                 async with ASpan(ctx, "tool", self.tracing):
                     for call in calls:
                         outcome = self.tools.execute(ctx, call)
