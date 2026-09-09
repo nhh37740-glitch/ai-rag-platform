@@ -41,17 +41,24 @@ class MockProvider:
 class DeepSeekProvider:
     """OpenAI 兼容的 DeepSeek 聊天 + 函数调用。"""
 
-    def __init__(self, api_key: str, base_url: str = "https://api.deepseek.com", model: str = "deepseek-chat") -> None:
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = "https://api.deepseek.com",
+        model: str = "deepseek-chat",
+        transport: Optional[httpx.AsyncBaseTransport] = None,
+    ) -> None:
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.transport = transport
 
     async def generate(self, ctx, messages, tools=None) -> tuple[str, list[ToolCall]]:
         payload = {"model": self.model, "messages": [_m(m) for m in messages]}
         if tools:
             payload["tools"] = [{"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.parameters}} for t in tools]
             payload["tool_choice"] = "auto"
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=60, transport=self.transport) as client:
             r = await client.post(f"{self.base_url}/chat/completions", headers={"Authorization": f"Bearer {self.api_key}"}, json=payload)
             r.raise_for_status()
         data = r.json()
