@@ -4,25 +4,25 @@
       "question": "XX API 如何认证？",
       "recall": 1.0,
       "precision": 0.5,
-      "faithfulness": 0.333,
+      "faithfulness": 0.3,
       "answer_relevance": 1.0,
-      "llm_judge": 8
+      "llm_judge": 3
     },
     {
       "question": "连接超时怎么排查？",
       "recall": 1.0,
-      "precision": 0.5,
-      "faithfulness": 0.219,
+      "precision": 0.333,
+      "faithfulness": 0.0,
       "answer_relevance": 1.0,
-      "llm_judge": 7
+      "llm_judge": 3
     },
     {
       "question": "系统是怎么分层的（记忆、工具、技能）？",
-      "recall": 1.0,
-      "precision": 0.5,
-      "faithfulness": 0.192,
+      "recall": 0.0,
+      "precision": 0.0,
+      "faithfulness": 0.0,
       "answer_relevance": 1.0,
-      "llm_judge": 8
+      "llm_judge": 10
     }
   ],
   "trajectory": [
@@ -33,9 +33,9 @@
     }
   ],
   "summary": {
-    "avg_recall": 1.0,
-    "avg_faithfulness": 0.248,
+    "avg_recall": 0.667,
+    "avg_faithfulness": 0.1,
     "avg_answer_relevance": 1.0,
-    "avg_llm_judge": 7.67
+    "avg_llm_judge": 5.33
   }
 }

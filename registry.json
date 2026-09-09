@@ -16,7 +16,7 @@
     "ingestion": {
       "name": "ingestion",
       "version": "0.1.0",
-      "checksum": "f73a492b4188346fed912aab80408275338b9b1661bc61b15f60e61259427032",
+      "checksum": "7da874c87f8a6af16adfac32578f50363760cd3388f5d681a4eda2dda9f7c0bc",
       "path": "artifacts\\ingestion\\0.1.0"
     },
     "llm_gateway": {
@@ -52,7 +52,7 @@
     "rag_core": {
       "name": "rag_core",
       "version": "0.1.0",
-      "checksum": "45b9f4df8b5deb177476eb36b5451f3783004f4fb05011ee68a6194bb272ff66",
+      "checksum": "c46c10aeeac7e59c646e4eafd5aad7570614518060584b6c9ef9a2d9c2008a6a",
       "path": "artifacts\\rag_core\\0.1.0"
     },
     "skill_runtime": {

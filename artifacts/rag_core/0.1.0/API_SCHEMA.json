@@ -7,6 +7,10 @@
       ""
     ],
     [
+      "make_embed",
+      ""
+    ],
+    [
       "InMemoryVectorStore",
       ""
     ],

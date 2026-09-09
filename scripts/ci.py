@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import os
 import sys
 from pathlib import Path
 
@@ -10,7 +11,8 @@ PY = sys.executable
 
 def run(cmd: list[str], check: bool = True) -> None:
     print(f"\n===== {' '.join(cmd)} =====")
-    p = subprocess.run(cmd, cwd=ROOT)
+    env = {**os.environ, "DEEPSEEK_API_KEY": "", "RAG_EMBED": "hash"}  # CI 离线确定性
+    p = subprocess.run(cmd, cwd=ROOT, env=env)
     if check and p.returncode != 0:
         raise SystemExit(f"FAILED: {' '.join(cmd)}")
 

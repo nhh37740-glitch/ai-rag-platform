@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 from typing import List, Tuple
 
@@ -24,8 +25,11 @@ def _tokens(text: str) -> List[str]:
     return toks
 
 
-def embed(texts: List[str]) -> List[List[float]]:
-    """离线兜底向量化（BGE 适配层，接入 sentence-transformers 可替换）。"""
+_FASTEMBED = "__unset__"
+_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+
+def _embed_hash(texts: List[str]) -> List[List[float]]:
     out = []
     for t in texts:
         v = np.zeros(DIM, dtype=np.float32)
@@ -38,6 +42,36 @@ def embed(texts: List[str]) -> List[List[float]]:
             v /= n
         out.append(v.tolist())
     return out
+
+
+def _embed_fastembed(texts: List[str]) -> List[List[float]]:
+    global _FASTEMBED
+    if _FASTEMBED == "__unset__":
+        try:
+            from fastembed import TextEmbedding
+
+            _FASTEMBED = TextEmbedding(model_name=_MODEL)
+        except Exception:
+            _FASTEMBED = False
+    if not _FASTEMBED:
+        raise RuntimeError("fastembed unavailable")
+    return [list(map(float, v)) for v in _FASTEMBED.embed(texts)]
+
+
+def embed(texts: List[str]) -> List[List[float]]:
+    """向量化：env RAG_EMBED=fastembed 用真实多语言模型，否则用本地 hash 兜底。"""
+    if os.environ.get("RAG_EMBED", "").lower() == "fastembed":
+        try:
+            return _embed_fastembed(texts)
+        except Exception:
+            pass
+    return _embed_hash(texts)
+
+
+def make_embed(backend: str = "hash"):
+    if backend == "fastembed":
+        return _embed_fastembed
+    return _embed_hash
 
 
 class InMemoryVectorStore:
@@ -69,4 +103,4 @@ def build_context(result: RetrievalResult) -> str:
     return "\n\n".join(f"[{i+1}] {c}" for i, c in enumerate(result.contexts))
 
 
-__all__ = ["embed", "InMemoryVectorStore", "retrieve", "build_context", "DIM"]
+__all__ = ["embed", "make_embed", "InMemoryVectorStore", "retrieve", "build_context", "DIM"]
