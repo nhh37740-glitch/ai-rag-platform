@@ -81,3 +81,4 @@
 - 二进制交付已打通：本机有 MSVC，**Cython** 可把模块编译成 `.pyd`；已用 observability 做证明——编译产物单独置于 `artifacts/observability/0.1.0/observability/`（无 `.py`），`scripts/binary_demo.py` 直接 `import` 该 `.pyd` 并运行成功。多模块批量 `.pyd/.so/.exe` 编译是后续批次步骤，步骤见 `docs/build_binary.md`。
 - `ingestion` 已可作**独立进程**：`python -m ingestion <docs> --out data/index.json` 产索引，主进程 `_load_kb` 优先加载；聊天前端走 **SSE**（`/api/chat/stream`）。
 - 一键验收门禁 `scripts/ci.py`（pytest→集成→评测→artifacts→binary 演示）已跑通并输出 `CI CHECKPOINT: ALL GREEN`。
+- **整条 Agent 链路可纯用编译产物运行**：`scripts/build_binary_all.py` 在 MSVC 下把 11 个模块批量 cythonize 成 `.pyd` 归入 `artifacts/<pkg>/<version>/<pkg>/`，`scripts/demo_compiled.py` 只从 artifacts 加载并跑通提问→检索→作答，输出 `COMPILED_AGENT_OK`。

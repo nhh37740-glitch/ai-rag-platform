@@ -15,7 +15,12 @@ REGISTRY = ROOT / "registry.json"
 def sha256_tree(d: Path) -> str:
     h = hashlib.sha256()
     for p in sorted(d.rglob("*")):
-        if p.is_file() and "__pycache__" not in p.parts and ".egg-info" not in p.parts:
+        if (
+            p.is_file()
+            and "__pycache__" not in p.parts
+            and ".egg-info" not in p.parts
+            and p.suffix not in (".c", ".pyd", ".so", ".pyc")
+        ):
             h.update(str(p.relative_to(d)).encode("utf-8"))
             h.update(p.read_bytes())
     return h.hexdigest()

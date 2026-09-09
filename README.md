@@ -52,6 +52,12 @@ uv venv .venv && uv pip install -e contracts -e modules-src/observability -e mod
 
 # 一键验收（pytest → 集成 → 评测 → artifacts → binary 演示）
 .\.venv\Scripts\python.exe scripts/ci.py
+
+# 二进制交付：MSVC 环境下批量 cythonize → artifacts/<pkg>/<version>/<pkg>/*.pyd
+cmd /c "call \"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat\" && .\.venv\Scripts\python.exe scripts/build_binary_all.py"
+
+# 纯编译产物运行整条 Agent 链路（无源码）
+.\.venv\Scripts\python.exe scripts/demo_compiled.py
 ```
 
 ## 说明

@@ -46,7 +46,7 @@
     "observability": {
       "name": "observability",
       "version": "0.1.0",
-      "checksum": "4484e9cd27cbd5710baded68ed3a4e5db5a85342bab9dfe63887f430df43a4db",
+      "checksum": "612ceb6b2fdabc96499d9484b396f11656ef99f38f46e1fa8fbda6acf6e16ad0",
       "path": "artifacts\\observability\\0.1.0"
     },
     "rag_core": {
