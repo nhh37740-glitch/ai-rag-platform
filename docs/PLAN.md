@@ -87,3 +87,4 @@
 - **评测基线已切到真实 DeepSeek**：`scripts/eval_run.py` 在有 `.env` 时用真实模型作答与 LLM-as-Judge，最新 `avg_recall=1.0`、`avg_llm_judge=7.67`（`docs/eval_report.md`）。并统一了 ingestion 产出的源 ID（`stem`，无扩展名）与评测期望一致。
 - **真实 embedding 已接入**：`rag_core.embed` 支持 `RAG_EMBED=fastembed`（多语言 ONNX 模型，已在本机下载），默认 hash 兜底；`.env` 已开 `RAG_EMBED=fastembed`。真实 DeepSeek + 真实 embedding 下 6 个演示与评测均通过。
 - `scripts/ci.py` 强制 `DEEPSEEK_API_KEY=''`、`RAG_EMBED=hash`，使 CI 离线确定性（不依赖 key/网络）。
+- **真实 MCP 连接器已实现并验证**：`mcp_servers/github.py` 用 httpx 调 **GitHub 公共 API**（无 token 可用，`GITHUB_TOKEN` 提升限额/私有库），`get_commits`/`list_issues`/`get_commit` 已从 `octocat/Hello-World` 取回真实数据；`scripts/mcp_github_demo.py` 可复现。stdio MCP 服务设 `MCP_GITHUB_REPO=owner/repo` 即切真实连接器，否则本地 mock。企业内网工单连接器以同样插拔方式接入（需提供服务 host/token）。

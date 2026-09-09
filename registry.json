@@ -34,7 +34,7 @@
     "mcp_servers": {
       "name": "mcp_servers",
       "version": "0.1.0",
-      "checksum": "d7f6c3b40b72600e74a0a4ccd461336637f7afe0247e58d452a5db158feee69f",
+      "checksum": "87d37035cb27be5cc09ba4c0f86d9f7dcea189edf932a474ee11386f4002f645",
       "path": "artifacts\\mcp_servers\\0.1.0"
     },
     "memory": {

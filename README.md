@@ -65,6 +65,7 @@ cmd /c "call \"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC
 - 默认离线可跑：`MockProvider` 兜底，`DEEPSEEK_API_KEY` 存在时自动切真实 `DeepSeekProvider`。
 - 在仓库根 `.env` 写入 `DEEPSEEK_API_KEY=sk-...` 即用真实 DeepSeek（已实测 RAG+工具调用端到端）；`.env` 不入库。
 - 向量化默认本地兜底；设 `RAG_EMBED=fastembed`（`.env` 已开）用真实多语言 embedding 模型（首次自动下载）；`scripts/ci.py` 会强制离线（Mock + hash）保证可复现。
+- MCP 连接器：本地 mock 默认；设 `MCP_GITHUB_REPO=owner/repo`（可选 `GITHUB_TOKEN`）即用真实 GitHub 连接器；`scripts/mcp_github_demo.py` 演示真实拉取 commits/issues。
 - 向量化用本地兜底 embed（可换 BGE）；存储默认 SQLite + 本地向量库，接口与 PostgreSQL+pgvector 同构。
 - 聊天页用 SSE（`/api/chat/stream`），`/api/chat` 也可 JSON 调用；`/api/trace/{trace_id}` 看全链路。
 - 二进制交付见 [`docs/build_binary.md`](docs/build_binary.md)；总体计划见 [`docs/PLAN.md`](docs/PLAN.md)；约定见 [`AGENTS.md`](AGENTS.md)。
