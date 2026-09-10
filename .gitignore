@@ -27,6 +27,7 @@ data/*.db
 data/*.sqlite
 data/_tests/
 data/index.json
+data/kb/user-notebooks/*/
 reports/
 
 # vendored models (large, downloaded locally; not committed)

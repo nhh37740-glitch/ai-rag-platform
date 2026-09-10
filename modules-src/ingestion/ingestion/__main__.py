@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import List
 
-from ingestion import chunk, parse
+from ingestion import SUPPORTED_EXTENSIONS, chunk, parse
 
 
 def _load_dotenv(path: str) -> None:
@@ -40,7 +40,7 @@ def main(argv: List[str] | None = None) -> int:
     sources = []
     total = 0
     for f in sorted(glob.glob(os.path.join(docs_dir, "*"))):
-        if os.path.splitext(f)[1].lower() in (".md", ".txt", ".docx"):
+        if os.path.splitext(f)[1].lower() in SUPPORTED_EXTENSIONS:
             chunks = chunk(parse(f))
             if chunks:
                 sources.append({"id": os.path.splitext(os.path.basename(f))[0], "chunks": chunks, "embs": embed(chunks)})

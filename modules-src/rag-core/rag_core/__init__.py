@@ -3,13 +3,13 @@ from __future__ import annotations
 import hashlib
 import os
 import re
-from typing import List, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
 from core_contracts import Citation, RequestContext, RetrievalResult
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 DIM = 384
 
@@ -82,25 +82,59 @@ class InMemoryVectorStore:
         for text, emb in zip(chunks, embeddings):
             self._rows.append((source_id, text, emb))
 
-    def search(self, embedding, top_k: int = 5) -> List[Tuple[str, str, float]]:
+    def search(
+        self,
+        embedding,
+        top_k: int = 5,
+        scopes: Optional[List[str]] = None,
+    ) -> List[Tuple[str, str, float]]:
         q = np.array(embedding, dtype=np.float32)
-        scores = [float(np.dot(np.array(emb, dtype=np.float32), q)) for _, _, emb in self._rows]
+        allowed = set(scopes) if scopes is not None else None
+        rows = [row for row in self._rows if allowed is None or row[0].partition("/")[0] in allowed]
+        scores = [float(np.dot(np.array(emb, dtype=np.float32), q)) for _, _, emb in rows]
         order = sorted(range(len(scores)), key=lambda i: -scores[i])[: min(top_k, len(scores))]
-        return [(self._rows[i][0], self._rows[i][1], scores[i]) for i in order]
+        return [(rows[i][0], rows[i][1], scores[i]) for i in order]
 
 
-def retrieve(ctx: RequestContext, query: str, store: InMemoryVectorStore, scope: str = "kb", top_k: int = 5) -> RetrievalResult:
+def retrieve(
+    ctx: RequestContext,
+    query: str,
+    store: InMemoryVectorStore,
+    scope: Union[str, List[str], None] = "kb",
+    top_k: int = 5,
+) -> RetrievalResult:
+    scopes: Optional[List[str]]
+    if scope is None or scope in ("", "kb", "*"):
+        scopes = None
+    elif isinstance(scope, str):
+        scopes = [item.strip() for item in scope.split(",") if item.strip()]
+    else:
+        scopes = list(dict.fromkeys(item.strip() for item in scope if item.strip()))
     qv = embed([query])[0]
-    hits = store.search(qv, top_k)
+    hits = store.search(qv, top_k, scopes)
     contexts = [text for _, text, _ in hits]
-    citations = [Citation(source_id=sid, title=sid, text=text, score=score) for sid, text, score in hits]
+    citations = [
+        Citation(
+            source_id=sid,
+            title=sid.partition("/")[2] or sid,
+            text=text,
+            score=score,
+            metadata={"knowledge_base_id": sid.partition("/")[0]},
+        )
+        for sid, text, score in hits
+    ]
     return RetrievalResult(query=query, contexts=contexts, citations=citations)
 
 
 def build_context(result: RetrievalResult) -> str:
     if not result.contexts:
         return "(无相关文档)"
-    return "\n\n".join(f"[{i+1}] {c}" for i, c in enumerate(result.contexts))
+    blocks = []
+    for index, context in enumerate(result.contexts):
+        citation = result.citations[index] if index < len(result.citations) else None
+        source = f" 来源：{citation.title}" if citation else ""
+        blocks.append(f"[{index + 1}]{source}\n{context}")
+    return "\n\n".join(blocks)
 
 
 __all__ = ["embed", "make_embed", "InMemoryVectorStore", "retrieve", "build_context", "DIM"]

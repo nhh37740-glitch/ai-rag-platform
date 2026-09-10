@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import List, Optional
 
 from core_contracts import ChatMessage, RequestContext
 from llm_gateway import LLMProvider
@@ -10,7 +10,7 @@ from rag_core import InMemoryVectorStore, build_context, retrieve
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 class AgentRuntime:
@@ -34,7 +34,12 @@ class AgentRuntime:
         self.tracing = tracing
         self.kb_scope = kb_scope
 
-    async def run(self, ctx: RequestContext, user_input: str) -> str:
+    async def run(
+        self,
+        ctx: RequestContext,
+        user_input: str,
+        knowledge_base_ids: Optional[List[str]] = None,
+    ) -> str:
         async with ASpan(ctx, "agent", self.tracing):
             # 1) 记忆
             user_notes = self.memory.search(ctx, "user", user_input, 3)
@@ -45,7 +50,8 @@ class AgentRuntime:
             skill_text = "; ".join(s.description for s in self.skills.list(ctx)) or "(无)"
 
             # 3) RAG
-            result = retrieve(ctx, user_input, self.vector_store, self.kb_scope)
+            scope = self.kb_scope if knowledge_base_ids is None else knowledge_base_ids
+            result = retrieve(ctx, user_input, self.vector_store, scope)
             kb_text = build_context(result)
 
             system = (

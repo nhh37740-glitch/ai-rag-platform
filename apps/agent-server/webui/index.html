@@ -7,6 +7,22 @@
 </head>
 <body>
   <h2>Dev Knowledge Agent</h2>
+  <section id="notebooks" class="panel">
+    <h3>笔记本知识库</h3>
+    <p class="section-hint">按主题创建笔记本，上传 MD、TXT、DOCX 或 PDF（单文件不超过25 MB），对话只检索勾选的知识库。</p>
+    <div id="notebook-list" aria-label="可检索的知识库"></div>
+    <form id="create-notebook-form" class="management-form">
+      <input id="notebook-name" maxlength="80" placeholder="新笔记本名称，例如：产品文档" required>
+      <input id="notebook-description" maxlength="300" placeholder="用途说明（可选）">
+      <button type="submit">创建笔记本</button>
+    </form>
+    <form id="upload-form" class="management-form">
+      <select id="upload-notebook" aria-label="上传目标笔记本" required></select>
+      <input id="upload-files" type="file" accept=".md,.txt,.docx,.pdf" multiple required>
+      <button type="submit">转为 Markdown 并入库</button>
+    </form>
+    <p id="notebook-status" class="section-status" aria-live="polite"></p>
+  </section>
   <section id="demo">
     <p id="demo-status">正在加载公开中文演示知识库…</p>
     <h3>从知识库开始提问</h3>
@@ -14,7 +30,7 @@
     <div id="examples" aria-label="示例问题"></div>
   </section>
   <div id="log"></div>
-  <form id="f">
+  <form id="f" class="chat-form">
     <input id="m" placeholder="输入知识库问题，例如：什么是静电感应？" autofocus>
     <button>发送</button>
   </form>

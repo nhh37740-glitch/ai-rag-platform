@@ -22,13 +22,13 @@ class MockProvider:  # 离线：按预置答案/工具调用规则返回，用�
 ```python
 class VectorStore(Protocol):
     def add(self, source_id: str, chunks: list[str], embeddings) -> None: ...
-    def search(self, embedding, top_k: int = 5) -> list[tuple[str, float]]: ...   # (source_id, score)
+    def search(self, embedding, top_k: int = 5, scopes: list[str] | None = None) -> list[tuple[str, float]]: ...
 
 class InMemoryVectorStore:  # numpy 余弦相似度，离线
 class SqliteVectorStore:    # 可选，SQLite + numpy
 
 def embed(texts: list[str]) -> list[list[float]]: ...          # BGE 适配层；离线用 hash/均值兜底
-def retrieve(ctx, query: str, scope: str = "kb", top_k: int = 5) -> RetrievalResult: ...
+def retrieve(ctx, query: str, scope: str | list[str] | None = "kb", top_k: int = 5) -> RetrievalResult: ...
 ```
 
 ## memory
@@ -83,7 +83,7 @@ class SkillRegistry:
 ```python
 class AgentRuntime:
     def __init__(self, provider, rag, memory, tools, skills, tracing): ...
-    async def run(self, ctx, user_input: str) -> str: ...   # 理解→记忆→Skill→RAG/Tool→LLM→执行→再LLM→写记忆
+    async def run(self, ctx, user_input: str, knowledge_base_ids: list[str] | None = None) -> str: ...
 ```
 
 ## observability
@@ -104,6 +104,7 @@ def evaluate_agent(ctx, trajectory: list) -> dict: ...
 ## ingestion（独立进程/API）
 ```python
 def parse(path: str) -> list[str]: ...        # PDF/DOCX/MD/TXT → 文本块
+def to_markdown(path: str, title: str = "") -> str: ...  # 统一转换成带标题的 Markdown
 def chunk(texts: list[str], size: int = 500, overlap: int = 50) -> list[str]: ...
 def build_index(ctx, docs_dir: str, store: VectorStore) -> int: ...   # parse→chunk→embed→索引
 
@@ -112,7 +113,7 @@ def build_index(ctx, docs_dir: str, store: VectorStore) -> int: ...   # parse→
 ```
 
 ## 集成约束
-- 依赖上限：`core_contracts` 外的模块只允许用标准库、`httpx`、`numpy`、`sklearn`（离线先跑通）；不得引入未安装的第三方库。
+- 依赖上限：`core_contracts` 外的模块只允许用标准库、`httpx`、`numpy`、`sklearn`、`pypdf`；不得引入未声明的第三方库。
 - 测试用标准库 `unittest`（无 pytest），放在各模块 `tests/`。
 - 不得改动 `contracts/`、其他模块或 `docs/PLAN.md`；只写自己模块目录。
 

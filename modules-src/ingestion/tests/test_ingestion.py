@@ -4,7 +4,7 @@ import shutil
 import unittest
 
 from core_contracts import RequestContext
-from ingestion import build_index, chunk, parse
+from ingestion import build_index, chunk, parse, to_markdown
 
 
 class TestIngestion(unittest.TestCase):
@@ -18,6 +18,15 @@ class TestIngestion(unittest.TestCase):
         f.write_text("第一段。\n\n第二段。", encoding="utf-8")
         self.addCleanup(lambda: shutil.rmtree(d, ignore_errors=True))
         self.assertEqual(len(parse(str(f))), 2)
+
+    def test_txt_is_normalized_to_markdown(self):
+        d = pathlib.Path("data/_tests"); d.mkdir(parents=True, exist_ok=True)
+        f = d / "产品说明.txt"
+        f.write_text("第一段。\n\n第二段。", encoding="utf-8")
+        self.addCleanup(lambda: shutil.rmtree(d, ignore_errors=True))
+        markdown = to_markdown(str(f))
+        self.assertTrue(markdown.startswith("# 产品说明\n\n"))
+        self.assertIn("第一段。\n\n第二段。", markdown)
 
     def test_build_index(self):
         d = pathlib.Path("data/_tests"); d.mkdir(parents=True, exist_ok=True)

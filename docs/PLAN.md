@@ -6,7 +6,7 @@
 
 构建一个"会问答、会调工具、会走流程、记得住上下文"的企业研发助手，并以**契约先行 + 源码隔离 + 二进制交付**落地——集成/主 Agent 只拿到接口契约与编译后的二进制，看不到各模块实现源码，从而无法"顺手改"模块内部。
 
-核心展示以公开 CMRC2018 中文语料贯穿“自动导入→检索→回答→引用”；工具调用、MCP、Skill、用户/会话记忆和链路追踪作为独立能力入口展示。
+核心展示以公开 CMRC2018 中文语料贯穿“自动导入→检索→回答→引用”；同时提供类似 NotebookLM 的笔记本式知识库：用户可创建分类、上传文档并在每次对话中选择一个或多个知识库。工具调用、MCP、Skill、用户/会话记忆和链路追踪作为独立能力入口展示。
 
 ## 仓库 / 工件布局（谁只能看到什么）
 
@@ -40,12 +40,13 @@
 
 - **契约**：`RequestContext(trace_id, request_id, user_id, session_id)` 贯穿所有模块；各模块公开 facade 用类型化签名写死，供集成侧 `from rag_core import RagClient` 直调。
 - **llm-gateway**：`LLMProvider.generate/stream/tool_call`；`DeepSeekProvider` 首个实现（`deepseek-chat` 函数调用，`deepseek-reasoner` 可选）；预留 OpenAI/Anthropic/Local。
-- **rag-core**：`retrieve(query, scope) -> RetrievalResult`（embed→retrieve→context build→Citations），对 MCP、Skill 与前端无感知；查询改写和 rerank 保留为后续扩展点。
+- **rag-core**：`retrieve(query, scope) -> RetrievalResult`（embed→按知识库 scope 过滤→retrieve→context build→Citations），对 MCP、Skill 与前端无感知；查询改写和 rerank 保留为后续扩展点。
 - **memory**：`SessionMemory`、`UserMemory` 两命名空间，`get/search/write/forget`；仅 memory 写库。
 - **tool-runtime + mcp-gateway**：`@tool` 函数与 MCP 工具归一为同一 `Tool`；mcp-gateway 负责 discovery/connect/list/call/materialize。
 - **skill-runtime**：`skills/*/SKILL.md`（frontmatter name/description + 指令 + 可选 `scripts/references/assets`），按需加载。
 - **agent-runtime**（最薄）：理解请求→取记忆→选 Skill→定 RAG/Tool→调 LLM→执行 tool→再调 LLM→写记忆→输出。
 - **observability**：跨模块结构化日志 + span 耗时，`GET /api/trace/{trace_id}` 看全链路；预留 Phoenix/OTel 适配器，v1 用内存 trace + 日志。
+- **文档入库**：Web 接收 `.md`、`.txt`、`.docx`、`.pdf`，抽取正文后统一保存为 Markdown，再分块并加入所属笔记本的检索范围；原始上传文件与临时文件不进入仓库。
 - **存储**：`storage` 接口统一用户/会话/记忆/文档元数据/向量/评测结果；默认 **SQLite 元数据 + 本地向量库（FAISS/Chroma）**，接口与 PostgreSQL+pgvector 同构，可无痛切换；本地 BGE（默认 `bge-small-zh`）。
 
 ## 构建与集成工作流（主 agent 指挥，一模块一 subagent，一仓库）
@@ -78,11 +79,13 @@
 - 可执行脚本采用“动词 + 对象”命名，文件名必须直接说明职责；同一职责只保留一个入口。
 - Web 演示语料必须实际存放在 `data/kb/cmrc2018-demo/`，并通过与本地文档一致的知识库加载链路进入检索；不保留独立的旁路数据集目录。
 - Web 的问题提示从知识库清单读取精选问题，覆盖不同文档主题；完整问题集只作为可选数据，不直接挤满页面。
+- 用户笔记本运行数据位于 `data/kb/user-notebooks/` 并被 Git 忽略；仓库只保留目录说明，确保初始版本纯净、未编译且不携带个人上传内容。
 
 ## 实现状态（2026-09-11）
 
 - 12 个 Python 包及契约、FastAPI 主进程、Web 聊天、RAG、工具、Skill、记忆与追踪代码均保留。
 - Web 演示固定使用 `data/kb/cmrc2018-demo/` 中的 CMRC2018 dev 子集：24 篇文档、99 个问题；服务启动时导入知识库，页面展示导入状态与跨主题问题提示。
+- Web 支持创建笔记本、上传 `.md/.txt/.docx/.pdf` 并统一转为 Markdown；聊天请求携带所选知识库标识，RAG 仅检索选中范围。
 - `.circleci`、旧虚构知识库、一次性演示脚本和一次性评测报告已移除。
 - 脚本已收敛为编译扩展、编译独立服务、打包发布、验收源码运行和验收二进制运行五项明确职责。
 - 当前阶段只完成仓库整理；编译与测试由项目操作者随后手动执行，结果未在本节预先宣称。

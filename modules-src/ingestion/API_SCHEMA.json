@@ -69,7 +69,8 @@
                                              "stdlib",
                                              "httpx",
                                              "numpy",
-                                             "sklearn"
+                                             "sklearn",
+                                             "pypdf"
                                          ],
                   "tests":  "unittest (no pytest)",
                   "ctx_first":  true,
@@ -80,7 +81,7 @@
     "module":  {
                    "package":  "ingestion",
                    "delivery":  "mypyc + standalone worker",
-                   "version":  "0.0.0",
+                   "version":  "0.2.0",
                    "facade":  {
                                   "parse":  {
                                                 "kind":  "function",
@@ -88,6 +89,14 @@
                                                                "path":  "str"
                                                            },
                                                 "returns":  "list[str]"
+                                            },
+                                  "to_markdown":  {
+                                                "kind":  "function",
+                                                "params":  {
+                                                               "path":  "str",
+                                                               "title":  "str"
+                                                           },
+                                                "returns":  "str"
                                             },
                                   "chunk":  {
                                                 "kind":  "function",

@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "contract_version": "0.1.0",
+  "contract_version": "0.2.0",
   "context": {
     "type": "RequestContext",
     "package": "contracts.core_contracts",
@@ -23,7 +23,7 @@
     "SpanEvent": { "trace_id": "str", "span": "str", "start_ns": "int", "end_ns": "int", "status": "ok|error", "error": "str", "meta": "dict" }
   },
   "rules": {
-    "dependency_ceiling": ["stdlib", "httpx", "numpy", "sklearn"],
+    "dependency_ceiling": ["stdlib", "httpx", "numpy", "sklearn", "pypdf"],
     "tests": "unittest (no pytest)",
     "ctx_first": true,
     "compile_default": "mypyc",
@@ -34,17 +34,17 @@
     "rag-core": {
       "package": "rag_core",
       "delivery": "mypyc",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "facade": {
         "RagClient": {
           "kind": "class",
           "init": { "store": "VectorStore", "embed_fn": "callable", "top_k": "int=5" },
           "methods": {
-            "retrieve": { "params": { "ctx": "RequestContext", "query": "str", "scope": "str", "top_k": "int" }, "returns": "RetrievalResult", "blocking_io": true }
+            "retrieve": { "params": { "ctx": "RequestContext", "query": "str", "scope": "str|list[str]|null", "top_k": "int" }, "returns": "RetrievalResult", "blocking_io": true }
           }
         },
         "embed": { "kind": "function", "params": { "texts": "list[str]" }, "returns": "list[list[float]]", "blocking_io": false },
-        "VectorStore": { "kind": "protocol", "methods": { "add": { "params": { "source_id": "str", "chunks": "list[str]", "embeddings": "obj" } }, "search": { "params": { "embedding": "obj", "top_k": "int" }, "returns": "list[tuple[str,float]]" } } },
+        "VectorStore": { "kind": "protocol", "methods": { "add": { "params": { "source_id": "str", "chunks": "list[str]", "embeddings": "obj" } }, "search": { "params": { "embedding": "obj", "top_k": "int", "scopes": "list[str]|null" }, "returns": "list[tuple[str,float]]" } } },
         "InMemoryVectorStore": { "kind": "class" },
         "SqliteVectorStore": { "kind": "class" }
       }
@@ -133,13 +133,13 @@
     "agent-runtime": {
       "package": "agent_runtime",
       "delivery": "mypyc",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "facade": {
         "AgentRuntime": {
           "kind": "class",
           "init": { "provider": "LLMProvider", "rag": "RagClient", "memory": "MemoryStore", "tools": "ToolRegistry", "skills": "SkillRegistry", "tracing": "TraceStore" },
           "methods": {
-            "run": { "async": true, "params": { "ctx": "RequestContext", "user_input": "str" }, "returns": "str" }
+            "run": { "async": true, "params": { "ctx": "RequestContext", "user_input": "str", "knowledge_base_ids": "list[str]|null" }, "returns": "str" }
           }
         }
       }
@@ -171,9 +171,10 @@
     "ingestion": {
       "package": "ingestion",
       "delivery": "mypyc + standalone worker",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "facade": {
         "parse": { "kind": "function", "params": { "path": "str" }, "returns": "list[str]" },
+        "to_markdown": { "kind": "function", "params": { "path": "str", "title": "str" }, "returns": "str" },
         "chunk": { "kind": "function", "params": { "texts": "list[str]", "size": "int=500", "overlap": "int=50" }, "returns": "list[str]" },
         "build_index": { "kind": "function", "params": { "ctx": "RequestContext", "docs_dir": "str", "store": "VectorStore" }, "returns": "int", "blocking_io": true }
       },

@@ -11,7 +11,8 @@ contracts/                  共享类型、接口契约与契约测试
 modules-src/                各独立模块的实现源码
 artifacts/                  手动编译和发布后生成的版本化交付物
 apps/agent-server/server.py FastAPI 服务与模块装配入口
-apps/agent-server/webui/    中文知识库演示页面、样式和交互脚本
+apps/agent-server/document_upload.py 上传校验、临时文件清理与 Markdown 转换入口
+apps/agent-server/webui/    笔记本管理、文件上传与中文知识问答页面
 data/kb/                    内置中文语料与用户文档共用的项目知识库
 skills/                     Agent Skills 定义
 scripts/                    编译、打包和验收入口
@@ -27,13 +28,13 @@ registry.json               模块版本、校验和与发布状态
 
 ## 中文 RAG 演示
 
-Web 启动时从 `data/kb/cmrc2018-demo/` 导入 CMRC2018 dev 子集，共 24 篇中文知识文档、99 个可用问题。页面展示8个跨主题问题提示；语料只用于展示“导入→检索→回答→引用”流程，不用于比较中文向量模型。
+Web 启动时从 `data/kb/cmrc2018-demo/` 导入 CMRC2018 dev 子集，共 24 篇中文知识文档、99 个可用问题。页面还能创建独立笔记本，上传 `.md/.txt/.docx/.pdf` 并统一转成 Markdown；每次对话只检索勾选的知识库。内置语料只用于展示流程，不用于比较中文向量模型。
 
 ## 安装与启动
 
 ```powershell
 uv venv .venv
-uv pip install -e contracts -e modules-src/observability -e modules-src/memory -e modules-src/rag-core -e modules-src/llm-gateway -e modules-src/tool-runtime -e modules-src/skill-runtime -e modules-src/agent-runtime -e modules-src/evaluation -e modules-src/ingestion -e modules-src/mcp-gateway -e modules-src/mcp-servers -e modules-src/storage fastapi uvicorn pytest python-docx
+uv pip install -e contracts -e modules-src/observability -e modules-src/memory -e modules-src/rag-core -e modules-src/llm-gateway -e modules-src/tool-runtime -e modules-src/skill-runtime -e modules-src/agent-runtime -e modules-src/evaluation -e modules-src/ingestion -e modules-src/mcp-gateway -e modules-src/mcp-servers -e modules-src/storage fastapi uvicorn python-multipart pypdf pytest
 
 .\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server server:app --port 8000
 ```

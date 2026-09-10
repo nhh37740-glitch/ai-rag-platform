@@ -1,8 +1,68 @@
 body {
   font-family: system-ui, "Microsoft YaHei", sans-serif;
-  max-width: 720px;
+  max-width: 900px;
   margin: 40px auto;
   padding: 0 16px;
+}
+
+.panel,
+#demo {
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid #dce7df;
+  border-radius: 8px;
+  background: #f7fbf8;
+}
+
+.panel h3 {
+  margin: 0 0 4px;
+}
+
+.section-hint,
+.section-status {
+  color: #5e6f64;
+  font-size: 13px;
+}
+
+#notebook-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.notebook-option {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px;
+  border: 1px solid #cbd9cf;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.notebook-option input {
+  flex: none;
+  margin-top: 3px;
+}
+
+.notebook-option small {
+  display: block;
+  margin-top: 3px;
+  color: #66736a;
+}
+
+.management-form {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(220px, 2fr) auto;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.management-form input,
+.management-form select {
+  min-width: 0;
+  padding: 8px;
 }
 
 #log {
@@ -16,10 +76,6 @@ body {
 }
 
 #demo {
-  margin: 12px 0;
-  padding: 12px;
-  border: 1px solid #dce7df;
-  border-radius: 8px;
   background: #f7fbf8;
 }
 
@@ -68,7 +124,7 @@ body {
   font-size: 12px;
 }
 
-form {
+.chat-form {
   display: flex;
   gap: 8px;
   margin-top: 12px;
@@ -81,4 +137,10 @@ input {
 
 button {
   padding: 8px 16px;
+}
+
+@media (max-width: 680px) {
+  .management-form {
+    grid-template-columns: 1fr;
+  }
 }

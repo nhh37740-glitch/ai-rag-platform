@@ -19,7 +19,7 @@ class TestAgentRuntime(unittest.TestCase):
     def test_qa(self):
         store = InMemoryVectorStore()
         chunks = ["API 认证需要 Bearer token", "故障 SOP：网关 keep-alive 超时"]
-        store.add("api-doc", chunks, embed(chunks))
+        store.add("engineering-notebook/api-doc", chunks, embed(chunks))
         rt = AgentRuntime(
             provider=MockProvider("qa"),
             vector_store=store,
@@ -28,7 +28,13 @@ class TestAgentRuntime(unittest.TestCase):
             skills=SkillRegistry(),
             tracing=make_trace_store(),
         )
-        out = _run(rt.run(RequestContext("t", "r", "u", "s"), "API 如何认证？"))
+        out = _run(
+            rt.run(
+                RequestContext("t", "r", "u", "s"),
+                "API 如何认证？",
+                ["engineering-notebook"],
+            )
+        )
         self.assertIn("Authorization", out)
 
 

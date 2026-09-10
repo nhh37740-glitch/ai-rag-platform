@@ -81,7 +81,7 @@
 - `make_storage(db_path, memory_store, vector_store)`（组合 memory + vector + SQLite，接口与 pgvector 同构）
 
 ### 主进程 `apps/agent-server/server.py`
-FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问题）、`POST /api/chat`、`GET /api/chat/stream`（SSE）、`POST /api/kb/ingest`、`GET /api/trace/{trace_id}`。
+FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问题）、`GET/POST /api/notebooks`（列出/创建笔记本）、`POST /api/notebooks/{id}/files`（上传并转 Markdown）、`POST /api/chat`、`GET /api/chat/stream`（携带知识库选择的 SSE）、`GET /api/trace/{trace_id}`。
 
 ## 4. 运行结构与数据流
 
@@ -90,17 +90,18 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
                             │ AgentRuntime(编排)
                             ├─ llm_gateway  → DeepSeek/Mock
                             ├─ memory       → SQLite(会话+用户)
-                            ├─ rag_core     → embed(fastembed/hash) + 向量库
+                            ├─ rag_core     → embed(fastembed/hash) + 按笔记本过滤的向量库
                             ├─ skill_runtime→ SKILL.md
                             ├─ tool_runtime → @tool 或 mcp_gateway→mcp_servers(真实 GitHub/mock)
                             └─ observability→ TraceStore(/api/trace)
-项目知识库：data/kb（内置 CMRC2018 演示语料与用户文档，启动时统一载入）
+项目知识库：data/kb（内置 CMRC2018 + 用户笔记本；上传文件统一转为 Markdown）
 独立进程：ingestion(可产 data/index.json)      mcp_servers(stdio MCP)
 持久化：SQLite + 本地向量库（storage 接口可切 pgvector）
 ```
 
 前端与产物：
-- **Web 前端**：`apps/agent-server/webui/index.html` 负责页面结构，`knowledge_demo.css` 负责样式，`knowledge_demo.js` 负责数据集状态、示例问题和 SSE 聊天。
+- **上传适配**：`apps/agent-server/document_upload.py` 负责类型/大小校验、临时文件清理并调用 ingestion 转换 Markdown。
+- **Web 前端**：`apps/agent-server/webui/index.html` 负责页面结构，`knowledge_demo.css` 负责样式，`knowledge_demo.js` 负责笔记本创建、文件上传、知识库选择、示例问题和 SSE 聊天。
 - **编译产物**：进程内模块由 `scripts/compile_extension_modules.py` 编成 `.pyd`；独立进程由 `scripts/compile_service_executables.ps1` 编成 `bin/*.exe`；`scripts/package_release_artifacts.py` 生成发布元数据与注册表。
 
 ## 5. 关键设计决策

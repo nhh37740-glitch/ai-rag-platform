@@ -35,10 +35,15 @@ class DemoKnowledgeBaseTests(unittest.TestCase):
         self.assertEqual(len(info["suggested_questions"]), 8)
         self.assertEqual(info["purpose"], "project-demo-only")
 
+        notebooks = json.loads(server_app.list_notebooks().body.decode("utf-8"))
+        self.assertEqual(notebooks["default_ids"], ["cmrc2018-demo"])
+        self.assertEqual(notebooks["supported_extensions"], [".docx", ".md", ".pdf", ".txt"])
+
         result = retrieve(
             RequestContext("trace", "request"),
             "什么是静电感应？",
             server_app.vector_store,
+            scope=["cmrc2018-demo"],
             top_k=3,
         )
         self.assertTrue(any("静电感应" in item.source_id for item in result.citations))
