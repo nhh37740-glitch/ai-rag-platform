@@ -35,8 +35,8 @@ docs/            # PLAN.md 与 architecture/ 说明
 ```bash
 # 契约/端到端（在集成侧）
 python -m pytest contracts/test_contract.py
-python scripts/integration_test.py   # 上传文档→索引→提问→作答
-python -m evaluation.run             # 出评测基线
+python scripts/verify_source_runtime.py
+python scripts/verify_compiled_runtime.py
 ```
 
 ## 提交与 PR 规范

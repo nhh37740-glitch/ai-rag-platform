@@ -3,30 +3,19 @@
 <head>
   <meta charset="utf-8">
   <title>Dev Knowledge Agent</title>
-  <style>
-    body{font-family:system-ui,"Microsoft YaHei",sans-serif;max-width:720px;margin:40px auto;padding:0 16px}
-    #log{border:1px solid #ddd;border-radius:8px;min-height:220px;padding:12px;background:#fafafa;white-space:pre-wrap;overflow:auto}
-    .b{font-weight:600;color:#0b5}
-    form{display:flex;gap:8px;margin-top:12px}
-    input{flex:1;padding:8px}
-    button{padding:8px 16px}
-  </style>
+  <link rel="stylesheet" href="/static/knowledge_demo.css">
 </head>
 <body>
   <h2>Dev Knowledge Agent</h2>
+  <section id="demo">
+    <p id="demo-status">正在加载公开中文演示知识库…</p>
+    <div id="examples" aria-label="示例问题"></div>
+  </section>
   <div id="log"></div>
   <form id="f">
-    <input id="m" placeholder="问：XX API 如何认证？或：帮我建一个 Bug" autofocus>
+    <input id="m" placeholder="例如：什么是静电感应？" autofocus>
     <button>发送</button>
   </form>
-  <script>
-    const log=document.getElementById('log'),f=document.getElementById('f'),m=document.getElementById('m');
-    const show=(t)=>log.innerText+=t+"\n";
-    f.onsubmit=(e)=>{e.preventDefault();const q=m.value;if(!q)return;show("你: "+q);m.value='';show("...");
-      const es=new EventSource('/api/chat/stream?message='+encodeURIComponent(q)+'&session_id=s1&user_id=anon');
-      es.onmessage=(ev)=>{const d=JSON.parse(ev.data);show("Agent: "+d.answer+"\n[trace: "+(d.trace_id||'')+"]\n");es.close();};
-      es.onerror=()=>{es.close();show("错误: 连接中断");};
-    };
-  </script>
+  <script src="/static/knowledge_demo.js" defer></script>
 </body>
 </html>

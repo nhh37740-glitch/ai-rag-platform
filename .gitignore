@@ -5,11 +5,16 @@
 # python
 __pycache__/
 *.pyc
+*.pyd
 .venv/
 venv/
 dist/
 build/
 *.egg-info/
+
+# Cython outputs generated beside module sources
+modules-src/**/__init__.c
+modules-src/**/data/_tests/
 
 # resume / job-search notes (not part of repo)
 boss上搜的岗位.docx
@@ -22,6 +27,7 @@ data/*.db
 data/*.sqlite
 data/_tests/
 data/index.json
+reports/
 
 # vendored models (large, downloaded locally; not committed)
 models/

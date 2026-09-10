@@ -11,7 +11,7 @@
 | **端口与适配器（六边形）** | 核心只依赖"端口"接口，外部实现是"适配器"，可整体替换 | `LLMProvider`、`VectorStore`、`Storage`、`McpServerClient`；适配器见下 |
 | **策略（Strategy）** | 同一操作可有多个可切换实现 | 向量化 `embed`（`fastembed`/`hash`）、LLM（`DeepSeek`/`Mock`） |
 | **适配器（Adapter）** | 把异构接口转成统一类型 | `DeepSeekProvider`（OpenAI 兼容→`LLMProvider`）、`normalize_to_tool`（MCP→`ToolDef`） |
-| **抽象工厂 / 依赖注入（组合根）** | 主进程集中创建并注入依赖 | `apps/agent-server/app.py` 用 `make_runtime/vector_store/memory` 装配 |
+| **抽象工厂 / 依赖注入（组合根）** | 主进程集中创建并注入依赖 | `apps/agent-server/server.py` 装配 runtime、vector store、memory 与工具 |
 | **门面（Facade）** | 一个薄入口封装复杂编排 | `AgentRuntime.run`（编排循环）、`Storage`（持久层门面） |
 | **注册表 / 插件（Registry）** | 动态注册、按名取用 | `ToolRegistry`（`@tool`）、`SkillRegistry`（`SKILL.md`）、`MockMcpServer` |
 | **契约 / 按合约设计** | 先定接口与类型，再实现 | `contracts/`（`core_contracts` + `INTERFACE.md` + `API_SCHEMA.json` + `test_contract.py`） |
@@ -81,7 +81,7 @@
 - `make_storage(db_path, memory_store, vector_store)`（组合 memory + vector + SQLite，接口与 pgvector 同构）
 
 ### 主进程 `apps/agent-server`
-FastAPI：`GET /`（聊天页）、`POST /api/chat`、`GET /api/chat/stream`（SSE）、`POST /api/kb/ingest`、`GET /api/trace/{trace_id}`。
+FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问题）、`POST /api/chat`、`GET /api/chat/stream`（SSE）、`POST /api/kb/ingest`、`GET /api/trace/{trace_id}`。
 
 ## 4. 运行结构与数据流
 
@@ -94,28 +94,26 @@ FastAPI：`GET /`（聊天页）、`POST /api/chat`、`GET /api/chat/stream`（S
                             ├─ skill_runtime→ SKILL.md
                             ├─ tool_runtime → @tool 或 mcp_gateway→mcp_servers(真实 GitHub/mock)
                             └─ observability→ TraceStore(/api/trace)
-独立进程：ingestion(产 data/index.json)      mcp_servers(stdio MCP)
+公开演示语料：data/datasets/cmrc2018-demo（启动时自动载入）
+独立进程：ingestion(可产 data/index.json)      mcp_servers(stdio MCP)
 持久化：SQLite + 本地向量库（storage 接口可切 pgvector）
 ```
 
 前端与产物：
-- **Web 前端**：`apps/agent-server/webui/index.html` 聊天页（`EventSource` 走 `/api/chat/stream`），由 FastAPI 托管，非纯命令行。
-- **编译产物**：进程内模块 → `scripts/build_binary_all.py` 用 Cython 编成 `.pyd`（`artifacts/<pkg>/<version>/<pkg>/`）；独立进程入口 `mcp_servers`/`ingestion_worker` → `scripts/build_exe.ps1` 用 Nuitka 编成 `bin/*.exe`（避开中文路径的 LNK1104，先在 ASCII 目录编译再拷回）。两者均可在运行时以 `python -m` 直接跑。
+- **Web 前端**：`apps/agent-server/webui/index.html` 负责页面结构，`knowledge_demo.css` 负责样式，`knowledge_demo.js` 负责数据集状态、示例问题和 SSE 聊天。
+- **编译产物**：进程内模块由 `scripts/compile_extension_modules.py` 编成 `.pyd`；独立进程由 `scripts/compile_service_executables.ps1` 编成 `bin/*.exe`；`scripts/package_release_artifacts.py` 生成发布元数据与注册表。
 
 ## 5. 关键设计决策
 
 - **契约先行**：接口/类型先用 `contracts/` 定死，各模块按 `INTERFACE.md` 实现，减少联调返工。
-- **源码隔离 + 二进制交付**：实现源码在 `modules-src/`，集成侧只消费 `artifacts/` 下二进制 + 契约 + checksum；`scripts/build_binary_all.py` 可用 MSVC/Cython 批量编成 `.pyd`，`demo_compiled.py` 纯用编译产物跑通整链。
+- **源码隔离 + 二进制交付**：实现源码在 `modules-src/`，集成侧只消费 `artifacts/` 下二进制、契约与 checksum；源码模式和二进制模式分别由两个 `verify_*_runtime.py` 入口验收。
 - **可替换而不重写**：换模型（DeepSeek↔OpenAI）、换向量/存储（`hash↔fastembed`、SQLite↔pgvector）、换技能/工具、换 MCP 连接器，均只改一个适配器/注册项。
-- **真实外部集成**：DeepSeek（RAG + 函数调用）、bge-small-zh-v1.5（中文向量，已下载到 `models/` 供离线）、GitHub 公共 API（连接器）。
+- **演示数据边界**：CMRC2018 子集仅用于展示中文知识导入、检索、回答与引用，不承担向量模型评测。
 
 ## 6. 运行 / 测试
 
 ```bash
-.\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server app:app --port 8000
-.\.venv\Scripts\python.exe scripts/demo.py          # 6 场景（有 .env 走真实模型）
-.\.venv\Scripts\python.exe scripts/ci.py            # 一键验收（离线确定性，ALL GREEN）
-.\.venv\Scripts\python.exe scripts/eval_run.py      # 真实评测基线
+.\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server server:app --port 8000
+.\.venv\Scripts\python.exe scripts/verify_source_runtime.py
+.\.venv\Scripts\python.exe scripts/verify_compiled_runtime.py
 ```
-
-> 依赖已装进 `.venv`（工作目录内）；embedding 模型已下载到 `models/fastembed_cache`（由 `.env` 的 `FASTEMBED_CACHE_PATH` 指向），进程可离线直接调用。DeepSeek 为云 API，运行需联网。

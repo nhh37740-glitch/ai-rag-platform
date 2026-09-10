@@ -1,0 +1,59 @@
+body {
+  font-family: system-ui, "Microsoft YaHei", sans-serif;
+  max-width: 720px;
+  margin: 40px auto;
+  padding: 0 16px;
+}
+
+#log {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  min-height: 220px;
+  padding: 12px;
+  background: #fafafa;
+  white-space: pre-wrap;
+  overflow: auto;
+}
+
+#demo {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #dce7df;
+  border-radius: 8px;
+  background: #f7fbf8;
+}
+
+#demo-status {
+  margin: 0 0 8px;
+  color: #365c45;
+  font-size: 14px;
+}
+
+#examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#examples button {
+  padding: 6px 10px;
+  border: 1px solid #b9d4c2;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+}
+
+form {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+input {
+  flex: 1;
+  padding: 8px;
+}
+
+button {
+  padding: 8px 16px;
+}
