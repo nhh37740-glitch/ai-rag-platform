@@ -1,50 +1,52 @@
-# 手动编译与二进制交付说明
+# 手动编译与二进制交付
 
-目标：让集成侧只 import 编译后成品（`.pyd/.so/.exe`），看不到源码。当前仓库以离线纯 Python 实现并跑通；本文件给出编译步骤（需 MSVC 与对应工具链）。
+本页只描述操作者需要执行的顺序，不记录某次机器上的测试结果。目标是把 `modules-src/` 中的实现发布为 `artifacts/<module-id>/<version>/` 下的二进制与契约。
 
-## 进程内模块（import 的 `.pyd/.so`）
+## 1. 准备环境
 
-用 [mypyc](https://mypyc.readthedocs.io/)（默认）：
+在仓库根目录创建虚拟环境并按 [`README.md`](../README.md) 安装项目依赖。Windows 编译 `.pyd` 还需要可用的 MSVC Build Tools。
 
-```bash
-uv pip install mypyc
-cd modules-src/<module>
-mypyc --package <pkg>          # 产出 <pkg>*.pyd (Windows) / .so (Linux)
+当前批量脚本使用 Cython；mypyc 是目标默认方案，模块遇到不支持的动态特性时可继续使用 Cython 回退。
+
+```powershell
+uv pip install cython nuitka build
 ```
 
-若模块用了 mypyc 不支持的动态特性，回退 Cython：
+## 2. 编译进程内模块
 
-```bash
-uv pip install cython
-cd modules-src/<module>
-cythonize -i <pkg>/*.py        # 或写 pyproject 用 setuptools 构建扩展
+```powershell
+.\.venv\Scripts\python.exe scripts\compile_extension_modules.py
 ```
 
-## 独立进程模块（Nuitka 可执行）
+该脚本遍历 `modules-src/<module-id>/`，编译包入口，并把 `.pyd` 放入 `artifacts/<module-id>/<version>/<package>/`。
 
-```bash
-uv pip install nuitka
-nuitka --standalone --onefile modules-src/mcp-servers/mcp_servers/__main__.py --output-filename=mcp_servers.exe
-# ingestion-worker 同理
+## 3. 编译独立服务
+
+```powershell
+.\scripts\compile_service_executables.ps1
 ```
 
-## 打包与校验
+默认编译 `mcp-servers`；传入 `-All` 时同时编译 ingestion worker。可执行文件输出到被 Git 忽略的 `bin/`。
 
-```bash
-python -m build modules-src/<module>      # 产 wheel，作"库"交付
-python scripts/compile_extension_modules.py
-python scripts/package_release_artifacts.py
+## 4. 生成发布元数据
+
+```powershell
+.\.venv\Scripts\python.exe scripts\package_release_artifacts.py
 ```
 
-## 交付清单（artifacts/<pkg>/<version>/）
+每个发布目录应包含：
 
-`INTERFACE.md`、`API_SCHEMA.json`、`VERSION`、`CHANGELOG.md`、`test_contract.py`、`checksum.sha256`，以及编译成品（`*.pyd/.so/.exe`）。
+- `INTERFACE.md`：公开接口说明。
+- `API_SCHEMA.json`：机器可读接口。
+- `VERSION`：模块版本。
+- `CHANGELOG.md`：版本变化。
+- `test_contract.py`：交付契约测试。
+- `checksum.sha256`：源码快照校验和。
+- `.pyd`、`.so` 或 `.exe`：实际二进制交付物。
 
-## 已知限制
+脚本同步更新根目录 `registry.json`；检测到二进制时标记 `published`，否则标记 `contract-only`。
 
-- 机器级"看不到源码"需要容器隔离（本机无 Docker）；本目录以"集成侧只 import 二进制 + 工作区不放实现源码 + 独立仓库/分支"实现操作/进程级隔离。
-
-## 手动验收入口
+## 5. 由操作者验收
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\verify_source_runtime.py
@@ -52,4 +54,4 @@ python scripts/package_release_artifacts.py
 .\.venv\Scripts\python.exe -m pytest contracts\test_contract.py
 ```
 
-这些命令由操作者在整理完成后手动执行；仓库不保存一次性测试报告。
+仓库不提交 `build/`、`bin/`、本地数据库或一次性测试报告。

@@ -2,6 +2,8 @@
 
 面向企业研发知识问答与协作的模块化 Agent，包含 RAG、MCP、Agent Skills、Function Calling、会话记忆和链路追踪。
 
+文档入口：[`docs/PLAN.md`](docs/PLAN.md) 是唯一实施计划；[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 解释模块关系；[`docs/MANUAL_COMPILATION.md`](docs/MANUAL_COMPILATION.md) 提供手动编译顺序。
+
 ## 目录职责
 
 ```text

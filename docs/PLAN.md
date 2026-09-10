@@ -6,7 +6,7 @@
 
 构建一个"会问答、会调工具、会走流程、记得住上下文"的企业研发助手，并以**契约先行 + 源码隔离 + 二进制交付**落地——集成/主 Agent 只拿到接口契约与编译后的二进制，看不到各模块实现源码，从而无法"顺手改"模块内部。
 
-6 个贯穿全栈的演示：API 认证问答（RAG+引用）、历史相似故障分析（Memory+RAG+MCP）、Bug 流程分析（`bug-triage` Skill）、建 P1 Bug（Function Calling）、查最近 commit（MCP）、"上次处理到哪了"（用户/会话记忆）。
+核心展示以公开 CMRC2018 中文语料贯穿“自动导入→检索→回答→引用”；工具调用、MCP、Skill、用户/会话记忆和链路追踪作为独立能力入口展示。
 
 ## 仓库 / 工件布局（谁只能看到什么）
 
@@ -14,8 +14,8 @@
 <workspace>/
   contracts/            # 契约层，唯一共享"源码"：core-contracts + INTERFACE.md + API_SCHEMA.json + test_contract.py
   modules-src/          # 各模块源码仓库（对集成 Agent 不可见；仅对应 subagent 有写入权）
-    rag-core/  memory/  llm-gateway/  rag-core/  tool-runtime/  mcp-gateway/
-    skill-runtime/  agent-runtime/  observability/  evaluation/  ingestion/  mcp-servers/
+    rag-core/  memory/  llm-gateway/  tool-runtime/  mcp-gateway/  skill-runtime/
+    agent-runtime/  observability/  evaluation/  ingestion/  mcp-servers/  storage/
   artifacts/            # 集成 Agent 只读：按 模块/版本/ 存放成品
     rag-core/1.2.0/rag_core.pyd + INTERFACE.md + API_SCHEMA.json + VERSION + CHANGELOG.md + test_contract.py + checksum.sha256
     ...
@@ -39,7 +39,7 @@
 
 - **契约**：`RequestContext(trace_id, request_id, user_id, session_id)` 贯穿所有模块；各模块公开 facade 用类型化签名写死，供集成侧 `from rag_core import RagClient` 直调。
 - **llm-gateway**：`LLMProvider.generate/stream/tool_call`；`DeepSeekProvider` 首个实现（`deepseek-chat` 函数调用，`deepseek-reasoner` 可选）；预留 OpenAI/Anthropic/Local。
-- **rag-core**：`retrieve(query, scope) -> RetrievalResult`（rewrite→retrieve→rerank→context build→Citations），对 embedding/向量库/MCP/Skill/前端无感知。
+- **rag-core**：`retrieve(query, scope) -> RetrievalResult`（embed→retrieve→context build→Citations），对 MCP、Skill 与前端无感知；查询改写和 rerank 保留为后续扩展点。
 - **memory**：`SessionMemory`、`UserMemory` 两命名空间，`get/search/write/forget`；仅 memory 写库。
 - **tool-runtime + mcp-gateway**：`@tool` 函数与 MCP 工具归一为同一 `Tool`；mcp-gateway 负责 discovery/connect/list/call/materialize。
 - **skill-runtime**：`skills/*/SKILL.md`（frontmatter name/description + 指令 + 可选 `scripts/references/assets`），按需加载。

@@ -2,7 +2,7 @@
 
 ## 1. 一句话
 
-一个 **企业研发知识与协作智能体（Dev Knowledge Agent）**：文档入库 → 向量检索 → DeepSeek 工具调用（结合 MCP + Skill）→ 双层记忆 → 聊天界面；并做成 **契约先行 + 源码隔离 + 二进制交付** 的可换模型/可换存储/可换连接器的模块化系统。
+一个 **企业研发知识与协作智能体（Dev Knowledge Agent）**：公开中文文档入库 → 向量检索 → DeepSeek/Mock 回答 → 工具与 Skill → 双层记忆 → 聊天界面；并做成 **契约先行 + 源码隔离 + 二进制交付** 的可换模型、存储和连接器的模块化系统。
 
 ## 2. 设计模式
 
@@ -16,7 +16,7 @@
 | **注册表 / 插件（Registry）** | 动态注册、按名取用 | `ToolRegistry`（`@tool`）、`SkillRegistry`（`SKILL.md`）、`MockMcpServer` |
 | **契约 / 按合约设计** | 先定接口与类型，再实现 | `contracts/`（`core_contracts` + `INTERFACE.md` + `API_SCHEMA.json` + `test_contract.py`） |
 | **仓储 / DAO** | 持久化访问封装 | `MemoryStore`、`Storage`（SQLite） |
-| **模板方法 / 流水线** | 固定步骤、可插拔环节 | RAG：rewrite→retrieve→rerank→context；Agent 循环：记忆→Skill→RAG/Tool→LLM→执行→再LLM→写记忆 |
+| **模板方法 / 流水线** | 固定步骤、可插拔环节 | RAG：embed→retrieve→context；Agent 循环：记忆→Skill→RAG/Tool→LLM→执行→再LLM→写记忆 |
 | **职责链** | 依次尝试工具并回传结果 | `AgentRuntime.run` 内的 tool-call 循环 |
 | **观察者 / 追踪** | 上下文贯穿 + 事件记录 | `RequestContext` + `TraceStore`/`Span`（`/api/trace/{id}`） |
 | **单例** | 全局唯一注册表 | `tool_runtime._GLOBAL` > `default_registry()` |
@@ -80,7 +80,7 @@
 - `Storage.memory_*/add_documents/search_documents/save_eval/load_eval`
 - `make_storage(db_path, memory_store, vector_store)`（组合 memory + vector + SQLite，接口与 pgvector 同构）
 
-### 主进程 `apps/agent-server`
+### 主进程 `apps/agent-server/server.py`
 FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问题）、`POST /api/chat`、`GET /api/chat/stream`（SSE）、`POST /api/kb/ingest`、`GET /api/trace/{trace_id}`。
 
 ## 4. 运行结构与数据流
