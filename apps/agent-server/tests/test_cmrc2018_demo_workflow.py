@@ -17,20 +17,22 @@ from core_contracts import RequestContext  # noqa: E402
 from rag_core import retrieve  # noqa: E402
 
 
-class DemoDatasetTests(unittest.TestCase):
+class DemoKnowledgeBaseTests(unittest.TestCase):
     def test_manifest_and_documents_are_complete(self) -> None:
-        dataset = ROOT / "data" / "datasets" / "cmrc2018-demo"
-        manifest = json.loads((dataset / "manifest.json").read_text(encoding="utf-8"))
+        knowledge_base = ROOT / "data" / "kb" / "cmrc2018-demo"
+        manifest = json.loads((knowledge_base / "knowledge-base-manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(len(manifest["documents"]), 24)
         self.assertEqual(sum(len(item["questions"]) for item in manifest["documents"]), 99)
         self.assertTrue(
-            all((dataset / "documents" / item["file"]).is_file() for item in manifest["documents"])
+            all((knowledge_base / "knowledge-documents" / item["file"]).is_file() for item in manifest["documents"])
         )
 
-    def test_dataset_is_loaded_and_examples_are_exposed(self) -> None:
+    def test_knowledge_base_is_loaded_and_questions_are_exposed(self) -> None:
         info = json.loads(server_app.demo().body.decode("utf-8"))
         self.assertEqual(info["imported"], 24)
         self.assertEqual(info["question_count"], 99)
+        self.assertEqual(info["knowledge_base"], "data/kb/cmrc2018-demo")
+        self.assertEqual(len(info["suggested_questions"]), 8)
         self.assertEqual(info["purpose"], "project-demo-only")
 
         result = retrieve(

@@ -1,11 +1,53 @@
 {
   "id": "cmrc2018-demo",
-  "name": "CMRC2018 中文阅读理解演示集",
+  "name": "CMRC2018 中文演示知识库",
   "source": "https://huggingface.co/datasets/hfl/cmrc2018",
   "license": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)",
   "language": "zh",
   "document_count": 24,
   "question_count": 99,
+  "featured_questions": [
+    {
+      "topic": "科学",
+      "document": "008-静电感应.md",
+      "question": "什么是静电感应？"
+    },
+    {
+      "topic": "人工智能",
+      "document": "006-归纳偏向.md",
+      "question": "“奥卡姆剃刀”的内容是什么？"
+    },
+    {
+      "topic": "历史",
+      "document": "001-王处直.md",
+      "question": "王处直墓在哪里？"
+    },
+    {
+      "topic": "国际贸易",
+      "document": "021-中国－新西兰自由贸易协定.md",
+      "question": "绿党为什么对协定持反对态度？"
+    },
+    {
+      "topic": "传播学",
+      "document": "017-魔弹理论.md",
+      "question": "魔弹理论又被称为什么理论？"
+    },
+    {
+      "topic": "体育",
+      "document": "023-鲍比·霍顿.md",
+      "question": "1982年至1984年间，霍顿执教哪个队？"
+    },
+    {
+      "topic": "地理",
+      "document": "009-谢尔吉耶夫镇.md",
+      "question": "谢尔吉耶夫镇位于哪里？"
+    },
+    {
+      "topic": "军事",
+      "document": "024-海军十字勋章.md",
+      "question": "海军十字勋章可以授予哪些人？"
+    }
+  ],
   "documents": [
     {
       "file": "001-王处直.md",

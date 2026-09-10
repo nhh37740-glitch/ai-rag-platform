@@ -22,7 +22,6 @@ from tool_runtime import default_registry, tool
 BASE = Path(__file__).resolve().parent
 ROOT = BASE.parents[1]
 KB_DIR = ROOT / "data" / "kb"
-DATASETS_DIR = ROOT / "data" / "datasets"
 SKILL_DIR = ROOT / "skills"
 
 
@@ -39,7 +38,8 @@ def _load_dotenv(path: Path) -> None:
 
 _load_dotenv(ROOT / ".env")
 
-DEMO_DATASET_ID = os.environ.get("DEMO_DATASET_ID", "cmrc2018-demo")
+DEMO_KB_ID = os.environ.get("DEMO_KB_ID", "cmrc2018-demo")
+DEMO_KB_DIR = KB_DIR / DEMO_KB_ID
 DB_PATH = os.environ.get("DB_PATH", str(ROOT / "data" / "app.db"))
 API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
@@ -73,14 +73,14 @@ def _search_employee(query: str) -> str:
     return "未找到匹配成员"
 
 
-def _load_demo_dataset() -> tuple[dict, list[tuple[Path, dict]]]:
-    """Load the bundled public demo corpus without accepting arbitrary paths."""
-    dataset_dir = DATASETS_DIR / DEMO_DATASET_ID
-    manifest_path = dataset_dir / "manifest.json"
+def _load_demo_knowledge_base() -> tuple[dict, list[tuple[Path, dict]]]:
+    """Load the bundled public corpus from the project knowledge base."""
+    knowledge_base_dir = DEMO_KB_DIR
+    manifest_path = knowledge_base_dir / "knowledge-base-manifest.json"
     if not manifest_path.is_file():
         return {}, []
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    documents_dir = (dataset_dir / "documents").resolve()
+    documents_dir = (knowledge_base_dir / "knowledge-documents").resolve()
     documents: list[tuple[Path, dict]] = []
     for item in manifest.get("documents", []):
         filename = item.get("file", "") if isinstance(item, dict) else ""
@@ -102,7 +102,7 @@ def _load_kb() -> tuple[InMemoryVectorStore, int]:
             for s in data.get("sources", []):
                 store.add(s["id"], s["chunks"], s["embs"])
                 loaded_sources.add(s["id"])
-    files = sorted(KB_DIR.glob("*.md"))
+    files = sorted(f for f in KB_DIR.glob("*.md") if f.name.lower() != "readme.md")
     for f in files:
         if f.stem in loaded_sources:
             continue
@@ -110,7 +110,7 @@ def _load_kb() -> tuple[InMemoryVectorStore, int]:
         store.add(f.stem, chunks, embed(chunks))
         loaded_sources.add(f.stem)
 
-    _, demo_documents = _load_demo_dataset()
+    _, demo_documents = _load_demo_knowledge_base()
     imported = 0
     for path, _ in demo_documents:
         if path.stem in loaded_sources:
@@ -123,7 +123,7 @@ def _load_kb() -> tuple[InMemoryVectorStore, int]:
     return store, imported
 
 
-vector_store, demo_imported = _load_kb()
+vector_store, demo_kb_imported = _load_kb()
 
 runtime = AgentRuntime(
     provider=provider,
@@ -144,23 +144,41 @@ def index() -> FileResponse:
 
 @app.get("/api/demo")
 def demo() -> JSONResponse:
-    manifest, documents = _load_demo_dataset()
+    manifest, documents = _load_demo_knowledge_base()
     questions = [
         question
         for _, item in documents
         for question in item.get("questions", [])
         if isinstance(question, str) and question.strip()
     ]
+    document_items = {item.get("file"): item for _, item in documents}
+    suggested_questions = []
+    for suggestion in manifest.get("featured_questions", []):
+        if not isinstance(suggestion, dict):
+            continue
+        document = document_items.get(suggestion.get("document"))
+        question = suggestion.get("question", "")
+        if not document or question not in document.get("questions", []):
+            continue
+        suggested_questions.append(
+            {
+                "question": question,
+                "topic": suggestion.get("topic", "知识库"),
+                "title": document.get("title", Path(document["file"]).stem),
+            }
+        )
     return JSONResponse(
         {
-            "id": manifest.get("id", DEMO_DATASET_ID),
-            "name": manifest.get("name", DEMO_DATASET_ID),
+            "id": manifest.get("id", DEMO_KB_ID),
+            "name": manifest.get("name", DEMO_KB_ID),
             "source": manifest.get("source", ""),
             "license": manifest.get("license", ""),
             "documents": len(documents),
             "questions": questions,
             "question_count": len(questions),
-            "imported": demo_imported,
+            "suggested_questions": suggested_questions,
+            "imported": demo_kb_imported,
+            "knowledge_base": "data/kb/cmrc2018-demo",
             "purpose": "project-demo-only",
         }
     )

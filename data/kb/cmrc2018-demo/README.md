@@ -1,7 +1,7 @@
-# CMRC2018 中文阅读理解演示集
+# CMRC2018 中文演示知识库
 
-用于 Web 端演示的内置数据集：在知识库页点「导入知识库」，系统会把下面的文档逐篇索引，
-之后可以在欢迎页直接点示例问题提问，查看带引用的回答与检索轨迹。
+用于 Web 端演示的内置中文知识库。服务启动时会把下面的文档逐篇导入检索库，
+之后可以在页面直接选择精选问题，查看回答与检索轨迹。
 
 ## 来源与许可
 
@@ -29,18 +29,19 @@
 ## 目录结构
 
 ```
-manifest.json     数据集清单：id、名称、来源、许可证、文档与问题
-documents/*.md    24 篇文档，UTF-8 无 BOM
+knowledge-base-manifest.json  知识库清单：来源、许可证、精选问题与文档索引
+knowledge-documents/*.md      24 篇知识文档，UTF-8 无 BOM
 ```
 
-`manifest.json` 字段：
+`knowledge-base-manifest.json` 字段：
 
 | 字段 | 说明 |
 |---|---|
 | `id` | 数据集标识，与目录名一致 |
 | `name` / `source` / `license` | 展示用元信息 |
 | `document_count` / `question_count` | 文档数与问题总数 |
-| `documents[].file` | `documents/` 下的文件名，导入时的文档名 |
+| `featured_questions` | Web 首屏展示的跨主题精选问题 |
+| `documents[].file` | `knowledge-documents/` 下的文件名，导入时的文档名 |
 | `documents[].title` | 文档标题 |
 | `documents[].source_id` | 原始数据集里的 `context_id`，便于溯源 |
 | `documents[].questions` | 该文档的示例问题，答案可在该文档中直接找到 |
@@ -48,8 +49,8 @@ documents/*.md    24 篇文档，UTF-8 无 BOM
 ## 重新生成
 
 1. 取官方 dev 集：`https://raw.githubusercontent.com/ymcui/cmrc2018/master/data/cmrc2018_dev.json`
-2. 按上面 4 条规则筛选，把 `context_text` 写入 `documents/NNN-<标题>.md`（开头加 `# <title>`）
-3. 把每个条目的 `qas[].query_text` 汇总进 `manifest.json` 的 `documents[].questions`
+2. 按上面 4 条规则筛选，把 `context_text` 写入 `knowledge-documents/NNN-<标题>.md`（开头加 `# <title>`）
+3. 把每个条目的 `qas[].query_text` 汇总进 `knowledge-base-manifest.json` 的 `documents[].questions`
 
 ## 已知限制
 

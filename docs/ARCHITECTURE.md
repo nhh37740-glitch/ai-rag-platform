@@ -94,7 +94,7 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
                             ├─ skill_runtime→ SKILL.md
                             ├─ tool_runtime → @tool 或 mcp_gateway→mcp_servers(真实 GitHub/mock)
                             └─ observability→ TraceStore(/api/trace)
-公开演示语料：data/datasets/cmrc2018-demo（启动时自动载入）
+项目知识库：data/kb（内置 CMRC2018 演示语料与用户文档，启动时统一载入）
 独立进程：ingestion(可产 data/index.json)      mcp_servers(stdio MCP)
 持久化：SQLite + 本地向量库（storage 接口可切 pgvector）
 ```
@@ -108,7 +108,7 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
 - **契约先行**：接口/类型先用 `contracts/` 定死，各模块按 `INTERFACE.md` 实现，减少联调返工。
 - **源码隔离 + 二进制交付**：实现源码在 `modules-src/`，集成侧只消费 `artifacts/` 下二进制、契约与 checksum；源码模式和二进制模式分别由两个 `verify_*_runtime.py` 入口验收。
 - **可替换而不重写**：换模型（DeepSeek↔OpenAI）、换向量/存储（`hash↔fastembed`、SQLite↔pgvector）、换技能/工具、换 MCP 连接器，均只改一个适配器/注册项。
-- **演示数据边界**：CMRC2018 子集仅用于展示中文知识导入、检索、回答与引用，不承担向量模型评测。
+- **演示数据边界**：CMRC2018 子集位于 `data/kb/cmrc2018-demo/`，通过正式知识库链路加载；它仅用于展示中文知识导入、检索、回答与引用，不承担向量模型评测。
 
 ## 6. 运行 / 测试
 

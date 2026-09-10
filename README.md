@@ -12,8 +12,7 @@ modules-src/                各独立模块的实现源码
 artifacts/                  手动编译和发布后生成的版本化交付物
 apps/agent-server/server.py FastAPI 服务与模块装配入口
 apps/agent-server/webui/    中文知识库演示页面、样式和交互脚本
-data/datasets/              可随项目分发的公开演示数据集
-data/kb/                    用户自行放入的本地知识文档
+data/kb/                    内置中文语料与用户文档共用的项目知识库
 skills/                     Agent Skills 定义
 scripts/                    编译、打包和验收入口
 registry.json               模块版本、校验和与发布状态
@@ -28,7 +27,7 @@ registry.json               模块版本、校验和与发布状态
 
 ## 中文 RAG 演示
 
-Web 启动时自动载入 `data/datasets/cmrc2018-demo/`：CMRC2018 dev 子集，共 24 篇中文文档、99 个示例问题。它只用于展示“导入→检索→回答→引用”流程，不用于比较中文向量模型。
+Web 启动时从 `data/kb/cmrc2018-demo/` 导入 CMRC2018 dev 子集，共 24 篇中文知识文档、99 个可用问题。页面展示8个跨主题问题提示；语料只用于展示“导入→检索→回答→引用”流程，不用于比较中文向量模型。
 
 ## 安装与启动
 

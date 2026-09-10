@@ -29,18 +29,43 @@ body {
   font-size: 14px;
 }
 
+#demo h3 {
+  margin: 14px 0 4px;
+  font-size: 16px;
+}
+
+.demo-hint {
+  margin: 0 0 10px;
+  color: #5e6f64;
+  font-size: 13px;
+}
+
 #examples {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
 }
 
 #examples button {
-  padding: 6px 10px;
+  padding: 10px 12px;
   border: 1px solid #b9d4c2;
-  border-radius: 999px;
+  border-radius: 8px;
   background: #fff;
   cursor: pointer;
+  text-align: left;
+}
+
+#examples button:hover,
+#examples button:focus-visible {
+  border-color: #5d9b70;
+  background: #f1f8f3;
+}
+
+.example-source {
+  display: block;
+  margin-bottom: 4px;
+  color: #52745d;
+  font-size: 12px;
 }
 
 form {

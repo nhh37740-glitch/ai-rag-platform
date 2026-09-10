@@ -5,9 +5,9 @@ const demoStatus = document.getElementById("demo-status");
 const examples = document.getElementById("examples");
 
 const fallbackQuestions = [
-  "什么是静电感应？",
-  "王处直的字是什么？",
-  "海军十字勋章可以授予哪些人？",
+  { topic: "科学", title: "静电感应", question: "什么是静电感应？" },
+  { topic: "历史", title: "王处直", question: "王处直的字是什么？" },
+  { topic: "军事", title: "海军十字勋章", question: "海军十字勋章可以授予哪些人？" },
 ];
 
 function show(text) {
@@ -16,12 +16,19 @@ function show(text) {
 
 function renderExamples(questions) {
   examples.replaceChildren();
-  questions.slice(0, 8).forEach((question) => {
+  questions.forEach((item) => {
+    const suggestion = typeof item === "string" ? { question: item, topic: "知识库", title: "" } : item;
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = question;
+    button.className = "example-question";
+    const source = document.createElement("span");
+    source.className = "example-source";
+    source.textContent = `${suggestion.topic} · ${suggestion.title}`;
+    const question = document.createElement("span");
+    question.textContent = suggestion.question;
+    button.append(source, question);
     button.onclick = () => {
-      message.value = question;
+      message.value = suggestion.question;
       message.focus();
     };
     examples.appendChild(button);
@@ -34,8 +41,8 @@ fetch("/api/demo")
     return response.json();
   })
   .then((dataset) => {
-    demoStatus.textContent = `${dataset.name} 已导入知识库：${dataset.imported}/${dataset.documents} 篇，提供 ${dataset.question_count} 个示例问题（仅用于项目展示）`;
-    renderExamples(dataset.questions || fallbackQuestions);
+    demoStatus.textContent = `${dataset.name} 已从 ${dataset.knowledge_base} 导入：${dataset.imported}/${dataset.documents} 篇文档，共 ${dataset.question_count} 个可用问题。`;
+    renderExamples(dataset.suggested_questions?.length ? dataset.suggested_questions : fallbackQuestions);
   })
   .catch(() => {
     demoStatus.textContent = "演示知识库状态暂不可用";
