@@ -32,10 +32,12 @@ class RagClient:
     def retrieve(self, ctx, query: str, scope: str | list[str] | None = "kb",
                  top_k: int | None = None) -> RetrievalResult: ...
 
-def embed(texts: list[str]) -> list[list[float]]: ...          # BGE 适配层；离线用 hash/均值兜底
+def embed(texts: list[str]) -> list[list[float]]: ...          # 默认 FastEmbed + BAAI/bge-small-zh-v1.5；失败直接报错
 def retrieve(ctx, query: str, store: VectorStore,
              scope: str | list[str] | None = "kb", top_k: int = 5) -> RetrievalResult: ...
 ```
+
+`RAG_EMBED` 默认为 `fastembed`；只有显式设置 `RAG_EMBED=hash` 时才允许使用不经模型的离线 hash 向量。未安装 FastEmbed、模型无法加载或配置了未知后端时必须报错，不得静默降级。
 
 ## memory
 ```python

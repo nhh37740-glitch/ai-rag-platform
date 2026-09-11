@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "contract_version": "0.2.2",
+  "contract_version": "0.2.3",
   "context": {
     "type": "RequestContext",
     "package": "contracts.core_contracts",
@@ -45,7 +45,12 @@
     "rag-core": {
       "package": "rag_core",
       "delivery": "mypyc",
-      "version": "0.2.1",
+      "version": "0.3.0",
+      "embedding": {
+        "default_backend": "fastembed",
+        "default_model": "BAAI/bge-small-zh-v1.5",
+        "fallback": "disabled; hash requires explicit RAG_EMBED=hash"
+      },
       "facade": {
         "RagClient": {
           "kind": "class",

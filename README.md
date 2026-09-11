@@ -41,6 +41,8 @@ uv pip install -e contracts -e modules-src/observability -e modules-src/memory -
 
 浏览器打开 `http://127.0.0.1:8000/`。未配置 `DEEPSEEK_API_KEY` 时使用离线 Mock；在根目录 `.env` 配置该变量后使用 DeepSeek。
 
+`rag_core` 会通过包依赖自动安装 FastEmbed，并在首次启动时加载 `.env` 中 `BGE_MODEL=BAAI/bge-small-zh-v1.5` 指定的中文向量模型。如果运行库或模型不可用，服务会直接报错；只有显式设置 `RAG_EMBED=hash` 才会启用无模型的离线向量。
+
 ## 手动编译与验收
 
 编译步骤见 [`docs/MANUAL_COMPILATION.md`](docs/MANUAL_COMPILATION.md)。整理后的命令为：

@@ -39,7 +39,7 @@
 - `make_memory(db_path)`
 
 ### 检索 `rag_core`
-- `embed(texts)` / `make_embed(backend)`（`fastembed` 或 `hash`）
+- `embed(texts)` / `make_embed(backend)`（默认 `fastembed` + `BAAI/bge-small-zh-v1.5`；`hash` 仅显式选择）
 - `InMemoryVectorStore.add(source_id, chunks, embeddings) / search(embedding, top_k)`
 - `retrieve(ctx, query, store, scope, top_k) -> RetrievalResult`、`build_context(result)`
 
@@ -90,7 +90,7 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
                             │ AgentRuntime(编排)
                             ├─ llm_gateway  → DeepSeek/Mock
                             ├─ memory       → SQLite(会话+用户)
-                            ├─ rag_core     → embed(fastembed/hash) + 按笔记本过滤的向量库
+                            ├─ rag_core     → embed(FastEmbed+BGE；可显式切 hash) + 按笔记本过滤的向量库
                             ├─ skill_runtime→ SKILL.md
                             ├─ tool_runtime → @tool 或 mcp_gateway→mcp_servers(真实 GitHub/mock)
                             └─ observability→ TraceStore(/api/trace)
@@ -108,7 +108,7 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
 
 - **契约先行**：接口/类型先用 `contracts/` 定死，各模块按 `INTERFACE.md` 实现，减少联调返工。
 - **源码隔离 + 二进制交付**：实现源码在 `modules-src/`，集成侧只消费 `artifacts/` 下二进制、契约与 checksum；源码模式和二进制模式分别由两个 `verify_*_runtime.py` 入口验收。
-- **可替换而不重写**：换模型（DeepSeek↔OpenAI）、换向量/存储（`hash↔fastembed`、SQLite↔pgvector）、换技能/工具、换 MCP 连接器，均只改一个适配器/注册项。
+- **可替换而不重写**：换模型（DeepSeek↔OpenAI）、换向量/存储（FastEmbed 模型↔显式 hash 开发后端、SQLite↔pgvector）、换技能/工具、换 MCP 连接器，均只改一个适配器/注册项。
 - **演示数据边界**：CMRC2018 子集位于 `data/kb/cmrc2018-demo/`，通过正式知识库链路加载；它仅用于展示中文知识导入、检索、回答与引用，不承担向量模型评测。
 
 ## 6. 运行 / 测试
