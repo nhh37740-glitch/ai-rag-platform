@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "contract_version": "0.2.0",
+  "contract_version": "0.2.1",
   "context": {
     "type": "RequestContext",
     "package": "contracts.core_contracts",
@@ -183,8 +183,12 @@
     "mcp-servers": {
       "package": "mcp_servers",
       "delivery": "Nuitka exe",
-      "version": "0.0.0",
-      "facade": { "note": "Standalone connectors for Git / Issue / Ticket. JSON-RPC over stdio (MCP) plus optional HTTP." },
+      "version": "0.1.0",
+      "note": "Standalone connectors for Git / Issue / Ticket. JSON-RPC over stdio (MCP) plus optional HTTP.",
+      "facade": {
+        "MockMcpServer": { "kind": "class" },
+        "build_default_server": { "kind": "function", "params": {}, "returns": "MockMcpServer" }
+      },
       "standalone": { "entrypoint": "mcp-servers", "rpc": { "tools/list": "list[ToolDef]", "tools/call": { "name": "str", "arguments": "dict" } }, "mock": true }
     }
   }
