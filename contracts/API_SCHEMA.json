@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "contract_version": "0.3.0",
+  "contract_version": "0.3.1",
   "context": {
     "type": "RequestContext",
     "package": "contracts.core_contracts",
@@ -165,7 +165,7 @@
     "agent-runtime": {
       "package": "agent_runtime",
       "delivery": "mypyc",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "facade": {
         "AgentRuntime": {
           "kind": "class",

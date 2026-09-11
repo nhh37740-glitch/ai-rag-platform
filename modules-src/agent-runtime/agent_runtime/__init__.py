@@ -10,7 +10,7 @@ from observability import ASpan, TraceStore
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 
 class AgentRuntime:
@@ -66,10 +66,17 @@ class AgentRuntime:
 
             skill_text = self.skills.render(ctx, user_input) or "(无匹配技能)"
             selected_knowledge_bases = list(dict.fromkeys(knowledge_base_ids or []))
+            knowledge_base_state = (
+                "已选择: " + ", ".join(selected_knowledge_bases)
+                if selected_knowledge_bases
+                else "未选择"
+            )
             system = (
                 "你是企业研发知识与协作智能体。\n"
-                "对普通闲聊或无需外部知识的问题可直接回答。\n"
-                "需要知识库事实时，必须调用 search_knowledge_base；结果不理想时先缩短或改写查询后再次调用。\n"
+                "当前知识库状态: " + knowledge_base_state + "。\n"
+                "只要当前已选择至少一个知识库，面对事实、定义、人物、事件、原理、文档内容以及“X是什么/内容是什么”类知识问题，第一步必须调用 search_knowledge_base；即使你确信自己知道答案，也必须先检索核实。\n"
+                "第一次结果无关、过宽或缺少直接证据时，必须换用更短关键词、同义词、专有名词或拆分后的问题再次调用；不得重复完全相同的 query。\n"
+                "只有当前未选择知识库，或者任务属于闲聊、翻译、改写、摘要用户已提供文本、纯计算、创作等无需知识事实的类型时，才可以不调用检索直接回答。\n"
                 "不得把模型常识冒充知识库结论；引用必须来自工具返回的 source_id。\n"
                 "只能检索当前对话已选中的知识库，范围由系统注入。\n"
                 "只有用户明确要求时，才可创建文件或把对话保存为新知识库。\n"

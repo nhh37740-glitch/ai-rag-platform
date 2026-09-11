@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent_runtime"
-version = "0.3.0"
+version = "0.3.1"
 requires-python = ">=3.11"
 dependencies = ["core_contracts", "llm_gateway", "memory", "tool_runtime", "skill_runtime", "observability"]
 

@@ -3,9 +3,9 @@
   "modules": {
     "agent-runtime": {
       "name": "agent_runtime",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "checksum": "",
-      "path": "artifacts/agent-runtime/0.3.0",
+      "path": "artifacts/agent-runtime/0.3.1",
       "status": "unbuilt"
     },
     "evaluation": {

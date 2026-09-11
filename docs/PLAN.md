@@ -45,7 +45,7 @@
 - **memory**：`SessionMemory`、`UserMemory` 两命名空间，`get/search/write/forget`；仅 memory 写库。
 - **tool-runtime + mcp-gateway**：`@tool` 函数与 MCP 工具归一为同一 `Tool`；工具可选接收 `RequestContext` 与当前对话运行上下文；mcp-gateway 负责 discovery/connect/list/call/materialize。
 - **skill-runtime**：`skills/*/SKILL.md`（frontmatter name/description + 指令 + 可选 `scripts/references/assets`），根据用户请求选择并加载完整技能内容，不得只把技能描述拼进提示词。
-- **agent-runtime**（最薄）：理解请求→取记忆/对话历史→选并加载 Skill→调 LLM→按需执行 RAG/文件/入库工具→再调 LLM→写记忆→输出；工具循环默认最多 10 轮且可调高。
+- **agent-runtime**（最薄）：理解请求→取记忆/对话历史→选并加载 Skill→调 LLM→按需执行 RAG/文件/入库工具→再调 LLM→写记忆→输出；工具循环默认最多 10 轮且可调高。只要当前对话选中了知识库，事实、定义、人物、事件、原理和“内容是什么”等知识问答必须优先调用 `search_knowledge_base` 核实，即使模型自认为知道答案也不能直接跳过；只有未选择知识库，或属于闲聊、翻译、改写、计算等无需知识事实的任务时才直接回答。
 - **observability**：跨模块结构化日志 + span 耗时，`GET /api/trace/{trace_id}` 看全链路；RAG 检索必须产生独立的 `rag` span，其元数据记录查询、知识库范围、命中数、来源、分数与短摘要；预留 Phoenix/OTel 适配器，v1 用内存 trace + 日志。
 - **文档入库**：Web 接收 `.md`、`.txt`、`.docx`、`.pdf`，抽取正文后统一保存为 Markdown，再分块并加入所属笔记本的检索范围；原始上传文件与临时文件不进入仓库。
 - **Agent 文件与对话入库**：工具只能在 `data/agent-files/` 创建新文件，不得覆盖仓库源码；用户要求保存对话时，工具将当前会话转为 Markdown，创建新笔记本并立即加入检索。
@@ -62,7 +62,7 @@
 
 - **单模块（源码仓库）**：pytest 单元测试（mock LLM/向量库/外部系统），编译前全绿。
 - **契约测试**：集成侧对每个二进制跑 `test_contract.py`（类型/出参/异常一致）。
-- **集成/端到端**：本地起 agent-server + ingestion-worker(.exe) + mock MCP + SQLite，验证“CMRC2018 自动导入→LLM 自主调用 RAG→必要时改写查询并二次检索→回答→引用”以及文件创建、对话入库、记忆和追踪链路；每次检索可通过 trace 核对选中知识库和具体命中文档。
+- **集成/端到端**：本地起 agent-server + ingestion-worker(.exe) + mock MCP + SQLite，验证“CMRC2018 自动导入→选中知识库后的事实问题优先调用 RAG→必要时改写查询并二次检索→回答→引用”以及文件创建、对话入库、记忆和追踪链路；同时验证未选知识库和非知识型任务仍可直接回答。每次检索可通过 trace 核对选中知识库和具体命中文档。
 - **边界**：不比较中文向量模型，不把 CMRC2018 当作向量模型基准；只验证项目流程可运行。
 - **验收**：所有模块版本化带 checksum、契约测试通过、源码与二进制两种运行模式可复现；集成侧工作区无任何模块实现源码。
 
@@ -90,7 +90,7 @@
 - Web 支持创建笔记本、上传 `.md/.txt/.docx/.pdf` 并统一转为 Markdown；聊天请求携带所选知识库标识，RAG 仅检索选中范围。
 - RAG 检索作为独立 `rag` span 进入 trace，可查看实际查询、选中知识库及排名后的命中来源。
 - RAG 默认使用 FastEmbed + `BAAI/bge-small-zh-v1.5`；不再吞掉依赖、下载或推理错误，hash 仅作为手动选择的离线开发后端。
-- RAG 已改为 Agentic RAG：通过独立 `rag-skill` 模块注册为 LLM 工具，不再在每次 LLM 调用前固定检索。
+- RAG 已改为 Agentic RAG：通过独立 `rag-skill` 模块注册为 LLM 工具，不再在每次 LLM 调用前固定检索；选择知识库后，事实和定义类问题必须先检索，低质量结果必须改写查询重试。
 - 移除三个无外部连接的模拟工具，改为知识库检索、受限文件创建和对话保存为新知识库三个真实工具。
 - `.circleci`、旧虚构知识库、一次性演示脚本和一次性评测报告已移除。
 - 脚本已收敛为编译扩展、编译独立服务、打包发布、验收源码运行和验收二进制运行五项明确职责。

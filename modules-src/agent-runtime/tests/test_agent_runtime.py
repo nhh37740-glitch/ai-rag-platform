@@ -16,9 +16,11 @@ def _run(coro):
 class SearchThenAnswerProvider:
     def __init__(self):
         self.calls = 0
+        self.system_prompt = ""
 
     async def generate(self, ctx, messages, tools=None):
         self.calls += 1
+        self.system_prompt = messages[0].content
         if self.calls == 1:
             return "", [ToolCall("search-1", "search_knowledge_base", {"query": "奥卡姆剃刀"})]
         tool_result = next(message.content for message in reversed(messages) if message.role == "tool")
@@ -62,8 +64,9 @@ class TestAgentRuntime(unittest.TestCase):
             search_knowledge_base,
             context_aware=True,
         )
+        provider = SearchThenAnswerProvider()
         runtime = AgentRuntime(
-            provider=SearchThenAnswerProvider(),
+            provider=provider,
             memory=make_memory("data/_tests/agent-runtime.db"),
             tools=registry,
             skills=SkillRegistry(),
@@ -82,6 +85,8 @@ class TestAgentRuntime(unittest.TestCase):
         self.assertEqual(observed["query"], "奥卡姆剃刀")
         self.assertEqual(observed["trace_id"], "trace")
         self.assertEqual(observed["knowledge_base_ids"], ["cmrc2018-demo"])
+        self.assertIn("已选择: cmrc2018-demo", provider.system_prompt)
+        self.assertIn("即使你确信自己知道答案，也必须先检索核实", provider.system_prompt)
 
     def test_tool_round_limit_cannot_be_below_ten(self):
         with self.assertRaisesRegex(ValueError, "10"):

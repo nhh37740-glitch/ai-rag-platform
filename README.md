@@ -44,7 +44,7 @@ uv pip install -e contracts -e modules-src/observability -e modules-src/memory -
 
 `rag_core` 会通过包依赖自动安装 FastEmbed，并在首次启动时加载 `.env` 中 `BGE_MODEL=BAAI/bge-small-zh-v1.5` 指定的中文向量模型。如果运行库或模型不可用，服务会直接报错；只有显式设置 `RAG_EMBED=hash` 才会启用无模型的离线向量。
 
-Agent 实际获得三个真实工具：`search_knowledge_base`、`create_file` 和 `save_conversation_to_knowledge_base`。RAG 由独立 `rag-skill` 模块执行，LLM 可改写查询并在默认最多 10 轮的 Agentic 循环中多次检索。
+Agent 实际获得三个真实工具：`search_knowledge_base`、`create_file` 和 `save_conversation_to_knowledge_base`。RAG 由独立 `rag-skill` 模块执行；选择知识库后，事实和定义类问题会强烈约束为先检索核实，低质量结果需要改写查询后再次检索。工具循环默认最多 10 轮。
 
 ## 手动编译与验收
 

@@ -59,7 +59,7 @@
 - `SkillRegistry.load_dir(path) / list(ctx) / load(ctx, name) / render(ctx, query)`，选中后惰性加载完整 SKILL.md
 
 ### Agent 编排 `agent_runtime`
-- `AgentRuntime.run(ctx, user_input, knowledge_base_ids) -> str`（记忆/历史/完整 Skill→LLM→工具循环→写记忆；循环上限默认 10 轮且不得配置小于 10）
+- `AgentRuntime.run(ctx, user_input, knowledge_base_ids) -> str`（记忆/历史/完整 Skill→LLM→工具循环→写记忆；循环上限默认 10 轮且不得配置小于 10；已选择知识库时事实与定义类问题优先检索）
 - `make_runtime(...)`
 
 ### MCP 网关 `mcp_gateway`
