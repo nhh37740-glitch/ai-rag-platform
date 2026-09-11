@@ -16,7 +16,7 @@
 | **注册表 / 插件（Registry）** | 动态注册、按名取用 | `ToolRegistry`（`@tool`）、`SkillRegistry`（`SKILL.md`）、`MockMcpServer` |
 | **契约 / 按合约设计** | 先定接口与类型，再实现 | `contracts/`（`core_contracts` + `INTERFACE.md` + `API_SCHEMA.json` + `test_contract.py`） |
 | **仓储 / DAO** | 持久化访问封装 | `MemoryStore`、`Storage`（SQLite） |
-| **模板方法 / 流水线** | 固定步骤、可插拔环节 | RAG：embed→retrieve→context；Agent 循环：记忆→Skill→RAG/Tool→LLM→执行→再LLM→写记忆 |
+| **模板方法 / 流水线** | 固定步骤、可插拔环节 | RAG：embed→retrieve→context；Agent：记忆/完整 Skill→LLM→按需多次工具调用→写记忆 |
 | **职责链** | 依次尝试工具并回传结果 | `AgentRuntime.run` 内的 tool-call 循环 |
 | **观察者 / 追踪** | 上下文贯穿 + 事件记录 | `RequestContext` + `TraceStore`/`Span`（`/api/trace/{id}`） |
 | **单例** | 全局唯一注册表 | `tool_runtime._GLOBAL` > `default_registry()` |
@@ -43,19 +43,23 @@
 - `InMemoryVectorStore.add(source_id, chunks, embeddings) / search(embedding, top_k)`
 - `retrieve(ctx, query, store, scope, top_k) -> RetrievalResult`、`build_context(result)`
 
+### Agentic RAG 技能 `rag_skill`
+- `RagSkill.tool_definition()` 向 LLM 暴露 `search_knowledge_base`
+- `RagSkill.execute(ctx, query, knowledge_base_ids, top_k)` 执行受范围限制的检索，返回结构化引用并记录 `rag` span
+
 ### 模型网关 `llm_gateway`
 - `LLMProvider.generate(ctx, messages, tools) -> (content, list[ToolCall])` / `stream(...)`
 - `DeepSeekProvider(api_key, base_url, model, transport)`、`MockProvider(scenario)`
 
 ### 工具运行时 `tool_runtime`
-- `@tool(name, description, parameters)` 注册
-- `ToolRegistry.register/list/execute(ctx, call)`、`default_registry()`
+- `@tool(name, description, parameters, context_aware=False)` 注册
+- `ToolRegistry.execute(ctx, call, runtime_context)` 可为受信工具注入当前知识库范围与会话消息
 
 ### 技能运行时 `skill_runtime`
-- `SkillRegistry.load_dir(path) / list(ctx) / load(ctx, name)`（SKILL.md，惰性展开）
+- `SkillRegistry.load_dir(path) / list(ctx) / load(ctx, name) / render(ctx, query)`，选中后惰性加载完整 SKILL.md
 
 ### Agent 编排 `agent_runtime`
-- `AgentRuntime.run(ctx, user_input) -> str`（记忆→Skill→RAG/Tool→LLM→工具→再LLM→写记忆）
+- `AgentRuntime.run(ctx, user_input, knowledge_base_ids) -> str`（记忆/历史/完整 Skill→LLM→工具循环→写记忆；循环上限默认 10 轮且不得配置小于 10）
 - `make_runtime(...)`
 
 ### MCP 网关 `mcp_gateway`
@@ -90,9 +94,9 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
                             │ AgentRuntime(编排)
                             ├─ llm_gateway  → DeepSeek/Mock
                             ├─ memory       → SQLite(会话+用户)
-                            ├─ rag_core     → embed(FastEmbed+BGE；可显式切 hash) + 按笔记本过滤的向量库
-                            ├─ skill_runtime→ SKILL.md
-                            ├─ tool_runtime → @tool 或 mcp_gateway→mcp_servers(真实 GitHub/mock)
+                            ├─ rag_skill    → search_knowledge_base 工具→rag_core(FastEmbed+BGE)
+                            ├─ skill_runtime→ 选择并加载完整 SKILL.md
+                            ├─ tool_runtime → RAG/受限文件/对话入库工具
                             └─ observability→ TraceStore(/api/trace)
 项目知识库：data/kb（内置 CMRC2018 + 用户笔记本；上传文件统一转为 Markdown）
 独立进程：ingestion(可产 data/index.json)      mcp_servers(stdio MCP)

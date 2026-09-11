@@ -4,6 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-server"
-version = "0.2.0"
+version = "0.3.0"
 requires-python = ">=3.11"
-dependencies = ["fastapi", "uvicorn", "python-multipart", "core_contracts", "observability", "memory", "rag_core", "tool_runtime", "skill_runtime", "llm_gateway", "agent_runtime", "ingestion"]
+dependencies = ["fastapi", "uvicorn", "python-multipart", "core_contracts", "observability", "memory", "rag_core", "rag_skill", "tool_runtime", "skill_runtime", "llm_gateway", "agent_runtime", "ingestion"]

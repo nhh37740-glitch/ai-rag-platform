@@ -1,5 +1,6 @@
 # INTERFACE
 
 - `AgentRuntime.run(ctx, user_input, knowledge_base_ids=None) -> str`
-- `make_runtime(provider, vector_store, memory, tools, skills, tracing, kb_scope) -> AgentRuntime`
-- `run` 会向 `TraceStore` 记录 `rag` span，其元数据包含查询、检索范围、命中数及来源排名。
+- `AgentRuntime(provider, memory, tools, skills, tracing, max_tool_rounds=10)`
+- `make_runtime(provider, memory, tools, skills, tracing, max_tool_rounds=10) -> AgentRuntime`
+- `run` 不再预先执行 RAG；LLM 可在至少 10 轮的可配置循环内自主调用已注册工具。

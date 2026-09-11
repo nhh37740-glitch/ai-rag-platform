@@ -158,10 +158,6 @@ form.onsubmit = (event) => {
   const question = message.value.trim();
   if (!question) return;
   const knowledgeBaseIds = selectedKnowledgeBases();
-  if (!knowledgeBaseIds.length) {
-    show("请至少选择一个知识库。\n");
-    return;
-  }
   show(`你: ${question}`);
   message.value = "";
   show("...");
@@ -171,6 +167,9 @@ form.onsubmit = (event) => {
     const result = JSON.parse(eventMessage.data);
     show(`Agent: ${result.answer}\n[trace: ${result.trace_id || ""}]\n`);
     events.close();
+    loadNotebooks().catch((error) => {
+      notebookStatus.textContent = error.message;
+    });
   };
   events.onerror = () => {
     events.close();

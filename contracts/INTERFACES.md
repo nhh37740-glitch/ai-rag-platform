@@ -39,6 +39,17 @@ def retrieve(ctx, query: str, store: VectorStore,
 
 `RAG_EMBED` 默认为 `fastembed`；只有显式设置 `RAG_EMBED=hash` 时才允许使用不经模型的离线 hash 向量。未安装 FastEmbed、模型无法加载或配置了未知后端时必须报错，不得静默降级。
 
+## rag_skill
+```python
+class RagSkill:
+    def __init__(self, store: VectorStore, tracing: TraceStore, top_k: int = 5): ...
+    def tool_definition(self) -> ToolDef: ...
+    def execute(self, ctx, query: str, knowledge_base_ids: list[str],
+                top_k: int | None = None) -> str: ...
+```
+
+`RagSkill` 是 Agent 面向的独立执行模块；工具调用的知识库范围必须由当前请求上下文注入，不允许 LLM 自行扩大范围。
+
 ## memory
 ```python
 class MemoryStore:
@@ -52,11 +63,12 @@ def make_memory(db_path: str) -> MemoryStore: ...   # session + user 两个 name
 
 ## tool_runtime
 ```python
-def tool(name: str, description: str, parameters: dict) -> Callable: ...   # 装饰器，注册进默认 registry
+def tool(name: str, description: str, parameters: dict,
+         context_aware: bool = False) -> Callable: ...   # 装饰器，注册进默认 registry
 class ToolRegistry:
-    def register(self, t: ToolDef, fn): ...
+    def register(self, t: ToolDef, fn, context_aware: bool = False): ...
     def list(self, ctx) -> list[ToolDef]: ...
-    def execute(self, ctx, call: ToolCall) -> str: ...
+    def execute(self, ctx, call: ToolCall, runtime_context: dict | None = None) -> str: ...
 ```
 
 ## mcp_gateway
@@ -85,12 +97,13 @@ class SkillRegistry:
     def list(self, ctx) -> list[SkillDef]: ...
     def load(self, ctx, name: str) -> SkillDef: ...        # 惰性展开 SKILL.md 指令
     def load_dir(self, path: str) -> None: ...             # 扫描 skills/<name>/SKILL.md
+    def render(self, ctx, query: str) -> str: ...          # 选择相关 Skill 并返回完整指令
 ```
 
 ## agent_runtime
 ```python
 class AgentRuntime:
-    def __init__(self, provider, rag, memory, tools, skills, tracing): ...
+    def __init__(self, provider, memory, tools, skills, tracing, max_tool_rounds: int = 10): ...
     async def run(self, ctx, user_input: str, knowledge_base_ids: list[str] | None = None) -> str: ...
 ```
 

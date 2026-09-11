@@ -1,39 +1,55 @@
 from __future__ import annotations
 
-import time
-from typing import List, Optional
+import threading
+from typing import Dict, List, Optional, Tuple
 
-from core_contracts import ChatMessage, RequestContext, SpanEvent
+from core_contracts import ChatMessage, RequestContext
 from llm_gateway import LLMProvider
 from memory import MemoryStore
 from observability import ASpan, TraceStore
-from rag_core import InMemoryVectorStore, build_context, retrieve
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 
 class AgentRuntime:
-    """最薄的 Agent 编排循环：理解→记忆→Skill→RAG/Tool→LLM→执行→再LLM→写记忆。"""
+    """Agentic tool loop: memory/history -> full skills -> LLM/tools -> memory."""
 
     def __init__(
         self,
         provider: LLMProvider,
-        vector_store: InMemoryVectorStore,
         memory: MemoryStore,
         tools: ToolRegistry,
         skills: SkillRegistry,
         tracing: TraceStore,
-        kb_scope: str = "kb",
+        max_tool_rounds: int = 10,
     ) -> None:
+        if max_tool_rounds < 10:
+            raise ValueError("max_tool_rounds 不能小于 10")
         self.provider = provider
-        self.vector_store = vector_store
         self.memory = memory
         self.tools = tools
         self.skills = skills
         self.tracing = tracing
-        self.kb_scope = kb_scope
+        self.max_tool_rounds = max_tool_rounds
+        self._histories: Dict[Tuple[str, str], List[ChatMessage]] = {}
+        self._history_lock = threading.Lock()
+
+    def _history(self, ctx: RequestContext) -> List[ChatMessage]:
+        key = (ctx.user_id, ctx.session_id)
+        with self._history_lock:
+            return list(self._histories.get(key, []))
+
+    def _remember_turn(self, ctx: RequestContext, user_input: str, answer: str) -> None:
+        key = (ctx.user_id, ctx.session_id)
+        with self._history_lock:
+            history = self._histories.setdefault(key, [])
+            history.extend([ChatMessage("user", user_input), ChatMessage("assistant", answer)])
+            if len(history) > 40:
+                del history[:-40]
+        self.memory.write(ctx, "session", "current_task", user_input, 0.3)
+        self.memory.write(ctx, "user", "last_task", user_input + " -> " + answer[:160], 0.6)
 
     async def run(
         self,
@@ -42,91 +58,69 @@ class AgentRuntime:
         knowledge_base_ids: Optional[List[str]] = None,
     ) -> str:
         async with ASpan(ctx, "agent", self.tracing):
-            # 1) 记忆
             user_notes = self.memory.search(ctx, "user", user_input, 3)
-            sess_notes = self.memory.search(ctx, "session", user_input, 3)
-            mem_text = "\n".join("- " + n.content for n in user_notes + sess_notes) or "(无)"
+            session_notes = self.memory.search(ctx, "session", user_input, 3)
+            memory_text = "\n".join(
+                "- " + note.content for note in user_notes + session_notes
+            ) or "(无)"
 
-            # 2) Skill
-            skill_text = "; ".join(s.description for s in self.skills.list(ctx)) or "(无)"
-
-            # 3) RAG
-            scope = self.kb_scope if knowledge_base_ids is None else knowledge_base_ids
-            rag_start_ns = time.perf_counter_ns()
-            if isinstance(scope, str):
-                traced_knowledge_base_ids = [
-                    item.strip() for item in scope.split(",") if item.strip()
-                ]
-                if scope in ("", "kb", "*"):
-                    traced_knowledge_base_ids = None
-            else:
-                traced_knowledge_base_ids = scope
-            rag_meta = {
-                "query": user_input,
-                "knowledge_base_ids": traced_knowledge_base_ids,
-                "hit_count": 0,
-                "hits": [],
-            }
-            try:
-                result = retrieve(ctx, user_input, self.vector_store, scope)
-                rag_meta["hit_count"] = len(result.citations)
-                rag_meta["hits"] = [
-                    {
-                        "rank": rank,
-                        "source_id": citation.source_id,
-                        "title": citation.title,
-                        "score": round(float(citation.score), 6),
-                        "text_preview": " ".join(citation.text.split())[:160],
-                    }
-                    for rank, citation in enumerate(result.citations, start=1)
-                ]
-            except Exception as exc:
-                self.tracing.record(
-                    SpanEvent(
-                        trace_id=ctx.trace_id,
-                        span="rag",
-                        start_ns=rag_start_ns,
-                        end_ns=time.perf_counter_ns(),
-                        status="error",
-                        error=str(exc),
-                        meta=rag_meta,
-                    )
-                )
-                raise
-            self.tracing.record(
-                SpanEvent(
-                    trace_id=ctx.trace_id,
-                    span="rag",
-                    start_ns=rag_start_ns,
-                    end_ns=time.perf_counter_ns(),
-                    status="ok",
-                    meta=rag_meta,
-                )
-            )
-            kb_text = build_context(result)
-
+            skill_text = self.skills.render(ctx, user_input) or "(无匹配技能)"
+            selected_knowledge_bases = list(dict.fromkeys(knowledge_base_ids or []))
             system = (
-                "你是企业研发助手。可用技能: " + skill_text + "。\n"
-                "相关记忆:\n" + mem_text + "\n"
-                "知识库资料:\n" + kb_text + "\n"
-                "请基于以上内容作答，尽量引用来源；能调用工具就调用工具。"
+                "你是企业研发知识与协作智能体。\n"
+                "对普通闲聊或无需外部知识的问题可直接回答。\n"
+                "需要知识库事实时，必须调用 search_knowledge_base；结果不理想时先缩短或改写查询后再次调用。\n"
+                "不得把模型常识冒充知识库结论；引用必须来自工具返回的 source_id。\n"
+                "只能检索当前对话已选中的知识库，范围由系统注入。\n"
+                "只有用户明确要求时，才可创建文件或把对话保存为新知识库。\n"
+                "相关记忆:\n" + memory_text + "\n"
+                "已加载技能:\n" + skill_text
             )
-            messages: list[ChatMessage] = [ChatMessage("system", system), ChatMessage("user", user_input)]
-            tools = self.tools.list(ctx)
+            messages: List[ChatMessage] = [
+                ChatMessage("system", system),
+                *self._history(ctx),
+                ChatMessage("user", user_input),
+            ]
+            tool_definitions = self.tools.list(ctx)
+            runtime_context = {
+                "knowledge_base_ids": selected_knowledge_bases,
+                "messages": messages,
+                "user_input": user_input,
+            }
 
-            for _ in range(5):
+            for _ in range(self.max_tool_rounds):
                 async with ASpan(ctx, "llm", self.tracing):
-                    content, calls = await self.provider.generate(ctx, messages, tools)
+                    content, calls = await self.provider.generate(
+                        ctx, messages, tool_definitions
+                    )
                 if not calls:
-                    self.memory.write(ctx, "session", "current_task", user_input, 0.3)
-                    self.memory.write(ctx, "user", "last_task", user_input + " -> " + content[:160], 0.6)
+                    self._remember_turn(ctx, user_input, content)
                     return content
+
                 messages.append(ChatMessage("assistant", content, tool_calls=calls))
                 async with ASpan(ctx, "tool", self.tracing):
                     for call in calls:
-                        outcome = self.tools.execute(ctx, call)
-                        messages.append(ChatMessage("tool", outcome, tool_call_id=call.id, name=call.name))
-            return "(经过多次工具调用仍未得到结论)"
+                        outcome = self.tools.execute(ctx, call, runtime_context)
+                        messages.append(
+                            ChatMessage(
+                                "tool",
+                                outcome,
+                                tool_call_id=call.id,
+                                name=call.name,
+                            )
+                        )
+
+            messages.append(
+                ChatMessage(
+                    "system",
+                    "已达到工具调用轮数上限，请根据已有结果直接给出最终回答，不再调用工具。",
+                )
+            )
+            async with ASpan(ctx, "llm", self.tracing):
+                content, _ = await self.provider.generate(ctx, messages, [])
+            answer = content or "(工具调用达到上限，未生成最终结论)"
+            self._remember_turn(ctx, user_input, answer)
+            return answer
 
 
 def make_runtime(**kwargs) -> AgentRuntime:

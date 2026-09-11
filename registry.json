@@ -3,9 +3,9 @@
   "modules": {
     "agent-runtime": {
       "name": "agent_runtime",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "checksum": "",
-      "path": "artifacts/agent-runtime/0.2.0",
+      "path": "artifacts/agent-runtime/0.3.0",
       "status": "unbuilt"
     },
     "evaluation": {
@@ -59,16 +59,23 @@
     },
     "rag-core": {
       "name": "rag_core",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "checksum": "",
-      "path": "artifacts/rag-core/0.2.0",
+      "path": "artifacts/rag-core/0.3.0",
+      "status": "unbuilt"
+    },
+    "rag-skill": {
+      "name": "rag_skill",
+      "version": "0.1.0",
+      "checksum": "",
+      "path": "artifacts/rag-skill/0.1.0",
       "status": "unbuilt"
     },
     "skill-runtime": {
       "name": "skill_runtime",
-      "version": "0.1.0",
-      "checksum": "178fabf44f934abf20fb40d24840b8c380afb0beaa12c9e5bb8fdc3379c197ce",
-      "path": "artifacts/skill-runtime/0.1.0",
+      "version": "0.2.0",
+      "checksum": "",
+      "path": "artifacts/skill-runtime/0.2.0",
       "status": "unbuilt"
     },
     "storage": {
@@ -80,9 +87,9 @@
     },
     "tool-runtime": {
       "name": "tool_runtime",
-      "version": "0.1.0",
-      "checksum": "cb1f0487f7781c02bd6d9299c60ab4dcb051a65ffb205c7c152cf11cf1102add",
-      "path": "artifacts/tool-runtime/0.1.0",
+      "version": "0.2.0",
+      "checksum": "",
+      "path": "artifacts/tool-runtime/0.2.0",
       "status": "unbuilt"
     }
   }

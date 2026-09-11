@@ -1,0 +1,52 @@
+{
+  "module": "rag-skill",
+  "package": "rag_skill",
+  "version": "0.1.0",
+  "facade": {
+    "RagSkill": {
+      "kind": "class",
+      "init": {
+        "store": "VectorStore",
+        "tracing": "TraceStore",
+        "top_k": "int=5"
+      },
+      "methods": {
+        "tool_definition": {
+          "params": {},
+          "returns": "ToolDef"
+        },
+        "execute": {
+          "params": {
+            "ctx": "RequestContext",
+            "query": "str",
+            "knowledge_base_ids": "list[str]",
+            "top_k": "int|null"
+          },
+          "returns": "str"
+        }
+      }
+    }
+  },
+  "tool": {
+    "name": "search_knowledge_base",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": { "type": "string", "minLength": 1 },
+        "top_k": { "type": "integer", "minimum": 1, "maximum": 20 }
+      },
+      "required": ["query"],
+      "additionalProperties": false
+    },
+    "runtime_injected": ["knowledge_base_ids"]
+  },
+  "trace": {
+    "span": "rag",
+    "meta": {
+      "query": "str",
+      "knowledge_base_ids": "list[str]",
+      "hit_count": "int",
+      "hits": "list[{rank:int,source_id:str,title:str,score:float,text_preview:str}]"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "contract_version": "0.2.3",
+  "contract_version": "0.3.0",
   "context": {
     "type": "RequestContext",
     "package": "contracts.core_contracts",
@@ -65,6 +65,21 @@
         "SqliteVectorStore": { "kind": "class", "init": { "db_path": "str" } }
       }
     },
+    "rag-skill": {
+      "package": "rag_skill",
+      "delivery": "mypyc",
+      "version": "0.1.0",
+      "facade": {
+        "RagSkill": {
+          "kind": "class",
+          "init": { "store": "VectorStore", "tracing": "TraceStore", "top_k": "int=5" },
+          "methods": {
+            "tool_definition": { "params": {}, "returns": "ToolDef" },
+            "execute": { "params": { "ctx": "RequestContext", "query": "str", "knowledge_base_ids": "list[str]", "top_k": "int|null" }, "returns": "str" }
+          }
+        }
+      }
+    },
     "memory": {
       "package": "memory",
       "delivery": "mypyc",
@@ -101,15 +116,15 @@
     "tool-runtime": {
       "package": "tool_runtime",
       "delivery": "mypyc",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "facade": {
-        "tool": { "kind": "function", "params": { "name": "str", "description": "str", "parameters": "dict" }, "returns": "callable(decorator)" },
+        "tool": { "kind": "function", "params": { "name": "str", "description": "str", "parameters": "dict", "context_aware": "bool=false" }, "returns": "callable(decorator)" },
         "ToolRegistry": {
           "kind": "class",
           "methods": {
-            "register": { "params": { "t": "ToolDef", "fn": "callable" }, "returns": "None" },
+            "register": { "params": { "t": "ToolDef", "fn": "callable", "context_aware": "bool=false" }, "returns": "None" },
             "list": { "params": { "ctx": "RequestContext" }, "returns": "list[ToolDef]" },
-            "execute": { "params": { "ctx": "RequestContext", "call": "ToolCall" }, "returns": "str" }
+            "execute": { "params": { "ctx": "RequestContext", "call": "ToolCall", "runtime_context": "dict|null" }, "returns": "str" }
           }
         }
       }
@@ -134,14 +149,15 @@
     "skill-runtime": {
       "package": "skill_runtime",
       "delivery": "mypyc",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "facade": {
         "SkillRegistry": {
           "kind": "class",
           "methods": {
             "list": { "params": { "ctx": "RequestContext" }, "returns": "list[SkillDef]" },
             "load": { "params": { "ctx": "RequestContext", "name": "str" }, "returns": "SkillDef" },
-            "load_dir": { "params": { "path": "str" }, "returns": "None" }
+            "load_dir": { "params": { "path": "str" }, "returns": "None" },
+            "render": { "params": { "ctx": "RequestContext", "query": "str" }, "returns": "str" }
           }
         }
       }
@@ -149,11 +165,11 @@
     "agent-runtime": {
       "package": "agent_runtime",
       "delivery": "mypyc",
-      "version": "0.2.1",
+      "version": "0.3.0",
       "facade": {
         "AgentRuntime": {
           "kind": "class",
-          "init": { "provider": "LLMProvider", "rag": "RagClient", "memory": "MemoryStore", "tools": "ToolRegistry", "skills": "SkillRegistry", "tracing": "TraceStore" },
+          "init": { "provider": "LLMProvider", "memory": "MemoryStore", "tools": "ToolRegistry", "skills": "SkillRegistry", "tracing": "TraceStore", "max_tool_rounds": "int=10" },
           "methods": {
             "run": { "async": true, "params": { "ctx": "RequestContext", "user_input": "str", "knowledge_base_ids": "list[str]|null" }, "returns": "str" }
           }

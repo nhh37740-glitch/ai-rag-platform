@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from agent_runtime import AgentRuntime
-from core_contracts import RequestContext
+from core_contracts import ChatMessage, RequestContext, ToolDef
 from document_upload import (
     MAX_UPLOAD_BYTES,
     SUPPORTED_EXTENSIONS,
@@ -24,13 +24,15 @@ from llm_gateway import DeepSeekProvider, MockProvider
 from memory import make_memory
 from observability import make_trace_store
 from rag_core import InMemoryVectorStore, embed
+from rag_skill import RagSkill
 from skill_runtime import SkillRegistry
-from tool_runtime import default_registry, tool
+from tool_runtime import ToolRegistry
 
 BASE = Path(__file__).resolve().parent
 ROOT = BASE.parents[1]
 KB_DIR = ROOT / "data" / "kb"
 USER_NOTEBOOKS_DIR = KB_DIR / "user-notebooks"
+AGENT_FILES_DIR = ROOT / "data" / "agent-files"
 SKILL_DIR = ROOT / "skills"
 
 
@@ -62,24 +64,7 @@ skills = SkillRegistry()
 skills.load_dir(str(SKILL_DIR))
 
 provider = DeepSeekProvider(API_KEY, BASE_URL, MODEL) if API_KEY else MockProvider("qa")
-tools = default_registry()
-
-
-@tool("create_issue", "create a bug/issue", {"type": "object", "properties": {"title": {"type": "string"}, "priority": {"type": "string"}}, "required": ["title"]})
-def _create_issue(title: str, priority: str = "P2") -> str:
-    return f"已创建 Issue：{title}（优先级 {priority}，编号 #1{abs(hash(title)) % 9000 + 1000}）"
-
-
-@tool("get_commits", "查询最近提交", {"type": "object", "properties": {"repo": {"type": "string"}, "since": {"type": "string"}}, "required": ["repo"]})
-def _get_commits(repo: str = "demo", since: str = "1d") -> str:
-    return "最近提交: 3, 修复网关 keep-alive 超时; 2, 优化索引查询; 1, 更新 API 文档"
-
-
-@tool("search_employee", "查询项目成员", {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]})
-def _search_employee(query: str) -> str:
-    if "后端" in query:
-        return "后端组: 张三(网关)、李四(存储)、王五(Agent)"
-    return "未找到匹配成员"
+tools = ToolRegistry()
 
 
 def _load_demo_knowledge_base() -> tuple[dict, list[tuple[Path, dict]]]:
@@ -126,6 +111,73 @@ def _write_user_notebook(notebook_dir: Path, metadata: dict) -> None:
     temporary_path = notebook_dir / ".notebook-metadata.tmp"
     temporary_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     temporary_path.replace(metadata_path)
+
+
+def _create_user_notebook(name: str, description: str = "") -> tuple[Path, dict]:
+    clean_name = name.strip()
+    clean_description = description.strip()
+    if not clean_name or len(clean_name) > 80:
+        raise ValueError("笔记本名称长度应为 1-80 个字符")
+    if len(clean_description) > 300:
+        raise ValueError("笔记本说明不能超过 300 个字符")
+    notebook_id = f"notebook-{uuid.uuid4().hex[:12]}"
+    notebook_dir = _user_notebook_path(notebook_id)
+    (notebook_dir / "markdown-documents").mkdir(parents=True)
+    metadata = {
+        "id": notebook_id,
+        "name": clean_name,
+        "description": clean_description,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "documents": [],
+    }
+    _write_user_notebook(notebook_dir, metadata)
+    return notebook_dir, metadata
+
+
+def _add_markdown_document(
+    notebook_dir: Path,
+    metadata: dict,
+    original_name: str,
+    markdown: str,
+) -> dict:
+    safe_stem = re.sub(
+        r"[^\w\u4e00-\u9fff-]+", "-", Path(original_name).stem
+    ).strip("-_")[:60] or "document"
+    markdown_file = f"{safe_stem}-{uuid.uuid4().hex[:8]}.md"
+    markdown_path = notebook_dir / "markdown-documents" / markdown_file
+    markdown_path.write_text(markdown, encoding="utf-8")
+    try:
+        chunks = chunk_text(parse_doc(str(markdown_path)))
+        if not chunks:
+            raise ValueError("文档中没有可入库的文本")
+        embeddings = embed(chunks)
+        source_id = f"{metadata['id']}/{markdown_path.stem}"
+        vector_store.add(source_id, chunks, embeddings)
+    except Exception:
+        markdown_path.unlink(missing_ok=True)
+        raise
+    document = {
+        "original_name": original_name,
+        "markdown_file": markdown_file,
+        "title": Path(original_name).stem,
+        "chunks": len(chunks),
+    }
+    metadata["documents"].append(document)
+    _write_user_notebook(notebook_dir, metadata)
+    return document
+
+
+def _conversation_markdown(name: str, messages: list[ChatMessage]) -> str:
+    sections = [f"# {name.strip()}", ""]
+    labels = {"user": "用户", "assistant": "Agent"}
+    for message in messages:
+        content = (message.content or "").strip()
+        if message.role not in labels or not content:
+            continue
+        sections.extend([f"## {labels[message.role]}", "", content, ""])
+    if len(sections) == 2:
+        raise ValueError("当前会话没有可保存的内容")
+    return "\n".join(sections).rstrip() + "\n"
 
 
 def _list_user_notebooks() -> list[tuple[Path, dict]]:
@@ -216,13 +268,125 @@ def _load_kb() -> tuple[InMemoryVectorStore, int]:
 
 vector_store, demo_kb_imported = _load_kb()
 
+rag_skill = RagSkill(vector_store, trace_store)
+
+
+def _search_knowledge_base(
+    query: str,
+    top_k: int | None = None,
+    *,
+    ctx: RequestContext,
+    runtime_context: dict | None,
+) -> str:
+    if runtime_context is None:
+        raise ValueError("缺少工具运行上下文")
+    knowledge_base_ids = runtime_context.get("knowledge_base_ids", [])
+    return rag_skill.execute(ctx, query, knowledge_base_ids, top_k)
+
+
+def _create_agent_file(filename: str, content: str) -> str:
+    if not isinstance(filename, str) or not filename.strip():
+        raise ValueError("文件名不能为空")
+    clean_name = filename.strip()
+    if clean_name != Path(clean_name).name:
+        raise ValueError("文件名不能包含路径")
+    if Path(clean_name).suffix.lower() not in {".md", ".txt", ".json"}:
+        raise ValueError("只允许创建 .md、.txt 或 .json 文件")
+    if not isinstance(content, str) or len(content.encode("utf-8")) > 1024 * 1024:
+        raise ValueError("文件内容必须是不超过 1 MiB 的文本")
+    AGENT_FILES_DIR.mkdir(parents=True, exist_ok=True)
+    path = (AGENT_FILES_DIR / clean_name).resolve()
+    if AGENT_FILES_DIR.resolve() not in path.parents:
+        raise ValueError("文件路径超出允许范围")
+    if path.exists():
+        raise FileExistsError(f"文件已存在: {clean_name}")
+    path.write_text(content, encoding="utf-8")
+    return json.dumps(
+        {"created": True, "filename": clean_name, "path": f"data/agent-files/{clean_name}"},
+        ensure_ascii=False,
+    )
+
+
+def _save_conversation_to_knowledge_base(
+    name: str,
+    description: str = "",
+    *,
+    ctx: RequestContext,
+    runtime_context: dict | None,
+) -> str:
+    if runtime_context is None:
+        raise ValueError("缺少工具运行上下文")
+    messages = runtime_context.get("messages", [])
+    markdown = _conversation_markdown(name, messages)
+    notebook_dir, metadata = _create_user_notebook(name, description)
+    try:
+        document = _add_markdown_document(
+            notebook_dir,
+            metadata,
+            "conversation.md",
+            markdown,
+        )
+    except Exception:
+        metadata["description"] = (
+            metadata.get("description", "") + " [创建后入库失败]"
+        ).strip()
+        _write_user_notebook(notebook_dir, metadata)
+        raise
+    selected_ids = runtime_context.setdefault("knowledge_base_ids", [])
+    if metadata["id"] not in selected_ids:
+        selected_ids.append(metadata["id"])
+    return json.dumps(
+        {
+            "created": True,
+            "knowledge_base": _public_notebook(metadata, True),
+            "document": document,
+        },
+        ensure_ascii=False,
+    )
+
+
+tools.register(rag_skill.tool_definition(), _search_knowledge_base, context_aware=True)
+tools.register(
+    ToolDef(
+        "create_file",
+        "在受限的 data/agent-files 目录创建新文本文件；不能覆盖已有文件或写入仓库其他位置。",
+        {
+            "type": "object",
+            "properties": {
+                "filename": {"type": "string", "description": "带 .md/.txt/.json 后缀的文件名"},
+                "content": {"type": "string", "description": "要写入的文本内容"},
+            },
+            "required": ["filename", "content"],
+            "additionalProperties": False,
+        },
+    ),
+    _create_agent_file,
+)
+tools.register(
+    ToolDef(
+        "save_conversation_to_knowledge_base",
+        "当用户明确要求保存当前对话时，将截至调用时的用户与 Agent 消息转为 Markdown，创建新笔记本并立即入库。",
+        {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "新知识库名称"},
+                "description": {"type": "string", "description": "新知识库说明"},
+            },
+            "required": ["name"],
+            "additionalProperties": False,
+        },
+    ),
+    _save_conversation_to_knowledge_base,
+    context_aware=True,
+)
+
 runtime = AgentRuntime(
     provider=provider,
-    vector_store=vector_store,
     memory=memory,
     tools=tools,
     skills=skills,
     tracing=trace_store,
+    max_tool_rounds=10,
 )
 
 app = FastAPI(title="Dev Knowledge Agent")
@@ -301,21 +465,10 @@ async def create_notebook(req: Request) -> JSONResponse:
     body = await req.json()
     name = str(body.get("name", "")).strip()
     description = str(body.get("description", "")).strip()
-    if not name or len(name) > 80:
-        raise HTTPException(status_code=400, detail="笔记本名称长度应为 1-80 个字符")
-    if len(description) > 300:
-        raise HTTPException(status_code=400, detail="笔记本说明不能超过 300 个字符")
-    notebook_id = f"notebook-{uuid.uuid4().hex[:12]}"
-    notebook_dir = _user_notebook_path(notebook_id)
-    (notebook_dir / "markdown-documents").mkdir(parents=True)
-    metadata = {
-        "id": notebook_id,
-        "name": name,
-        "description": description,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "documents": [],
-    }
-    _write_user_notebook(notebook_dir, metadata)
+    try:
+        _, metadata = _create_user_notebook(name, description)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return JSONResponse(_public_notebook(metadata, True), status_code=201)
 
 
@@ -333,26 +486,11 @@ async def upload_notebook_files(notebook_id: str, files: list[UploadFile] = File
     except UploadValidationError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    documents_dir = notebook_dir / "markdown-documents"
-    documents_dir.mkdir(exist_ok=True)
     imported = []
     for original_name, markdown in converted:
-        safe_stem = re.sub(r"[^\w\u4e00-\u9fff-]+", "-", Path(original_name).stem).strip("-_")[:60] or "document"
-        markdown_file = f"{safe_stem}-{uuid.uuid4().hex[:8]}.md"
-        markdown_path = documents_dir / markdown_file
-        markdown_path.write_text(markdown, encoding="utf-8")
-        chunks = chunk_text(parse_doc(str(markdown_path)))
-        source_id = f"{notebook_id}/{markdown_path.stem}"
-        vector_store.add(source_id, chunks, embed(chunks))
-        document = {
-            "original_name": original_name,
-            "markdown_file": markdown_file,
-            "title": Path(original_name).stem,
-            "chunks": len(chunks),
-        }
-        metadata["documents"].append(document)
-        imported.append(document)
-    _write_user_notebook(notebook_dir, metadata)
+        imported.append(
+            _add_markdown_document(notebook_dir, metadata, original_name, markdown)
+        )
     return JSONResponse({"notebook_id": notebook_id, "imported": imported}, status_code=201)
 
 

@@ -28,6 +28,8 @@ data/*.sqlite
 data/_tests/
 data/index.json
 data/kb/user-notebooks/*/
+data/agent-files/*
+!data/agent-files/README.md
 reports/
 
 # vendored models (large, downloaded locally; not committed)

@@ -48,6 +48,17 @@ class DemoKnowledgeBaseTests(unittest.TestCase):
         )
         self.assertTrue(any("静电感应" in item.source_id for item in result.citations))
 
+    def test_agent_receives_only_real_project_tools(self) -> None:
+        names = [tool.name for tool in server_app.tools.list(RequestContext("t", "r"))]
+        self.assertEqual(
+            names,
+            [
+                "search_knowledge_base",
+                "create_file",
+                "save_conversation_to_knowledge_base",
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
