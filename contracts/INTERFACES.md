@@ -101,6 +101,8 @@ class TraceStore:
     def get(self, trace_id: str) -> list[SpanEvent]: ...
 ```
 
+`rag` span 的 `meta` 必须包含 `query`、`knowledge_base_ids`、`hit_count` 和按排名排列的 `hits`；每个命中项记录 `rank`、`source_id`、`title`、`score` 与截断后的 `text_preview`。
+
 ## evaluation（独立进程/API）
 ```python
 def evaluate_qa(ctx, qa_set: dict) -> dict: ...   # Retrieval Recall/Precision, Faithfulness, Answer Relevance

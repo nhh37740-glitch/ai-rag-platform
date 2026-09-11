@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "contract_version": "0.2.1",
+  "contract_version": "0.2.2",
   "context": {
     "type": "RequestContext",
     "package": "contracts.core_contracts",
@@ -21,6 +21,17 @@
     "MemoryEntry": { "id": "str", "namespace": "session|user", "key": "str", "content": "str", "created": "str", "importance": "float" },
     "SkillDef": { "name": "str", "description": "str", "version": "str", "load": "callable|null" },
     "SpanEvent": { "trace_id": "str", "span": "str", "start_ns": "int", "end_ns": "int", "status": "ok|error", "error": "str", "meta": "dict" }
+  },
+  "trace_conventions": {
+    "rag": {
+      "span": "rag",
+      "meta": {
+        "query": "str",
+        "knowledge_base_ids": "list[str]|null",
+        "hit_count": "int",
+        "hits": "list[{rank:int,source_id:str,title:str,score:float,text_preview:str}]"
+      }
+    }
   },
   "rules": {
     "dependency_ceiling": ["stdlib", "httpx", "numpy", "sklearn", "pypdf"],
@@ -133,7 +144,7 @@
     "agent-runtime": {
       "package": "agent_runtime",
       "delivery": "mypyc",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "facade": {
         "AgentRuntime": {
           "kind": "class",

@@ -45,7 +45,7 @@
 - **tool-runtime + mcp-gateway**：`@tool` 函数与 MCP 工具归一为同一 `Tool`；mcp-gateway 负责 discovery/connect/list/call/materialize。
 - **skill-runtime**：`skills/*/SKILL.md`（frontmatter name/description + 指令 + 可选 `scripts/references/assets`），按需加载。
 - **agent-runtime**（最薄）：理解请求→取记忆→选 Skill→定 RAG/Tool→调 LLM→执行 tool→再调 LLM→写记忆→输出。
-- **observability**：跨模块结构化日志 + span 耗时，`GET /api/trace/{trace_id}` 看全链路；预留 Phoenix/OTel 适配器，v1 用内存 trace + 日志。
+- **observability**：跨模块结构化日志 + span 耗时，`GET /api/trace/{trace_id}` 看全链路；RAG 检索必须产生独立的 `rag` span，其元数据记录查询、知识库范围、命中数、来源、分数与短摘要；预留 Phoenix/OTel 适配器，v1 用内存 trace + 日志。
 - **文档入库**：Web 接收 `.md`、`.txt`、`.docx`、`.pdf`，抽取正文后统一保存为 Markdown，再分块并加入所属笔记本的检索范围；原始上传文件与临时文件不进入仓库。
 - **存储**：`storage` 接口统一用户/会话/记忆/文档元数据/向量/评测结果；默认 **SQLite 元数据 + 本地向量库（FAISS/Chroma）**，接口与 PostgreSQL+pgvector 同构，可无痛切换；本地 BGE（默认 `bge-small-zh`）。
 
@@ -60,7 +60,7 @@
 
 - **单模块（源码仓库）**：pytest 单元测试（mock LLM/向量库/外部系统），编译前全绿。
 - **契约测试**：集成侧对每个二进制跑 `test_contract.py`（类型/出参/异常一致）。
-- **集成/端到端**：本地起 agent-server + ingestion-worker(.exe) + mock MCP + SQLite，验证“CMRC2018 自动导入→示例问题→RAG→回答→引用”以及工具、记忆和追踪链路。
+- **集成/端到端**：本地起 agent-server + ingestion-worker(.exe) + mock MCP + SQLite，验证“CMRC2018 自动导入→示例问题→RAG→回答→引用”以及工具、记忆和追踪链路；每次检索可通过 trace 核对选中知识库和具体命中文档。
 - **边界**：不比较中文向量模型，不把 CMRC2018 当作向量模型基准；只验证项目流程可运行。
 - **验收**：所有模块版本化带 checksum、契约测试通过、源码与二进制两种运行模式可复现；集成侧工作区无任何模块实现源码。
 
@@ -86,6 +86,7 @@
 - 12 个 Python 包及契约、FastAPI 主进程、Web 聊天、RAG、工具、Skill、记忆与追踪代码均保留。
 - Web 演示固定使用 `data/kb/cmrc2018-demo/` 中的 CMRC2018 dev 子集：24 篇文档、99 个问题；服务启动时导入知识库，页面展示导入状态与跨主题问题提示。
 - Web 支持创建笔记本、上传 `.md/.txt/.docx/.pdf` 并统一转为 Markdown；聊天请求携带所选知识库标识，RAG 仅检索选中范围。
+- RAG 检索作为独立 `rag` span 进入 trace，可查看实际查询、选中知识库及排名后的命中来源。
 - `.circleci`、旧虚构知识库、一次性演示脚本和一次性评测报告已移除。
 - 脚本已收敛为编译扩展、编译独立服务、打包发布、验收源码运行和验收二进制运行五项明确职责。
 - 当前阶段只完成仓库整理；编译与测试由项目操作者随后手动执行，结果未在本节预先宣称。

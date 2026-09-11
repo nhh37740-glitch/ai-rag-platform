@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import time
 from typing import List, Optional
 
-from core_contracts import ChatMessage, RequestContext
+from core_contracts import ChatMessage, RequestContext, SpanEvent
 from llm_gateway import LLMProvider
 from memory import MemoryStore
 from observability import ASpan, TraceStore
@@ -10,7 +11,7 @@ from rag_core import InMemoryVectorStore, build_context, retrieve
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 
 class AgentRuntime:
@@ -51,7 +52,57 @@ class AgentRuntime:
 
             # 3) RAG
             scope = self.kb_scope if knowledge_base_ids is None else knowledge_base_ids
-            result = retrieve(ctx, user_input, self.vector_store, scope)
+            rag_start_ns = time.perf_counter_ns()
+            if isinstance(scope, str):
+                traced_knowledge_base_ids = [
+                    item.strip() for item in scope.split(",") if item.strip()
+                ]
+                if scope in ("", "kb", "*"):
+                    traced_knowledge_base_ids = None
+            else:
+                traced_knowledge_base_ids = scope
+            rag_meta = {
+                "query": user_input,
+                "knowledge_base_ids": traced_knowledge_base_ids,
+                "hit_count": 0,
+                "hits": [],
+            }
+            try:
+                result = retrieve(ctx, user_input, self.vector_store, scope)
+                rag_meta["hit_count"] = len(result.citations)
+                rag_meta["hits"] = [
+                    {
+                        "rank": rank,
+                        "source_id": citation.source_id,
+                        "title": citation.title,
+                        "score": round(float(citation.score), 6),
+                        "text_preview": " ".join(citation.text.split())[:160],
+                    }
+                    for rank, citation in enumerate(result.citations, start=1)
+                ]
+            except Exception as exc:
+                self.tracing.record(
+                    SpanEvent(
+                        trace_id=ctx.trace_id,
+                        span="rag",
+                        start_ns=rag_start_ns,
+                        end_ns=time.perf_counter_ns(),
+                        status="error",
+                        error=str(exc),
+                        meta=rag_meta,
+                    )
+                )
+                raise
+            self.tracing.record(
+                SpanEvent(
+                    trace_id=ctx.trace_id,
+                    span="rag",
+                    start_ns=rag_start_ns,
+                    end_ns=time.perf_counter_ns(),
+                    status="ok",
+                    meta=rag_meta,
+                )
+            )
             kb_text = build_context(result)
 
             system = (
