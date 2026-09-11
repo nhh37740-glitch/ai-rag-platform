@@ -34,19 +34,19 @@
     "rag-core": {
       "package": "rag_core",
       "delivery": "mypyc",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "facade": {
         "RagClient": {
           "kind": "class",
           "init": { "store": "VectorStore", "embed_fn": "callable", "top_k": "int=5" },
           "methods": {
-            "retrieve": { "params": { "ctx": "RequestContext", "query": "str", "scope": "str|list[str]|null", "top_k": "int" }, "returns": "RetrievalResult", "blocking_io": true }
+            "retrieve": { "params": { "ctx": "RequestContext", "query": "str", "scope": "str|list[str]|null", "top_k": "int|null" }, "returns": "RetrievalResult", "blocking_io": true }
           }
         },
         "embed": { "kind": "function", "params": { "texts": "list[str]" }, "returns": "list[list[float]]", "blocking_io": false },
-        "VectorStore": { "kind": "protocol", "methods": { "add": { "params": { "source_id": "str", "chunks": "list[str]", "embeddings": "obj" } }, "search": { "params": { "embedding": "obj", "top_k": "int", "scopes": "list[str]|null" }, "returns": "list[tuple[str,float]]" } } },
+        "VectorStore": { "kind": "protocol", "methods": { "add": { "params": { "source_id": "str", "chunks": "list[str]", "embeddings": "obj" } }, "search": { "params": { "embedding": "obj", "top_k": "int", "scopes": "list[str]|null" }, "returns": "list[tuple[str,str,float]]" } } },
         "InMemoryVectorStore": { "kind": "class" },
-        "SqliteVectorStore": { "kind": "class" }
+        "SqliteVectorStore": { "kind": "class", "init": { "db_path": "str" } }
       }
     },
     "memory": {
