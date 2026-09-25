@@ -22,7 +22,7 @@ docs/            # PLAN.md 与 architecture/ 说明
 ## 架构原则
 
 - **契约先行**：所有接口先写进 `contracts/`，类型化签名固定后再实现。
-- **源码隔离**：实现源码放 `modules-src/`，集成侧只消费 `artifacts/` 里的二进制与契约。
+- **源码隔离**：实现源码放 `modules-src/`，集成侧只消费 `artifacts/` 里的二进制与契约。运行时不使用 editable 源码模式：`apps/agent-server/runtime_boundary.py` 在导入业务模块前读取 `registry.json`，只把 `published` 的 `artifacts` 路径加入运行时，并在导入后校验每个模块确实来自 `.pyd/.so`；任何模块若从 `modules-src` 或 `.py` 加载，服务立即拒绝启动。源码只用于编译和模块单测。
 - **二进制交付**：进程内模块用 mypyc（默认）/Cython（回退）编译成 `.pyd/.so`；`ingestion-worker`、`mcp-servers` 用 Nuitka 生成 `.exe`，或仅暴露 `POST /ingest`、`POST /evaluate`、MCP `tools/call`。
 - **进程/线程**：`agent-server` 内走接口直调 + asyncio/`asyncio.to_thread`；真正独立的模块（ingestion-worker、MCP servers）才拆成独立进程。
 - **存储**：统一 `storage` 接口，默认 SQLite 元数据 + 本地向量库（FAISS/Chroma），接口与 PostgreSQL+pgvector 同构，可无痛切换。
@@ -35,7 +35,6 @@ docs/            # PLAN.md 与 architecture/ 说明
 ```bash
 # 契约/端到端（在集成侧）
 python -m pytest contracts/test_contract.py
-python scripts/verify_source_runtime.py
 python scripts/verify_compiled_runtime.py
 ```
 

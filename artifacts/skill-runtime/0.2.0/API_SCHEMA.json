@@ -1,0 +1,10 @@
+{
+  "module": "skill_runtime",
+  "version": "0.2.0",
+  "public_api": [
+    [
+      "SkillRegistry",
+      ""
+    ]
+  ]
+}

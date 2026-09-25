@@ -20,6 +20,12 @@ uv pip install cython nuitka build
 
 该脚本遍历 `modules-src/<module-id>/`，编译包入口，并把 `.pyd` 放入 `artifacts/<module-id>/<version>/<package>/`。
 
+只改动了部分模块时，用 `--module` 只编译它们，未指定的模块保持原样：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\compile_extension_modules.py --module rag-core --module rag-tools --module agent-runtime
+```
+
 ## 3. 编译独立服务
 
 ```powershell
@@ -32,6 +38,12 @@ uv pip install cython nuitka build
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\package_release_artifacts.py
+```
+
+配合上一节时同样可以只刷新改动的模块，其余注册信息原样保留：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\package_release_artifacts.py --module rag-core --module rag-tools --module agent-runtime
 ```
 
 每个发布目录应包含：
@@ -49,9 +61,10 @@ uv pip install cython nuitka build
 ## 5. 由操作者验收
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\verify_source_runtime.py
 .\.venv\Scripts\python.exe scripts\verify_compiled_runtime.py
 .\.venv\Scripts\python.exe -m pytest contracts\test_contract.py
 ```
+
+`verify_compiled_runtime.py` 会复用 `apps/agent-server/runtime_boundary.py`，确认所有业务模块都来自 `artifacts/` 的编译产物；只要有一个模块来自 `modules-src`，服务与验收都会直接失败。
 
 仓库不提交 `build/`、`bin/`、本地数据库或一次性测试报告。

@@ -42,10 +42,12 @@
 - `embed(texts)` / `make_embed(backend)`（默认 `fastembed` + `BAAI/bge-small-zh-v1.5`；`hash` 仅显式选择）
 - `InMemoryVectorStore.add(source_id, chunks, embeddings) / search(embedding, top_k)`
 - `retrieve(ctx, query, store, scope, top_k) -> RetrievalResult`、`build_context(result)`
+- 检索原语：`keyword_search`（纯词面，不加载模型）、`hybrid_search`（向量+词面 RRF 融合）、`list_documents`、`read_document`
 
-### Agentic RAG 技能 `rag_skill`
-- `RagSkill.tool_definition()` 向 LLM 暴露 `search_knowledge_base`
-- `RagSkill.execute(ctx, query, knowledge_base_ids, top_k)` 执行受范围限制的检索，返回结构化引用并记录 `rag` span
+### RAG 工具模块 `rag_tools`
+- `RagTools.tool_definitions()` 向 LLM 暴露五个知识库工具：`search_knowledge_base`、`hybrid_search_knowledge_base`、`keyword_search_knowledge_base`、`list_knowledge_documents`、`read_knowledge_document`
+- 每个方法都以当前请求的知识库范围执行检索，返回结构化引用并记录带 `tool` 字段的 `rag` span；`read_knowledge_document` 拒绝范围外 `source_id`
+- 提示词层面的检索顺序与回退规则在 `skills/rag-retrieval/SKILL.md`
 
 ### 模型网关 `llm_gateway`
 - `LLMProvider.generate(ctx, messages, tools) -> (content, list[ToolCall])` / `stream(...)`
@@ -94,7 +96,7 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
                             │ AgentRuntime(编排)
                             ├─ llm_gateway  → DeepSeek/Mock
                             ├─ memory       → SQLite(会话+用户)
-                            ├─ rag_skill    → search_knowledge_base 工具→rag_core(FastEmbed+BGE)
+                            ├─ rag_tools    → 五个知识库检索工具 → rag_core(FastEmbed+BGE)
                             ├─ skill_runtime→ 选择并加载完整 SKILL.md
                             ├─ tool_runtime → RAG/受限文件/对话入库工具
                             └─ observability→ TraceStore(/api/trace)
@@ -119,6 +121,5 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
 
 ```bash
 .\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server server:app --port 8000
-.\.venv\Scripts\python.exe scripts/verify_source_runtime.py
 .\.venv\Scripts\python.exe scripts/verify_compiled_runtime.py
 ```

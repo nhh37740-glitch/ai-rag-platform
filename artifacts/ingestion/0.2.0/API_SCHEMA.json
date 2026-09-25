@@ -1,0 +1,26 @@
+{
+  "module": "ingestion",
+  "version": "0.2.0",
+  "public_api": [
+    [
+      "SUPPORTED_EXTENSIONS",
+      ""
+    ],
+    [
+      "parse",
+      ""
+    ],
+    [
+      "to_markdown",
+      ""
+    ],
+    [
+      "chunk",
+      ""
+    ],
+    [
+      "build_index",
+      ""
+    ]
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "contract_version": "0.3.1",
+  "contract_version": "0.4.0",
   "context": {
     "type": "RequestContext",
     "package": "contracts.core_contracts",
@@ -29,7 +29,16 @@
         "query": "str",
         "knowledge_base_ids": "list[str]|null",
         "hit_count": "int",
-        "hits": "list[{rank:int,source_id:str,title:str,score:float,text_preview:str}]"
+        "hits": "list[{rank:int,source_id:str,title:str,score:float,text_preview:str}]",
+        "tool": "str"
+      }
+    },
+    "retrieval_guard": {
+      "span": "retrieval_guard",
+      "note": "已选择知识库但没有执行任何检索，模型却想直接收尾时记录一次拦截。",
+      "meta": {
+        "attempt": "int",
+        "knowledge_base_ids": "list[str]"
       }
     }
   },
@@ -45,7 +54,8 @@
     "rag-core": {
       "package": "rag_core",
       "delivery": "mypyc",
-      "version": "0.3.0",
+      "version": "0.4.1",
+      "constants": { "DEFAULT_READ_CHUNKS": 20, "MAX_READ_CHUNKS": 100 },
       "embedding": {
         "default_backend": "fastembed",
         "default_model": "BAAI/bge-small-zh-v1.5",
@@ -60,22 +70,39 @@
           }
         },
         "embed": { "kind": "function", "params": { "texts": "list[str]" }, "returns": "list[list[float]]", "blocking_io": false },
-        "VectorStore": { "kind": "protocol", "methods": { "add": { "params": { "source_id": "str", "chunks": "list[str]", "embeddings": "obj" } }, "search": { "params": { "embedding": "obj", "top_k": "int", "scopes": "list[str]|null" }, "returns": "list[tuple[str,str,float]]" } } },
+        "VectorStore": { "kind": "protocol", "methods": { "add": { "params": { "source_id": "str", "chunks": "list[str]", "embeddings": "obj" } }, "search": { "params": { "embedding": "obj", "top_k": "int", "scopes": "list[str]|null" }, "returns": "list[tuple[str,str,float]]" }, "list_documents": { "params": { "scopes": "list[str]|null" }, "returns": "list[tuple[str,int]]" }, "document_chunks": { "params": { "source_id": "str" }, "returns": "list[str]" } } },
         "InMemoryVectorStore": { "kind": "class" },
-        "SqliteVectorStore": { "kind": "class", "init": { "db_path": "str" } }
+        "SqliteVectorStore": { "kind": "class", "init": { "db_path": "str" } },
+        "keyword_search": { "kind": "function", "params": { "ctx": "RequestContext", "query": "str", "store": "VectorStore", "scope": "str|list[str]|null", "top_k": "int" }, "returns": "RetrievalResult", "notes": "纯词面打分，不调用向量模型" },
+        "hybrid_search": { "kind": "function", "params": { "ctx": "RequestContext", "query": "str", "store": "VectorStore", "scope": "str|list[str]|null", "top_k": "int", "alpha": "float" }, "returns": "RetrievalResult", "notes": "向量与词面排序的 RRF 融合" },
+        "list_documents": { "kind": "function", "params": { "ctx": "RequestContext", "store": "VectorStore", "scope": "str|list[str]|null" }, "returns": "list[dict]" },
+        "read_document": { "kind": "function", "params": { "ctx": "RequestContext", "store": "VectorStore", "source_id": "str", "max_chunks": "int", "offset": "int" }, "returns": "RetrievalResult", "notes": "分页读取；默认只返回 DEFAULT_READ_CHUNKS 块，每个 Citation.metadata 含 chunk_index 与 total_chunks" },
+        "document_info": { "kind": "function", "params": { "ctx": "RequestContext", "store": "VectorStore", "source_id": "str" }, "returns": "dict", "notes": "{source_id,title,knowledge_base_id,chunk_count}；未知 id 时 chunk_count 为 0" }
       }
     },
-    "rag-skill": {
-      "package": "rag_skill",
+    "rag-tools": {
+      "package": "rag_tools",
       "delivery": "mypyc",
-      "version": "0.1.0",
+      "version": "0.3.0",
+      "notes": "RAG 工具模块：向 LLM 公布知识库检索工具，执行时只访问当前会话选中的知识库。",
+      "tools": [
+        "search_knowledge_base",
+        "hybrid_search_knowledge_base",
+        "keyword_search_knowledge_base",
+        "list_knowledge_documents",
+        "read_knowledge_document"
+      ],
       "facade": {
-        "RagSkill": {
+        "RagTools": {
           "kind": "class",
           "init": { "store": "VectorStore", "tracing": "TraceStore", "top_k": "int=5" },
           "methods": {
-            "tool_definition": { "params": {}, "returns": "ToolDef" },
-            "execute": { "params": { "ctx": "RequestContext", "query": "str", "knowledge_base_ids": "list[str]", "top_k": "int|null" }, "returns": "str" }
+            "tool_definitions": { "params": {}, "returns": "list[ToolDef]" },
+            "search": { "params": { "ctx": "RequestContext", "query": "str", "knowledge_base_ids": "list[str]", "top_k": "int|null" }, "returns": "str" },
+            "keyword_search": { "params": { "ctx": "RequestContext", "query": "str", "knowledge_base_ids": "list[str]", "top_k": "int|null" }, "returns": "str" },
+            "hybrid_search": { "params": { "ctx": "RequestContext", "query": "str", "knowledge_base_ids": "list[str]", "top_k": "int|null" }, "returns": "str" },
+            "list_documents": { "params": { "ctx": "RequestContext", "knowledge_base_ids": "list[str]" }, "returns": "str" },
+            "read_document": { "params": { "ctx": "RequestContext", "source_id": "str", "knowledge_base_ids": "list[str]", "offset": "int", "max_chunks": "int|null" }, "returns": "str", "notes": "source_id 必须属于所选知识库；分页读取，返回值含 total_chunks/truncated/next_offset" }
           }
         }
       }
@@ -165,7 +192,8 @@
     "agent-runtime": {
       "package": "agent_runtime",
       "delivery": "mypyc",
-      "version": "0.3.1",
+      "version": "0.3.3",
+      "notes": "已选择知识库时每个问题至少检索一次：未检索就想收尾会被打回（最多 MAX_RETRIEVAL_REMINDERS 次）并记录 retrieval_guard span；工具循环每轮只执行一次知识库检索；系统提示词按 search → hybrid → keyword → list → read 的顺序引导回退。",
       "facade": {
         "AgentRuntime": {
           "kind": "class",

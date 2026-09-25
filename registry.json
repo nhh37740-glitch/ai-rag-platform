@@ -3,94 +3,87 @@
   "modules": {
     "agent-runtime": {
       "name": "agent_runtime",
-      "version": "0.3.1",
-      "checksum": "",
-      "path": "artifacts/agent-runtime/0.3.1",
-      "status": "unbuilt"
+      "version": "0.3.3",
+      "checksum": "bb3c9765f288cab35ca5bbdd501cbb1add3c4a3121103f01487479284e7b51a5",
+      "path": "artifacts\\agent-runtime\\0.3.3",
+      "status": "published"
     },
     "evaluation": {
       "name": "evaluation",
       "version": "0.1.0",
       "checksum": "87d0c0fcf217c38a4b44cdcee226ac5663829db326738d6c11cd56e72be0a97d",
-      "path": "artifacts/evaluation/0.1.0",
-      "status": "unbuilt"
+      "path": "artifacts\\evaluation\\0.1.0",
+      "status": "published"
     },
     "ingestion": {
       "name": "ingestion",
       "version": "0.2.0",
-      "checksum": "",
-      "path": "artifacts/ingestion/0.2.0",
-      "status": "unbuilt"
+      "checksum": "de520f32c17045177a23daae4333f6b776b84e131a6fb02884c966e3f67369ab",
+      "path": "artifacts\\ingestion\\0.2.0",
+      "status": "published"
     },
     "llm-gateway": {
       "name": "llm_gateway",
       "version": "0.1.0",
-      "checksum": "23ed25df35aa601df7dec34cfb0c6c1c1d77999469204670ff261a5aa11c2c06",
-      "path": "artifacts/llm-gateway/0.1.0",
-      "status": "unbuilt"
+      "checksum": "f6cda7adc2b31a26b6ced779ec1171e3be6286723e5257f2dbcd9c6b55fe7624",
+      "path": "artifacts\\llm-gateway\\0.1.0",
+      "status": "published"
     },
     "mcp-gateway": {
       "name": "mcp_gateway",
       "version": "0.1.0",
       "checksum": "7c9cffdf9187fbd459d485670884c436365a69dde7d5ee55bf7755e5e8ff297d",
-      "path": "artifacts/mcp-gateway/0.1.0",
-      "status": "unbuilt"
+      "path": "artifacts\\mcp-gateway\\0.1.0",
+      "status": "published"
     },
     "mcp-servers": {
       "name": "mcp_servers",
       "version": "0.1.0",
-      "checksum": "87d37035cb27be5cc09ba4c0f86d9f7dcea189edf932a474ee11386f4002f645",
-      "path": "artifacts/mcp-servers/0.1.0",
-      "status": "unbuilt"
+      "checksum": "4eb45700698503f2d56a93a71240268344b43a71bc0e2a7f6aad7f566b3bed26",
+      "path": "artifacts\\mcp-servers\\0.1.0",
+      "status": "published"
     },
     "memory": {
       "name": "memory",
       "version": "0.1.0",
-      "checksum": "b9d0f23d8e5964f91bf114882bbd936cb76d6b056434e84325fbe61ac11bd96f",
-      "path": "artifacts/memory/0.1.0",
-      "status": "unbuilt"
+      "checksum": "e9ba7b295dca2d0ed10d92605e599ad9f71cbd1ece2bae5dde178a5303aa0b4d",
+      "path": "artifacts\\memory\\0.1.0",
+      "status": "published"
     },
     "observability": {
       "name": "observability",
       "version": "0.1.0",
       "checksum": "612ceb6b2fdabc96499d9484b396f11656ef99f38f46e1fa8fbda6acf6e16ad0",
-      "path": "artifacts/observability/0.1.0",
-      "status": "unbuilt"
+      "path": "artifacts\\observability\\0.1.0",
+      "status": "published"
     },
     "rag-core": {
       "name": "rag_core",
-      "version": "0.3.0",
-      "checksum": "",
-      "path": "artifacts/rag-core/0.3.0",
-      "status": "unbuilt"
+      "version": "0.4.1",
+      "checksum": "b531d7b3506384d92bc2b22f8811a20ced9d846df96ffdc8d0c88b740a154857",
+      "path": "artifacts\\rag-core\\0.4.1",
+      "status": "published"
     },
-    "rag-skill": {
-      "name": "rag_skill",
-      "version": "0.1.0",
-      "checksum": "",
-      "path": "artifacts/rag-skill/0.1.0",
-      "status": "unbuilt"
+    "rag-tools": {
+      "name": "rag_tools",
+      "version": "0.3.0",
+      "checksum": "746b1fd4b9e9cb9d8138ec7dd1960365fdf157066c35ebe6c507435f876c8c17",
+      "path": "artifacts\\rag-tools\\0.3.0",
+      "status": "published"
     },
     "skill-runtime": {
       "name": "skill_runtime",
       "version": "0.2.0",
-      "checksum": "",
-      "path": "artifacts/skill-runtime/0.2.0",
-      "status": "unbuilt"
-    },
-    "storage": {
-      "name": "storage",
-      "version": "0.1.0",
-      "checksum": "be3d122801df6203d9b3567d9cb7fd21199de87742f54bd424a277221203858c",
-      "path": "artifacts/storage/0.1.0",
-      "status": "unbuilt"
+      "checksum": "c5ce810bc95b5617cc28285b71771176bca857ec9ef6976f3fe56dc35ff373fa",
+      "path": "artifacts\\skill-runtime\\0.2.0",
+      "status": "published"
     },
     "tool-runtime": {
       "name": "tool_runtime",
       "version": "0.2.0",
-      "checksum": "",
-      "path": "artifacts/tool-runtime/0.2.0",
-      "status": "unbuilt"
+      "checksum": "0969a5fd985ec6f182e544db032c43bc9c6dbd4888448bb45b71e796dfaaa9ef",
+      "path": "artifacts\\tool-runtime\\0.2.0",
+      "status": "published"
     }
   }
 }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import glob
 import json
 import os
@@ -14,8 +15,49 @@ ART = ROOT / "artifacts"
 SCHEMA = ROOT / "contracts" / "API_SCHEMA.json"
 
 
-def main() -> None:
+def _select_modules(requested: list[str]) -> set[str] | None:
+    """把 --module 参数解析成模块目录名集合；为空表示编译全部。"""
+    if not requested:
+        return None
+    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    alias: dict[str, str] = {}
+    for module_id, spec in schema.get("modules", {}).items():
+        alias[module_id] = module_id
+        package = spec.get("package")
+        if package:
+            alias[package] = module_id
+            alias[package.replace("_", "-")] = module_id
+    selected: set[str] = set()
+    unknown: list[str] = []
+    for item in requested:
+        module_id = alias.get(item.strip())
+        if module_id is None:
+            unknown.append(item)
+        else:
+            selected.add(module_id)
+    if unknown:
+        raise SystemExit(
+            "未知模块: " + ", ".join(unknown) + "；可用模块: " + ", ".join(sorted(alias))
+        )
+    return selected
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        description="把 modules-src 下的模块编译成二进制工件。默认编译全部模块。"
+    )
+    parser.add_argument(
+        "--module",
+        action="append",
+        default=[],
+        metavar="ID",
+        help="只编译指定模块（模块 ID 或包名，如 rag-core / rag_core），可重复传入。",
+    )
+    args = parser.parse_args(argv)
+    selected = _select_modules(args.module)
+
     built = 0
+    skipped = 0
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     module_ids = {
         spec["package"]: module_id
@@ -35,6 +77,9 @@ def main() -> None:
         module_id = module_ids.get(pkg)
         if module_id is None:
             continue
+        if selected is not None and module_id not in selected:
+            skipped += 1
+            continue
         init = mod / pkg / "__init__.py"
         if not init.exists():
             continue
@@ -45,6 +90,8 @@ def main() -> None:
         for pyd in glob.glob(str(mod / pkg / "__init__*.pyd")):
             shutil.copy2(pyd, out / Path(pyd).name)
         built += 1
+    if skipped:
+        print(f"skipped {skipped} unselected module(s)")
     print(f"built {built} compiled packages; .pyd under artifacts/<module-id>/<version>/<pkg>/")
 
 

@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+# 运行边界必须最先建立：业务模块只允许从 artifacts 的编译产物加载。
+import runtime_boundary
+
+PUBLISHED_MODULES = runtime_boundary.enforce_binary_runtime()
+
 from datetime import datetime, timezone
+import asyncio
+import hashlib
 import json
 import os
 import re
@@ -23,10 +30,12 @@ from ingestion import chunk as chunk_text, parse as parse_doc
 from llm_gateway import DeepSeekProvider, MockProvider
 from memory import make_memory
 from observability import make_trace_store
-from rag_core import InMemoryVectorStore, embed
-from rag_skill import RagSkill
+from rag_core import SqliteVectorStore, embed
+from rag_tools import RagTools
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
+
+runtime_boundary.assert_binary_runtime(PUBLISHED_MODULES)
 
 BASE = Path(__file__).resolve().parent
 ROOT = BASE.parents[1]
@@ -57,9 +66,22 @@ BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 INDEX_PATH = os.environ.get("INDEX_PATH", str(ROOT / "data" / "index.json"))
 
+# 向量索引按 embedding 配置隔离，避免切换后端或模型后误用维度不兼容的旧向量。
+# VECTOR_DB_PATH 可显式覆盖；默认路径稳定，因此服务重启会直接复用已有索引。
+_embed_identity = "\0".join(
+    (
+        os.environ.get("RAG_EMBED", "fastembed").strip().lower(),
+        os.environ.get("BGE_MODEL", "BAAI/bge-small-zh-v1.5").strip(),
+    )
+)
+_embed_identity_hash = hashlib.sha256(_embed_identity.encode("utf-8")).hexdigest()[:12]
+VECTOR_DB_PATH = os.environ.get(
+    "VECTOR_DB_PATH",
+    str(ROOT / "data" / f"vector-index-{_embed_identity_hash}.sqlite"),
+)
+
 trace_store = make_trace_store()
 memory = make_memory(DB_PATH)
-vector_store = InMemoryVectorStore()
 skills = SkillRegistry()
 skills.load_dir(str(SKILL_DIR))
 
@@ -134,23 +156,65 @@ def _create_user_notebook(name: str, description: str = "") -> tuple[Path, dict]
     return notebook_dir, metadata
 
 
+EMBED_BATCH_SIZE = 64
+
+# upload_id -> {state, stage, done, total, message}，供前端轮询进度。
+UPLOAD_PROGRESS: dict[str, dict] = {}
+
+
+def _content_fingerprint(markdown: str) -> str:
+    return hashlib.sha256(markdown.encode("utf-8")).hexdigest()
+
+
+def _embed_in_batches(chunks: list[str], on_progress=None) -> list:
+    """分批向量化：既能报告进度，也避免一次性把上千个块压进内存。"""
+    embeddings: list = []
+    total = len(chunks)
+    for start in range(0, total, EMBED_BATCH_SIZE):
+        batch = chunks[start : start + EMBED_BATCH_SIZE]
+        embeddings.extend(embed(batch))
+        if on_progress is not None:
+            on_progress(min(start + len(batch), total), total)
+    return embeddings
+
+
 def _add_markdown_document(
     notebook_dir: Path,
     metadata: dict,
     original_name: str,
     markdown: str,
+    progress: dict | None = None,
 ) -> dict:
+    def report(stage: str, done: int = 0, total: int = 0, message: str = "") -> None:
+        if progress is not None:
+            progress.update(
+                {"state": "running", "stage": stage, "done": done, "total": total, "message": message}
+            )
+
+    fingerprint = _content_fingerprint(markdown)
+    for existing in metadata.get("documents", []):
+        if existing.get("fingerprint") == fingerprint:
+            raise ValueError(
+                f"{original_name}: 这个文件已经导入过（{existing.get('title', '')}），没有重复入库"
+            )
+
     safe_stem = re.sub(
         r"[^\w\u4e00-\u9fff-]+", "-", Path(original_name).stem
     ).strip("-_")[:60] or "document"
     markdown_file = f"{safe_stem}-{uuid.uuid4().hex[:8]}.md"
     markdown_path = notebook_dir / "markdown-documents" / markdown_file
+    report("写入 Markdown", 0, 0, original_name)
     markdown_path.write_text(markdown, encoding="utf-8")
     try:
+        report("切分文本", 0, 0, original_name)
         chunks = chunk_text(parse_doc(str(markdown_path)))
         if not chunks:
             raise ValueError("文档中没有可入库的文本")
-        embeddings = embed(chunks)
+        embeddings = _embed_in_batches(
+            chunks,
+            lambda done, total: report("向量化", done, total, original_name),
+        )
+        report("写入索引", 0, 0, original_name)
         source_id = f"{metadata['id']}/{markdown_path.stem}"
         vector_store.add(source_id, chunks, embeddings)
     except Exception:
@@ -161,6 +225,7 @@ def _add_markdown_document(
         "markdown_file": markdown_file,
         "title": Path(original_name).stem,
         "chunks": len(chunks),
+        "fingerprint": fingerprint,
     }
     metadata["documents"].append(document)
     _write_user_notebook(notebook_dir, metadata)
@@ -219,14 +284,18 @@ def _selected_notebook_ids(raw_ids) -> list[str]:
     return selected
 
 
-def _load_kb() -> tuple[InMemoryVectorStore, int]:
-    store = InMemoryVectorStore()
-    loaded_sources: set[str] = set()
+def _load_kb() -> tuple[SqliteVectorStore, int]:
+    store = SqliteVectorStore(VECTOR_DB_PATH)
+    loaded_sources = {source_id for source_id, _ in store.list_documents()}
+
+    # 兼容旧版 JSON 索引：若存在且 embedding 配置一致，只迁移数据库中缺失的来源。
     index = Path(INDEX_PATH)
     if index.exists():
         data = json.loads(index.read_text(encoding="utf-8"))
         if data.get("embed", "__unknown__") == os.environ.get("RAG_EMBED", "hash"):
             for s in data.get("sources", []):
+                if s["id"] in loaded_sources:
+                    continue
                 store.add(s["id"], s["chunks"], s["embs"])
                 loaded_sources.add(s["id"])
     files = sorted(f for f in KB_DIR.glob("*.md") if f.name.lower() != "readme.md")
@@ -235,7 +304,7 @@ def _load_kb() -> tuple[InMemoryVectorStore, int]:
         if source_id in loaded_sources:
             continue
         chunks = chunk_text(parse_doc(str(f)))
-        store.add(source_id, chunks, embed(chunks))
+        store.add(source_id, chunks, _embed_in_batches(chunks))
         loaded_sources.add(source_id)
 
     _, demo_documents = _load_demo_knowledge_base()
@@ -246,7 +315,7 @@ def _load_kb() -> tuple[InMemoryVectorStore, int]:
             imported += 1
             continue
         chunks = chunk_text(parse_doc(str(path)))
-        store.add(source_id, chunks, embed(chunks))
+        store.add(source_id, chunks, _embed_in_batches(chunks))
         loaded_sources.add(source_id)
         imported += 1
 
@@ -261,14 +330,21 @@ def _load_kb() -> tuple[InMemoryVectorStore, int]:
             if source_id in loaded_sources:
                 continue
             chunks = chunk_text(parse_doc(str(path)))
-            store.add(source_id, chunks, embed(chunks))
+            store.add(source_id, chunks, _embed_in_batches(chunks))
             loaded_sources.add(source_id)
     return store, imported
 
 
 vector_store, demo_kb_imported = _load_kb()
 
-rag_skill = RagSkill(vector_store, trace_store)
+rag_tools = RagTools(vector_store, trace_store)
+
+
+def _knowledge_base_scope(runtime_context: dict | None) -> list[str]:
+    """检索范围只能来自当前请求，LLM 无法通过工具参数扩大。"""
+    if runtime_context is None:
+        raise ValueError("缺少工具运行上下文")
+    return runtime_context.get("knowledge_base_ids", [])
 
 
 def _search_knowledge_base(
@@ -278,10 +354,44 @@ def _search_knowledge_base(
     ctx: RequestContext,
     runtime_context: dict | None,
 ) -> str:
-    if runtime_context is None:
-        raise ValueError("缺少工具运行上下文")
-    knowledge_base_ids = runtime_context.get("knowledge_base_ids", [])
-    return rag_skill.execute(ctx, query, knowledge_base_ids, top_k)
+    return rag_tools.search(ctx, query, _knowledge_base_scope(runtime_context), top_k)
+
+
+def _hybrid_search_knowledge_base(
+    query: str,
+    top_k: int | None = None,
+    *,
+    ctx: RequestContext,
+    runtime_context: dict | None,
+) -> str:
+    return rag_tools.hybrid_search(ctx, query, _knowledge_base_scope(runtime_context), top_k)
+
+
+def _keyword_search_knowledge_base(
+    query: str,
+    top_k: int | None = None,
+    *,
+    ctx: RequestContext,
+    runtime_context: dict | None,
+) -> str:
+    return rag_tools.keyword_search(ctx, query, _knowledge_base_scope(runtime_context), top_k)
+
+
+def _list_knowledge_documents(
+    *,
+    ctx: RequestContext,
+    runtime_context: dict | None,
+) -> str:
+    return rag_tools.list_documents(ctx, _knowledge_base_scope(runtime_context))
+
+
+def _read_knowledge_document(
+    source_id: str,
+    *,
+    ctx: RequestContext,
+    runtime_context: dict | None,
+) -> str:
+    return rag_tools.read_document(ctx, source_id, _knowledge_base_scope(runtime_context))
 
 
 def _create_agent_file(filename: str, content: str) -> str:
@@ -345,7 +455,20 @@ def _save_conversation_to_knowledge_base(
     )
 
 
-tools.register(rag_skill.tool_definition(), _search_knowledge_base, context_aware=True)
+KNOWLEDGE_BASE_TOOL_HANDLERS = {
+    "search_knowledge_base": _search_knowledge_base,
+    "hybrid_search_knowledge_base": _hybrid_search_knowledge_base,
+    "keyword_search_knowledge_base": _keyword_search_knowledge_base,
+    "list_knowledge_documents": _list_knowledge_documents,
+    "read_knowledge_document": _read_knowledge_document,
+}
+
+for tool_definition in rag_tools.tool_definitions():
+    knowledge_base_handler = KNOWLEDGE_BASE_TOOL_HANDLERS.get(tool_definition.name)
+    if knowledge_base_handler is None:
+        raise RuntimeError(f"知识库工具缺少执行函数: {tool_definition.name}")
+    tools.register(tool_definition, knowledge_base_handler, context_aware=True)
+
 tools.register(
     ToolDef(
         "create_file",
@@ -397,6 +520,66 @@ def index() -> FileResponse:
     return FileResponse(str(BASE / "webui" / "index.html"))
 
 
+def _demo_suggested_questions() -> list[dict]:
+    manifest, documents = _load_demo_knowledge_base()
+    document_items = {item.get("file"): item for _, item in documents}
+    suggested: list[dict] = []
+    for suggestion in manifest.get("featured_questions", []):
+        if not isinstance(suggestion, dict):
+            continue
+        document = document_items.get(suggestion.get("document"))
+        question = suggestion.get("question", "")
+        if not document or question not in document.get("questions", []):
+            continue
+        suggested.append(
+            {
+                "question": question,
+                "topic": suggestion.get("topic", "知识库"),
+                "title": document.get("title", Path(document["file"]).stem),
+            }
+        )
+    return suggested
+
+
+_CHAPTER_PATTERN = re.compile(r"^第\s*[0-9一二三四五六七八九十百千零两]+\s*[章节回卷部篇]")
+TOPIC_LABEL_MAX = 12
+TOPIC_LABEL_MIN = 4
+
+
+def _topic_candidates(markdown_path: Path, limit: int = 4, skip: str = "") -> list[str]:
+    """从 Markdown 里挑出可提问的主题：优先章节行，其次短标签行。"""
+    try:
+        text = markdown_path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return []
+
+    chapters: list[str] = []
+    labels: list[str] = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip().lstrip("#").strip().rstrip("：:").strip()
+        if not line or len(line) > 40:
+            continue
+        if skip and line == skip:  # 文档标题本身不算主题
+            continue
+        if _CHAPTER_PATTERN.match(line):
+            if line not in chapters:
+                chapters.append(line)
+        elif TOPIC_LABEL_MIN <= len(line) <= TOPIC_LABEL_MAX and not line.endswith(
+            ("。", "！", "？", ".", "!", "?")
+        ):
+            if line not in labels:
+                labels.append(line)
+
+    topics: list[str] = []
+    for pool in (chapters, labels):
+        for item in pool:
+            if item not in topics:
+                topics.append(item)
+            if len(topics) >= limit:
+                return topics
+    return topics
+
+
 @app.get("/api/demo")
 def demo() -> JSONResponse:
     manifest, documents = _load_demo_knowledge_base()
@@ -406,22 +589,6 @@ def demo() -> JSONResponse:
         for question in item.get("questions", [])
         if isinstance(question, str) and question.strip()
     ]
-    document_items = {item.get("file"): item for _, item in documents}
-    suggested_questions = []
-    for suggestion in manifest.get("featured_questions", []):
-        if not isinstance(suggestion, dict):
-            continue
-        document = document_items.get(suggestion.get("document"))
-        question = suggestion.get("question", "")
-        if not document or question not in document.get("questions", []):
-            continue
-        suggested_questions.append(
-            {
-                "question": question,
-                "topic": suggestion.get("topic", "知识库"),
-                "title": document.get("title", Path(document["file"]).stem),
-            }
-        )
     return JSONResponse(
         {
             "id": manifest.get("id", DEMO_KB_ID),
@@ -431,7 +598,7 @@ def demo() -> JSONResponse:
             "documents": len(documents),
             "questions": questions,
             "question_count": len(questions),
-            "suggested_questions": suggested_questions,
+            "suggested_questions": _demo_suggested_questions(),
             "imported": demo_kb_imported,
             "knowledge_base": "data/kb/cmrc2018-demo",
             "purpose": "project-demo-only",
@@ -460,6 +627,110 @@ def list_notebooks() -> JSONResponse:
     )
 
 
+@app.get("/api/notebooks/{notebook_id}/documents")
+def notebook_documents(notebook_id: str) -> JSONResponse:
+    """列出某个笔记本收录的文档，供前端展示来源列表。"""
+    counts = dict(vector_store.list_documents([notebook_id]))
+
+    if notebook_id == DEMO_KB_ID:
+        manifest, documents = _load_demo_knowledge_base()
+        items = []
+        for path, item in documents:
+            source_id = f"{DEMO_KB_ID}/{path.stem}"
+            items.append(
+                {
+                    "title": item.get("title") or path.stem,
+                    "source_id": source_id,
+                    "chunks": counts.get(source_id, 0),
+                }
+            )
+        return JSONResponse(
+            {
+                "notebook_id": DEMO_KB_ID,
+                "name": manifest.get("name", DEMO_KB_ID),
+                "writable": False,
+                "documents": items,
+            }
+        )
+
+    try:
+        notebook_dir = _user_notebook_path(notebook_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    metadata = _read_user_notebook(notebook_dir)
+    if not metadata:
+        raise HTTPException(status_code=404, detail="笔记本不存在")
+
+    items = []
+    for document in metadata.get("documents", []):
+        markdown_file = document.get("markdown_file", "")
+        if not markdown_file:
+            continue
+        stem = Path(markdown_file).stem
+        source_id = f"{notebook_id}/{stem}"
+        items.append(
+            {
+                "title": document.get("title") or stem,
+                "source_id": source_id,
+                "chunks": counts.get(source_id, 0),
+            }
+        )
+    return JSONResponse(
+        {
+            "notebook_id": notebook_id,
+            "name": metadata.get("name", notebook_id),
+            "writable": True,
+            "documents": items,
+        }
+    )
+
+
+@app.get("/api/notebooks/{notebook_id}/suggestions")
+def notebook_suggestions(notebook_id: str) -> JSONResponse:
+    """针对该笔记本的实际内容生成示例问题，而不是套用演示语料的问题。"""
+    if notebook_id == DEMO_KB_ID:
+        return JSONResponse(
+            {
+                "notebook_id": DEMO_KB_ID,
+                "source": "curated",
+                "questions": _demo_suggested_questions(),
+            }
+        )
+
+    try:
+        notebook_dir = _user_notebook_path(notebook_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    metadata = _read_user_notebook(notebook_dir)
+    if not metadata:
+        raise HTTPException(status_code=404, detail="笔记本不存在")
+
+    documents_dir = notebook_dir / "markdown-documents"
+    questions: list[dict] = []
+    for document in metadata.get("documents", []):
+        markdown_file = document.get("markdown_file", "")
+        title = document.get("title") or Path(markdown_file).stem
+        if not title:
+            continue
+        questions.append({"question": f"《{title}》主要讲了什么？", "topic": "全文", "title": title})
+        if not markdown_file:
+            continue
+        for topic in _topic_candidates(
+            documents_dir / Path(markdown_file).name, limit=4, skip=title
+        ):
+            questions.append(
+                {"question": f"「{topic}」这部分写了什么？", "topic": "内容", "title": title}
+            )
+
+    return JSONResponse(
+        {
+            "notebook_id": notebook_id,
+            "source": "content",
+            "questions": questions[:8],
+        }
+    )
+
+
 @app.post("/api/notebooks")
 async def create_notebook(req: Request) -> JSONResponse:
     body = await req.json()
@@ -473,7 +744,11 @@ async def create_notebook(req: Request) -> JSONResponse:
 
 
 @app.post("/api/notebooks/{notebook_id}/files")
-async def upload_notebook_files(notebook_id: str, files: list[UploadFile] = File(...)) -> JSONResponse:
+async def upload_notebook_files(
+    notebook_id: str,
+    files: list[UploadFile] = File(...),
+    upload_id: str = "",
+) -> JSONResponse:
     try:
         notebook_dir = _user_notebook_path(notebook_id)
     except ValueError as exc:
@@ -481,17 +756,64 @@ async def upload_notebook_files(notebook_id: str, files: list[UploadFile] = File
     metadata = _read_user_notebook(notebook_dir)
     if not metadata:
         raise HTTPException(status_code=404, detail="笔记本不存在")
+
+    progress = UPLOAD_PROGRESS.setdefault(upload_id, {}) if upload_id else None
+
+    def update(**fields) -> None:
+        if progress is not None:
+            progress.update(fields)
+
     try:
+        update(state="running", stage="转换文件", done=0, total=0, message="")
         converted = await convert_uploaded_documents(files)
     except UploadValidationError as exc:
+        update(state="error", stage="失败", message=str(exc))
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    imported = []
-    for original_name, markdown in converted:
-        imported.append(
-            _add_markdown_document(notebook_dir, metadata, original_name, markdown)
-        )
+    imported: list[dict] = []
+    try:
+        for index, (original_name, markdown) in enumerate(converted, start=1):
+            update(
+                state="running",
+                stage=f"入库 {index}/{len(converted)}",
+                done=0,
+                total=0,
+                message=original_name,
+            )
+            # 向量化是 CPU 密集的同步调用，必须离开事件循环，否则整个服务在
+            # 处理大文件期间会毫无响应。
+            document = await asyncio.to_thread(
+                _add_markdown_document,
+                notebook_dir,
+                metadata,
+                original_name,
+                markdown,
+                progress,
+            )
+            imported.append(document)
+    except ValueError as exc:
+        update(state="error", stage="失败", message=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - 兜底，保证前端能看到失败
+        update(state="error", stage="失败", message=f"{type(exc).__name__}: {exc}")
+        raise
+
+    update(
+        state="done",
+        stage="完成",
+        done=1,
+        total=1,
+        message=f"已导入 {len(imported)} 篇来源",
+    )
     return JSONResponse({"notebook_id": notebook_id, "imported": imported}, status_code=201)
+
+
+@app.get("/api/uploads/{upload_id}")
+def upload_status(upload_id: str) -> JSONResponse:
+    record = UPLOAD_PROGRESS.get(upload_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="没有这个上传任务")
+    return JSONResponse({"upload_id": upload_id, **record})
 
 
 @app.post("/api/chat")

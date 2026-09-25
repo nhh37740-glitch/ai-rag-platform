@@ -1,3 +1,12 @@
+"""验收：确认集成侧运行时完全由 artifacts 里的编译产物驱动。
+
+运行：
+    python scripts/verify_compiled_runtime.py
+
+脚本复用 apps/agent-server 的运行边界，只从 registry.json 指向的已发布 artifacts
+解析业务模块；任何模块若从 modules-src 加载，直接失败。
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -6,65 +15,97 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-REGISTRY = ROOT / "registry.json"
+sys.path.insert(0, str(ROOT / "apps" / "agent-server"))
 
-# 只从 registry 指向的已发布 artifacts 解析模块（目录内不含实现源码）。
-registry = json.loads(REGISTRY.read_text(encoding="utf-8"))["modules"]
-required = ("observability", "memory", "tool-runtime", "skill-runtime", "llm-gateway", "rag-core", "rag-skill", "agent-runtime")
-missing = [module_id for module_id in required if registry.get(module_id, {}).get("status") != "published"]
-if missing:
-    raise RuntimeError("compile and package these modules first: " + ", ".join(missing))
-for module_id in required:
-    sys.path.insert(0, str(ROOT / registry[module_id]["path"]))
+import runtime_boundary  # noqa: E402
 
-from core_contracts import RequestContext  # noqa: E402
+PUBLISHED = runtime_boundary.enforce_binary_runtime()
+
 from agent_runtime import AgentRuntime  # noqa: E402
+from core_contracts import RequestContext  # noqa: E402
 from llm_gateway import MockProvider  # noqa: E402
 from memory import make_memory  # noqa: E402
 from observability import make_trace_store  # noqa: E402
 from rag_core import InMemoryVectorStore, embed  # noqa: E402
-from rag_skill import RagSkill  # noqa: E402
+from rag_tools import RagTools  # noqa: E402
 from skill_runtime import SkillRegistry  # noqa: E402
 from tool_runtime import ToolRegistry  # noqa: E402
 
-assert __import__("observability").__file__.endswith(".pyd"), "observability must load from .pyd"
+runtime_boundary.assert_binary_runtime(PUBLISHED)
 
-store = InMemoryVectorStore()
-chunks = ["API 认证需要 Bearer token", "网关 keep-alive 超时 SOP"]
-store.add("api-doc", chunks, embed(chunks))
+EXPECTED_TOOLS = {
+    "search_knowledge_base",
+    "hybrid_search_knowledge_base",
+    "keyword_search_knowledge_base",
+    "list_knowledge_documents",
+    "read_knowledge_document",
+}
 
-tracing = make_trace_store()
-rag_skill = RagSkill(store, tracing)
-tools = ToolRegistry()
+KNOWLEDGE_BASE_ID = "engineering-notebook"
 
 
-def search_knowledge_base(query, top_k=None, *, ctx, runtime_context):
-    return rag_skill.execute(
-        ctx,
-        query,
-        runtime_context["knowledge_base_ids"],
-        top_k,
+def main() -> None:
+    store = InMemoryVectorStore()
+    chunks = ["API 认证需要 Bearer token", "网关 keep-alive 超时 SOP"]
+    store.add(f"{KNOWLEDGE_BASE_ID}/api-doc", chunks, embed(chunks))
+
+    tracing = make_trace_store()
+    rag_tools = RagTools(store, tracing)
+
+    definitions = rag_tools.tool_definitions()
+    names = {definition.name for definition in definitions}
+    assert names == EXPECTED_TOOLS, names
+
+    tools = ToolRegistry()
+    handlers = {
+        "search_knowledge_base": lambda query, top_k=None, *, ctx, runtime_context: rag_tools.search(
+            ctx, query, runtime_context["knowledge_base_ids"], top_k
+        ),
+        "hybrid_search_knowledge_base": lambda query, top_k=None, *, ctx, runtime_context: rag_tools.hybrid_search(
+            ctx, query, runtime_context["knowledge_base_ids"], top_k
+        ),
+        "keyword_search_knowledge_base": lambda query, top_k=None, *, ctx, runtime_context: rag_tools.keyword_search(
+            ctx, query, runtime_context["knowledge_base_ids"], top_k
+        ),
+        "list_knowledge_documents": lambda *, ctx, runtime_context: rag_tools.list_documents(
+            ctx, runtime_context["knowledge_base_ids"]
+        ),
+        "read_knowledge_document": lambda source_id, *, ctx, runtime_context: rag_tools.read_document(
+            ctx, source_id, runtime_context["knowledge_base_ids"]
+        ),
+    }
+    for definition in definitions:
+        tools.register(definition, handlers[definition.name], context_aware=True)
+
+    # 记忆库用内存模式：SQLite 连接不提供 close()，落盘文件在 Windows 上会让
+    # 临时目录清理失败（WinError 32）。
+    runtime = AgentRuntime(
+        provider=MockProvider("qa"),
+        memory=make_memory(":memory:"),
+        tools=tools,
+        skills=SkillRegistry(),
+        tracing=tracing,
+    )
+    answer = asyncio.run(
+        runtime.run(
+            RequestContext("t", "r", "u", "s"),
+            "请查询 API 如何认证？",
+            [KNOWLEDGE_BASE_ID],
+        )
     )
 
+    assert "api-doc" in answer, answer
+    rag_spans = [event for event in tracing.get("t") if event.span == "rag"]
+    assert rag_spans, "没有记录到 rag span"
+    assert rag_spans[0].meta.get("tool") == "search_knowledge_base", rag_spans[0].meta
 
-tools.register(rag_skill.tool_definition(), search_knowledge_base, context_aware=True)
-
-rt = AgentRuntime(
-    provider=MockProvider("qa"),
-    memory=make_memory("data/_tests/compiled.db"),
-    tools=tools,
-    skills=SkillRegistry(),
-    tracing=tracing,
-)
-ans = asyncio.get_event_loop().run_until_complete(
-    rt.run(
-        RequestContext("t", "r", "u", "s"),
-        "请查询 API 如何认证？",
-        ["engineering-notebook"],
+    print(
+        "modules loaded from:",
+        json.dumps({k: str(v["extension"]) for k, v in PUBLISHED.items()}, ensure_ascii=False, indent=2),
     )
-)
-assert "api-doc" in ans, ans
-assert any(event.span == "rag" for event in tracing.get("t")), tracing.get("t")
-print("imported observability from:", __import__("observability").__file__)
-print("compiled modules loaded; answer:", ans)
-print("COMPILED_AGENT_OK")
+    print("rag span meta:", json.dumps(rag_spans[0].meta, ensure_ascii=False))
+    print("COMPILED_AGENT_OK")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.3]
+- 已选择知识库时，每个问题都必须至少完成一次知识库检索：模型在未检索的情况下想直接收尾时，`run()` 会把它打回并追加 `RETRIEVAL_REQUIRED_MESSAGE`，最多提醒 `MAX_RETRIEVAL_REMINDERS` 次。
+- 每次拦截记录一个 `retrieval_guard` span（`meta` 含 `attempt` 与 `knowledge_base_ids`），便于在 trace 里识别“没检索就作答”的回答。
+- 系统提示词收紧：唯一可不检索的情况是没有选择知识库；并禁止在未检索时断言知识库内容、禁止复用历史对话里的 `[n]` 引用。
+
+## [0.3.2]
+- 系统提示词改为分级回退策略：`search_knowledge_base` → `hybrid_search_knowledge_base` → `keyword_search_knowledge_base` → `list_knowledge_documents` → `read_knowledge_document`。
+- 新增 `RETRIEVAL_TOOL_NAMES`：工具循环每轮只执行一次知识库检索，同一轮里的后续检索调用返回 SKIPPED 提示，非检索工具不受影响。
+- 明确要求模型先读结果再决定下一轮换工具或换查询，避免一条消息里并发发出多个检索请求。
+
 ## [0.3.1]
 - 强化 Agentic RAG 路由：已选择知识库时，事实与定义类问题必须先检索核实。
 - 将当前知识库选择状态明确写入系统提示，并要求低质量结果改写查询后再次检索。

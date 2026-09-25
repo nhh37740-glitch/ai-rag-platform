@@ -1,0 +1,30 @@
+{
+  "module": "rag_core",
+  "version": "0.2.0",
+  "public_api": [
+    [
+      "embed",
+      ""
+    ],
+    [
+      "make_embed",
+      ""
+    ],
+    [
+      "InMemoryVectorStore",
+      ""
+    ],
+    [
+      "retrieve",
+      ""
+    ],
+    [
+      "build_context",
+      ""
+    ],
+    [
+      "DIM",
+      ""
+    ]
+  ]
+}

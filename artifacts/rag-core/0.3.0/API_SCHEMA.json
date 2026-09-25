@@ -1,0 +1,42 @@
+{
+  "module": "rag_core",
+  "version": "0.3.0",
+  "public_api": [
+    [
+      "DIM",
+      ""
+    ],
+    [
+      "VectorStore",
+      ""
+    ],
+    [
+      "InMemoryVectorStore",
+      ""
+    ],
+    [
+      "SqliteVectorStore",
+      ""
+    ],
+    [
+      "RagClient",
+      ""
+    ],
+    [
+      "embed",
+      ""
+    ],
+    [
+      "make_embed",
+      ""
+    ],
+    [
+      "retrieve",
+      ""
+    ],
+    [
+      "build_context",
+      ""
+    ]
+  ]
+}

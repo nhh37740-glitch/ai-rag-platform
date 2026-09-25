@@ -25,17 +25,26 @@ registry.json               模块版本、校验和与发布状态
 - `compile_extension_modules.py`：编译进程内 Python 扩展模块。
 - `compile_service_executables.ps1`：编译独立服务可执行文件。
 - `package_release_artifacts.py`：生成发布契约、校验和与注册表。
-- `verify_source_runtime.py` / `verify_compiled_runtime.py`：分别验收源码模式和二进制模式。
+- `verify_compiled_runtime.py`：验收二进制模式；业务模块必须全部来自 `artifacts/`，源码模式会被运行边界拒绝。
 
 ## 中文 RAG 演示
 
 Web 启动时从 `data/kb/cmrc2018-demo/` 导入 CMRC2018 dev 子集，共 24 篇中文知识文档、99 个可用问题。页面还能创建独立笔记本，上传 `.md/.txt/.docx/.pdf` 并统一转成 Markdown；每次对话只检索勾选的知识库。内置语料只用于展示流程，不用于比较中文向量模型。
 
+## Web 界面：笔记本即工作区
+
+界面按"笔记本 = 独立工作区"组织：左栏列出全部笔记本与当前笔记本的来源，切换到某个笔记本就切换整个工作区——来源列表、对话记录、会话 id 都随之切换，互不干扰。
+
+- 检索范围只包含当前笔记本，不存在"上一次还选中着"的残留状态。
+- 每个笔记本一个会话（页面首次进入时生成），同一笔记本连续提问共享上下文，跨笔记本完全隔离。
+- 上传只作用于当前笔记本；创建或导入完成后自动切到那个笔记本。
+- 每条回答下方以小号等宽字体显示 trace id，可点击跳转到 `/api/trace/<id>`。
+
 ## 安装与启动
 
 ```powershell
 uv venv .venv
-uv pip install -e contracts -e modules-src/observability -e modules-src/memory -e modules-src/rag-core -e modules-src/rag-skill -e modules-src/llm-gateway -e modules-src/tool-runtime -e modules-src/skill-runtime -e modules-src/agent-runtime -e modules-src/evaluation -e modules-src/ingestion -e modules-src/mcp-gateway -e modules-src/mcp-servers -e modules-src/storage fastapi uvicorn python-multipart pypdf pytest
+uv pip install -e contracts -e modules-src/observability -e modules-src/memory -e modules-src/rag-core -e modules-src/rag-tools -e modules-src/llm-gateway -e modules-src/tool-runtime -e modules-src/skill-runtime -e modules-src/agent-runtime -e modules-src/evaluation -e modules-src/ingestion -e modules-src/mcp-gateway -e modules-src/mcp-servers -e modules-src/storage fastapi uvicorn python-multipart pypdf pytest
 
 .\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server server:app --port 8000
 ```
@@ -44,7 +53,7 @@ uv pip install -e contracts -e modules-src/observability -e modules-src/memory -
 
 `rag_core` 会通过包依赖自动安装 FastEmbed，并在首次启动时加载 `.env` 中 `BGE_MODEL=BAAI/bge-small-zh-v1.5` 指定的中文向量模型。如果运行库或模型不可用，服务会直接报错；只有显式设置 `RAG_EMBED=hash` 才会启用无模型的离线向量。
 
-Agent 实际获得三个真实工具：`search_knowledge_base`、`create_file` 和 `save_conversation_to_knowledge_base`。RAG 由独立 `rag-skill` 模块执行；选择知识库后，事实和定义类问题会强烈约束为先检索核实，低质量结果需要改写查询后再次检索。工具循环默认最多 10 轮。
+Agent 实际获得七个真实工具：五个由 `rag-tools` 模块公布的知识库检索工具（`search_knowledge_base`、`hybrid_search_knowledge_base`、`keyword_search_knowledge_base`、`list_knowledge_documents`、`read_knowledge_document`），以及 `create_file` 和 `save_conversation_to_knowledge_base`。选择知识库后，每个问题都必须至少检索一次——模型若想不检索直接回答，会被打回重来并在 trace 里留下 `retrieval_guard` span；语义检索不理想时按提示词给出的顺序逐级回退到其他检索方式，每轮只执行一次知识库检索。工具循环默认最多 10 轮。
 
 ## 手动编译与验收
 
@@ -54,7 +63,6 @@ Agent 实际获得三个真实工具：`search_knowledge_base`、`create_file` �
 .\.venv\Scripts\python.exe scripts/compile_extension_modules.py
 .\scripts\compile_service_executables.ps1
 .\.venv\Scripts\python.exe scripts/package_release_artifacts.py
-.\.venv\Scripts\python.exe scripts/verify_source_runtime.py
 .\.venv\Scripts\python.exe scripts/verify_compiled_runtime.py
 .\.venv\Scripts\python.exe -m pytest contracts/test_contract.py
 ```

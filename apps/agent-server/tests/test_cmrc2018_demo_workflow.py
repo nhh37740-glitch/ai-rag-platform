@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -48,16 +50,85 @@ class DemoKnowledgeBaseTests(unittest.TestCase):
         )
         self.assertTrue(any("静电感应" in item.source_id for item in result.citations))
 
-    def test_agent_receives_only_real_project_tools(self) -> None:
+    def test_agent_receives_all_real_project_tools(self) -> None:
         names = [tool.name for tool in server_app.tools.list(RequestContext("t", "r"))]
         self.assertEqual(
             names,
             [
                 "search_knowledge_base",
+                "hybrid_search_knowledge_base",
+                "keyword_search_knowledge_base",
+                "list_knowledge_documents",
+                "read_knowledge_document",
                 "create_file",
                 "save_conversation_to_knowledge_base",
             ],
         )
+
+    def test_notebook_documents_lists_builtin_sources(self) -> None:
+        payload = json.loads(
+            server_app.notebook_documents("cmrc2018-demo").body.decode("utf-8")
+        )
+        self.assertEqual(payload["notebook_id"], "cmrc2018-demo")
+        self.assertFalse(payload["writable"])
+        self.assertEqual(len(payload["documents"]), 24)
+        self.assertTrue(
+            all(item["source_id"].startswith("cmrc2018-demo/") for item in payload["documents"])
+        )
+        self.assertTrue(all(item["chunks"] > 0 for item in payload["documents"]))
+
+    def test_suggestions_come_from_the_selected_notebook(self) -> None:
+        payload = json.loads(
+            server_app.notebook_suggestions("cmrc2018-demo").body.decode("utf-8")
+        )
+        self.assertEqual(payload["notebook_id"], "cmrc2018-demo")
+        self.assertEqual(payload["source"], "curated")
+        self.assertEqual(len(payload["questions"]), 8)
+        self.assertTrue(all(item["question"] for item in payload["questions"]))
+
+    def test_topic_candidates_pick_chapters_over_plain_lines(self) -> None:
+        # 用仓库内的 scratch 目录：系统临时目录在受限环境里可能不可写。
+        scratch = ROOT / "data" / "_tests"
+        scratch.mkdir(parents=True, exist_ok=True)
+        suffix = tempfile._get_candidate_names().__next__()
+        chaptered = scratch / f"chaptered-{suffix}.md"
+        labelled = scratch / f"labelled-{suffix}.md"
+        try:
+            chaptered.write_text(
+                "# 银河争霸战\n\n"
+                "声明：本书为测试文本。\n\n"
+                "第1章 彦清风\n\n正文内容。\n\n"
+                "第2章 林古兰\n\n正文内容。\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                server_app._topic_candidates(chaptered, limit=2, skip="银河争霸战"),
+                ["第1章 彦清风", "第2章 林古兰"],
+            )
+
+            labelled.write_text(
+                "# 张志_中文简历\n\n张志\n\n个人简介\n\n曾任 C++ 后端。\n\n教育背景\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                server_app._topic_candidates(labelled, limit=4, skip="张志_中文简历"),
+                ["个人简介", "教育背景"],
+            )
+        finally:
+            chaptered.unlink(missing_ok=True)
+            labelled.unlink(missing_ok=True)
+
+    def test_same_content_is_not_imported_twice(self) -> None:
+        notebook_dir = None
+        try:
+            notebook_dir, metadata = server_app._create_user_notebook("测试去重")
+            content = "# 短文档\n\n只有一句话。\n"
+            server_app._add_markdown_document(notebook_dir, metadata, "短文档.md", content)
+            with self.assertRaisesRegex(ValueError, "已经导入过"):
+                server_app._add_markdown_document(notebook_dir, metadata, "短文档.md", content)
+        finally:
+            if notebook_dir is not None:
+                shutil.rmtree(notebook_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":

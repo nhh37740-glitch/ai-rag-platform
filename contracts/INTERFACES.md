@@ -23,6 +23,8 @@ class MockProvider:  # 离线：按预置答案/工具调用规则返回，用�
 class VectorStore(Protocol):
     def add(self, source_id: str, chunks: list[str], embeddings) -> None: ...
     def search(self, embedding, top_k: int = 5, scopes: list[str] | None = None) -> list[tuple[str, str, float]]: ...
+    def list_documents(self, scopes: list[str] | None = None) -> list[tuple[str, int]]: ...   # (source_id, chunk_count)
+    def document_chunks(self, source_id: str) -> list[str]: ...                               # 该文档全部块，按写入顺序
 
 class InMemoryVectorStore:  # numpy 余弦相似度，离线
 class SqliteVectorStore:    # SQLite 持久化文本与向量，搜索接口与内存实现一致
@@ -35,20 +37,49 @@ class RagClient:
 def embed(texts: list[str]) -> list[list[float]]: ...          # 默认 FastEmbed + BAAI/bge-small-zh-v1.5；失败直接报错
 def retrieve(ctx, query: str, store: VectorStore,
              scope: str | list[str] | None = "kb", top_k: int = 5) -> RetrievalResult: ...
+
+# 检索原语：供 rag_tools 组装成 LLM 工具
+def keyword_search(ctx, query: str, store: VectorStore,
+                   scope: str | list[str] | None = "kb", top_k: int = 5) -> RetrievalResult: ...
+    # 纯词面打分，不加载向量模型
+def hybrid_search(ctx, query: str, store: VectorStore, scope: str | list[str] | None = "kb",
+                  top_k: int = 5, alpha: float = 0.5) -> RetrievalResult: ...
+    # 向量与词面排序的 RRF 融合；正文含罕见词时能纠正纯向量排序
+def list_documents(ctx, store: VectorStore, scope: str | list[str] | None = "kb") -> list[dict]: ...
+    # [{source_id, title, knowledge_base_id, chunk_count}]
+def document_info(ctx, store: VectorStore, source_id: str) -> dict: ...
+    # {source_id, title, knowledge_base_id, chunk_count}；未知 id 时 chunk_count 为 0
+def read_document(ctx, store: VectorStore, source_id: str,
+                  max_chunks: int = DEFAULT_READ_CHUNKS, offset: int = 0) -> RetrievalResult: ...
+    # 分页读取，绝不允许一次读完整篇：默认 DEFAULT_READ_CHUNKS=20 块，上限 MAX_READ_CHUNKS=100。
+    # 每个 Citation.metadata 含 knowledge_base_id、chunk_index（1 起）、total_chunks。
 ```
+
+`read_document` 必须分页：调用方无法用一次调用取回整篇文档，只能通过递进 `offset` 续读。这样大文档不会一次撑爆上下文。
 
 `RAG_EMBED` 默认为 `fastembed`；只有显式设置 `RAG_EMBED=hash` 时才允许使用不经模型的离线 hash 向量。未安装 FastEmbed、模型无法加载或配置了未知后端时必须报错，不得静默降级。
 
-## rag_skill
+## rag_tools
 ```python
-class RagSkill:
+class RagTools:
     def __init__(self, store: VectorStore, tracing: TraceStore, top_k: int = 5): ...
-    def tool_definition(self) -> ToolDef: ...
-    def execute(self, ctx, query: str, knowledge_base_ids: list[str],
-                top_k: int | None = None) -> str: ...
+    def tool_definitions(self) -> list[ToolDef]: ...
+    def search(self, ctx, query: str, knowledge_base_ids: list[str], top_k: int | None = None) -> str: ...
+    def hybrid_search(self, ctx, query: str, knowledge_base_ids: list[str], top_k: int | None = None) -> str: ...
+    def keyword_search(self, ctx, query: str, knowledge_base_ids: list[str], top_k: int | None = None) -> str: ...
+    def list_documents(self, ctx, knowledge_base_ids: list[str]) -> str: ...
+    def read_document(self, ctx, source_id: str, knowledge_base_ids: list[str],
+                      offset: int = 0, max_chunks: int | None = None) -> str: ...
 ```
 
-`RagSkill` 是 Agent 面向的独立执行模块；工具调用的知识库范围必须由当前请求上下文注入，不允许 LLM 自行扩大范围。
+`read_knowledge_document` 的返回值必须包含 `offset`、`returned_chunks`、`total_chunks`、`truncated` 与 `next_offset`（读到底时为 `null`）。工具参数为 `source_id`（必填）、`offset`（≥0）、`max_chunks`（1–100，默认 20）。工具描述必须写明它默认只返回前若干块，并要求模型在被截断时用 `next_offset` 续读，而不是假设一次拿到全文。
+
+`RagTools` 是 RAG 工具模块（原 `rag-skill`，0.2.0 起改名）：向 LLM 公布五个工具
+`search_knowledge_base`、`hybrid_search_knowledge_base`、`keyword_search_knowledge_base`、
+`list_knowledge_documents`、`read_knowledge_document`，每个方法返回 JSON 字符串并记录一个
+`rag` span（`meta` 含 `tool`/`query`/`knowledge_base_ids`/`hit_count`/`hits`）。
+知识库范围必须由当前请求上下文注入，不允许 LLM 自行扩大；`read_document` 对范围外的
+`source_id` 直接报错。提示词层面的检索策略位于 `skills/rag-retrieval/SKILL.md`。
 
 ## memory
 ```python
@@ -117,6 +148,8 @@ class TraceStore:
 ```
 
 `rag` span 的 `meta` 必须包含 `query`、`knowledge_base_ids`、`hit_count` 和按排名排列的 `hits`；每个命中项记录 `rank`、`source_id`、`title`、`score` 与截断后的 `text_preview`。
+
+`retrieval_guard` span 在“已选择知识库、但本轮没有执行任何检索，模型却想直接收尾”时记录，`meta` 含 `attempt`（第几次提醒）与 `knowledge_base_ids`。`agent_runtime` 会对这种回答打回重来，最多 `MAX_RETRIEVAL_REMINDERS` 次。
 
 ## evaluation（独立进程/API）
 ```python
