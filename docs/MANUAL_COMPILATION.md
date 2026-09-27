@@ -4,7 +4,7 @@
 
 ## 1. 准备环境
 
-在仓库根目录创建虚拟环境并按 [`README.md`](../README.md) 安装项目依赖。Windows 编译 `.pyd` 还需要可用的 MSVC Build Tools。
+在仓库根目录创建虚拟环境并按 [`README.md`](../README.md) 安装项目依赖。Windows 编译 `.pyd` 需要 MSVC Build Tools；Linux 编译 `.so` 需要 C 编译器。Dockerfile 在 Linux 构建阶段准备编译环境。
 
 当前批量脚本使用 Cython；mypyc 是目标默认方案，模块遇到不支持的动态特性时可继续使用 Cython 回退。
 
@@ -18,7 +18,7 @@ uv pip install cython nuitka build
 .\.venv\Scripts\python.exe scripts\compile_extension_modules.py
 ```
 
-该脚本遍历 `modules-src/<module-id>/`，编译包入口，并把 `.pyd` 放入 `artifacts/<module-id>/<version>/<package>/`。
+该脚本遍历 `modules-src/<module-id>/`，编译包入口，并把当前平台的 `.pyd` 或 `.so` 放入 `artifacts/<module-id>/<version>/<package>/`。
 
 只改动了部分模块时，用 `--module` 只编译它们，未指定的模块保持原样：
 
@@ -63,8 +63,11 @@ uv pip install cython nuitka build
 ```powershell
 .\.venv\Scripts\python.exe scripts\verify_compiled_runtime.py
 .\.venv\Scripts\python.exe -m pytest contracts\test_contract.py
+.\.venv\Scripts\python.exe scripts\build_release_bundle.py
 ```
 
 `verify_compiled_runtime.py` 会复用 `apps/agent-server/runtime_boundary.py`，确认所有业务模块都来自 `artifacts/` 的编译产物；只要有一个模块来自 `modules-src`，服务与验收都会直接失败。
+
+发布脚本按当前操作系统生成 `dist/ai-rag-platform-<version>-<platform>.zip`、独立 SHA-256 文件及清单，并重新读取 ZIP 验证所有条目校验和。Linux `.so` 交付必须在 Linux 构建机执行；Jenkinsfile 在 Docker 构建阶段完成这一步并归档产物。
 
 仓库不提交 `build/`、`bin/`、本地数据库或一次性测试报告。

@@ -60,11 +60,12 @@ _load_dotenv(ROOT / ".env")
 
 DEMO_KB_ID = os.environ.get("DEMO_KB_ID", "cmrc2018-demo")
 DEMO_KB_DIR = KB_DIR / DEMO_KB_ID
-DB_PATH = os.environ.get("DB_PATH", str(ROOT / "data" / "app.db"))
+STATE_DIR = Path(os.environ.get("STATE_DIR", str(ROOT / "data")))
+DB_PATH = os.environ.get("DB_PATH", str(STATE_DIR / "app.db"))
 API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
-INDEX_PATH = os.environ.get("INDEX_PATH", str(ROOT / "data" / "index.json"))
+INDEX_PATH = os.environ.get("INDEX_PATH", str(STATE_DIR / "index.json"))
 
 # 向量索引按 embedding 配置隔离，避免切换后端或模型后误用维度不兼容的旧向量。
 # VECTOR_DB_PATH 可显式覆盖；默认路径稳定，因此服务重启会直接复用已有索引。
@@ -77,7 +78,7 @@ _embed_identity = "\0".join(
 _embed_identity_hash = hashlib.sha256(_embed_identity.encode("utf-8")).hexdigest()[:12]
 VECTOR_DB_PATH = os.environ.get(
     "VECTOR_DB_PATH",
-    str(ROOT / "data" / f"vector-index-{_embed_identity_hash}.sqlite"),
+    str(STATE_DIR / f"vector-index-{_embed_identity_hash}.sqlite"),
 )
 
 trace_store = make_trace_store()

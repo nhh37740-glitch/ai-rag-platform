@@ -2,7 +2,7 @@
 
 ## 项目目的
 
-本仓库用于构建 **企业研发知识与协作智能体系统（Dev Knowledge Agent）** 并持续对照目标岗位完善简历。核心能力是"会问答、会调工具、会走流程、记得住上下文"，并把它做成**契约先行 + 源码隔离 + 二进制交付**的模块化系统——集成/主 Agent 只拿到接口契约与编译后的二进制，看不到各模块实现源码。
+本仓库用于构建 **企业研发知识与协作智能体系统（Dev Knowledge Agent）**。核心能力是"会问答、会调工具、会走流程、记得住上下文"，并把它做成**契约先行 + 源码隔离 + 二进制交付**的模块化系统。Docker 构建阶段使用模块源码编译；运行镜像只消费契约与编译后的二进制。
 
 > 唯一事实来源是 [`docs/PLAN.md`](docs/PLAN.md)。改方案先改它，再动代码。
 
@@ -10,14 +10,14 @@
 
 ```text
 contracts/       # 契约层（唯一共享"源码"）：core-contracts + INTERFACE.md + API_SCHEMA.json + test_contract.py
-modules-src/     # 各模块源码仓库（对集成 Agent 不可见，仅对应 subagent 有写入权）
+modules-src/     # 各模块源码包（构建阶段可见，运行阶段不进入镜像）
 artifacts/       # 集成 Agent 只读：模块/版本/ 下的二进制 + 契约文档 + checksum
 registry.json    # 各模块版本 + checksum 索引
 apps/            # 集成 Agent 编写：agent-server(FastAPI) + web-ui + ingestion/MCP 调用
 docs/            # PLAN.md 与 architecture/ 说明
 ```
 
-命名约定：模块用 `kebab-case`（如 `rag-core`、`tool-runtime`）；每个模块是一个独立 git 仓库，含 `README.md`、`INTERFACE.md`、`API_SCHEMA.json`、`CHANGELOG.md`、`VERSION`、`tests/`。
+命名约定：模块目录用 `kebab-case`（如 `rag-core`、`tool-runtime`）；当前发布单元是根目录仓库。各模块以独立 Python 包、契约和版本维护。部分目录含历史本地 `.git`，但没有远程仓库，不应将其误认为已发布的独立仓库。
 
 ## 架构原则
 
@@ -40,7 +40,7 @@ python scripts/verify_compiled_runtime.py
 
 ## 提交与 PR 规范
 - 使用 Conventional Commits：`feat:` `fix:` `docs:` `test:` `build:`。
-- 模块改动 = 独立仓库一次提交 + bump `VERSION` + 更新 `CHANGELOG.md` + 重建二进制与 `checksum`。
+- 模块改动 = 根仓库一次提交 + bump `VERSION` + 更新 `CHANGELOG.md` + 在目标平台重建二进制与 `checksum`。
 - PR 描述需说明：模块实现什么、接口是否变化、如何运行、对应哪条岗位要求。
-- 集成侧改动只允许触碰 `contracts/`、`apps/`、`registry.json`、根 `README`，不得修改 `modules-src/` 或其他模块实现。
+- 集成侧运行镜像只包含 `contracts/`、`apps/`、`artifacts/` 等运行资产，不包含 `modules-src/`。模块实现改动仍按契约、版本与测试流程审查。
 - 提交前检查：`AGENTS.md` 与 `docs/PLAN.md` 是否为最新事实；所有改动链路（版本、checksum、契约测试）一致。

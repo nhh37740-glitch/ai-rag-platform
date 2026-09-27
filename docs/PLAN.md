@@ -13,7 +13,7 @@
 ```
 <workspace>/
   contracts/            # 契约层，唯一共享"源码"：core-contracts + INTERFACE.md + API_SCHEMA.json + test_contract.py
-  modules-src/          # 各模块源码仓库（对集成 Agent 不可见；仅对应 subagent 有写入权）
+  modules-src/          # 各模块源码包；Docker 构建阶段可见，运行阶段不可见
     rag-core/  rag-tools/  memory/  llm-gateway/  tool-runtime/  mcp-gateway/  skill-runtime/
     agent-runtime/  observability/  evaluation/  ingestion/  mcp-servers/  storage/
   artifacts/            # 集成 Agent 只读：按 模块/版本/ 存放成品
@@ -25,9 +25,9 @@
 ```
 
 - `contracts/`：接口与 schema（无实现），所有 subagent 与集成 Agent 可见、可校验。
-- `modules-src/`：实现源码，集成 Agent 不检出、不消费；每个模块是一个独立 git 仓库。
+- `modules-src/`：实现源码，按独立 Python 包和契约划分；当前发布单元是根目录 `ai-rag-platform` 仓库。历史上部分目录带有本地嵌套 Git 元数据，但没有远程仓库，不能把它们当作已发布的独立仓库。运行镜像不带源码，只消费编译产物。
 - `artifacts/`：集成侧只从这里取版本化二进制 + 契约文档 + 契约测试。
-- 已知限制：Codex 子 Agent 共享文件系统，机器级隔离需容器（本地无 Docker）；本方案通过"集成侧只 import 二进制 + 工作区不放实现源码 + 仓库边界"实现操作/进程级隔离。
+- 已知限制：Codex 子 Agent 共享文件系统；开发阶段仍以契约和源码目录分工。Docker 在部署阶段隔离应用进程、依赖与持久化数据。
 
 ## 编译与交付形态
 
@@ -51,10 +51,10 @@
 - **Agent 文件与对话入库**：工具只能在 `data/agent-files/` 创建新文件，不得覆盖仓库源码；用户要求保存对话时，工具将当前会话转为 Markdown，创建新笔记本并立即加入检索。
 - **存储**：`storage` 接口统一用户/会话/记忆/文档元数据/向量/评测结果；默认 **SQLite 元数据 + 本地向量库（FAISS/Chroma）**，接口与 PostgreSQL+pgvector 同构，可无痛切换；本地 BGE（默认 `bge-small-zh`）。
 
-## 构建与集成工作流（主 agent 指挥，一模块一 subagent，一仓库）
+## 构建与集成工作流（主 agent 指挥，一模块一 subagent）
 
-1. **契约先行**：主 agent 写 `contracts/`（core-contracts + 各模块 `INTERFACE.md`/`API_SCHEMA.json`/`test_contract.py`），定死接口与依赖方向；生成各模块独立 git 仓库与 `artifacts/`/`registry.json` 骨架；此步产出即各 subagent 的任务书。
-2. **模块开发（源码仓库内）**：主 agent 为每个模块 spawn 一位 subagent，只给该模块仓库路径 + 契约；子 Agent 实现、写单测（mock 下游）、编译二进制、算 checksum、bump 版本、发布到 `artifacts/<模块>/<版本>/` 并登记 `registry.json`；不得改契约或其他模块。
+1. **契约先行**：主 agent 写 `contracts/`（core-contracts + 各模块 `INTERFACE.md`/`API_SCHEMA.json`/`test_contract.py`），定死接口与依赖方向；维护各模块独立包与 `artifacts/`/`registry.json` 骨架；此步产出即各 subagent 的任务书。
+2. **模块开发（模块源码目录内）**：主 agent 为每个模块分配目录与契约；子 Agent 实现、写单测（mock 下游）、编译二进制、算 checksum、bump 版本、发布到 `artifacts/<模块>/<版本>/` 并登记 `registry.json`；不得改契约或其他模块。
 3. **集成（仅契约 + 二进制 + 应用）**：主 agent 从 `artifacts/` 取 pin 版本并校验 checksum，用接口契约在 `apps/agent-server` 里直调各 `.pyd`，组 `web-ui` 与 `ingestion`/`MCP` 调用，跑各 `test_contract.py`（对二进制）与端到端冒烟。
 4. **人工验收与收尾**：操作者手动编译各包 wheel/exe，并验证中文知识库、工具调用、记忆与追踪链路；不提交一次性报告。
 
@@ -68,15 +68,23 @@
 
 ## 假设与默认
 
-- Python 3.11+、uv；本地无 Docker，故不做容器级隔离；编译用 mypyc（默认）/Cython（回退）生成 `.pyd/.so`，进程模块用 Nuitka 生成 `.exe`；Windows 平台。
+- Python 3.11+；Windows 开发、Linux Docker 部署。当前批量编译器为 Cython；构建阶段按目标平台生成 `.pyd` 或 `.so` 并写入 `artifacts/`，运行镜像只加载相同平台的扩展模块。Nuitka `.exe` 是 Windows 手动交付方式，不作为 Linux 容器前置条件。
 - 除 DeepSeek 聊天 API 外无外部服务依赖；存储默认 SQLite + 本地向量库，走 `storage` 接口以便切 pgvector；默认由 FastEmbed 在本地运行 `BAAI/bge-small-zh-v1.5`。
 - `DEEPSEEK_API_KEY` 经 `.env` 注入，不入库；单用户单租户演示；可选简单 API key。
 - MCP connector（Git/Issue/工单）v1 用本地 mock，接口与真实连接器一致，便于日后插真。
 - "SKILL" 采用 Agent Skills 的 SKILL.md 开放格式；前端为 agent-server 托管单页聊天（SSE）。
 
+## Jenkins 与 Docker 部署（2026-09-27）
+
+1. Jenkins 从根仓库检出固定提交，安装依赖并执行单元、契约测试；随后构建 Linux 多阶段镜像。在构建阶段运行 `scripts/compile_extension_modules.py` 与 `scripts/package_release_artifacts.py`，再用 `scripts/verify_compiled_runtime.py` 检查扩展来源。
+2. 构建脚本按 Python 当前平台识别编译扩展的后缀，并把 `.pyd` / `.so` 放入相同模块版本的 `artifacts/`。注册表路径只使用 `/`，避免跨系统路径差异。
+3. 运行镜像只包含 `contracts/`、`apps/`、`skills/`、只读演示语料、`artifacts/` 与注册表。`modules-src/` 和构建工具不进入运行镜像；模型缓存、数据库、用户笔记本与 Agent 文件通过 Docker volume 持久化。
+4. Jenkins 部署时在服务器运行 `docker compose up -d --build`，用本机 health check 验证服务后才完成流水线。DeepSeek 密钥由 Jenkins 凭据或服务器环境注入，仓库、构建日志和镜像不保存实际密钥。无密钥时使用 Mock 展示模式。
+5. 本仓库当前没有服务器地址、SSH 凭据和已验证的 Jenkins 环境。以上配置先在隔离副本验证，再连接实际服务器。
+
 ## 仓库整理规则
 
-- 源码仓库不保存本地编译结果、一次性演示脚本、一次性评测报告或 CI 平台专用配置。
+- 源码仓库不保存本地编译结果、一次性演示脚本或一次性评测报告。为满足服务器持续交付，保存 `Dockerfile`、`compose.yaml` 与 `Jenkinsfile` 等可复现部署配置。
 - `artifacts/` 只保留每个模块当前版本的发布契约；旧占位版本与本地二进制不保留。`reports/`、`bin/`、`build/` 均为可再生输出。
 - 可执行脚本采用“动词 + 对象”命名，文件名必须直接说明职责；同一职责只保留一个入口。
 - Web 演示语料必须实际存放在 `data/kb/cmrc2018-demo/`，并通过与本地文档一致的知识库加载链路进入检索；不保留独立的旁路数据集目录。

@@ -68,3 +68,19 @@ Agent 实际获得七个真实工具：五个由 `rag-tools` 模块公布的知�
 ```
 
 总体方案见 [`docs/PLAN.md`](docs/PLAN.md)，架构说明见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
+
+## Linux Docker 与 Jenkins 交付
+
+根仓库是当前发布单元；`modules-src/` 中每个模块保留独立包、接口和版本，构建阶段用 Cython 编译为 Linux `.so`，运行镜像只包含 `artifacts/` 中的扩展、契约、应用、技能和演示语料。`runtime_boundary.py` 在启动时验证模块来源，缺少扩展时拒绝启动。
+
+在有 Docker Compose 的 Linux 主机上，从仓库根目录运行：
+
+```sh
+docker compose --project-name ai-rag up -d --build
+docker compose --project-name ai-rag ps
+curl -f http://127.0.0.1:18080/api/demo
+```
+
+默认只监听服务器回环地址的 `18080` 端口，供同机反向代理使用。Compose 显式设置 `RAG_EMBED=hash`，这样无需下载模型即可启动演示；需要 BGE 语义向量时，配置 `RAG_EMBED=fastembed`，模型缓存使用独立 volume。数据库、向量索引、用户笔记本和 Agent 文件分别用 volume 持久化。`DEEPSEEK_API_KEY` 留空时继续使用 Mock；实际密钥仅通过 Jenkins 凭据或服务器环境变量注入。
+
+`Jenkinsfile` 假设 Jenkins agent 运行在目标 Linux Docker 主机且有 Docker/Compose 权限。流水线依次执行模块单测、Linux 编译、严格契约测试、应用端到端测试、二进制运行边界验证；然后归档 `dist/ai-rag-platform-<version>-<platform>.zip`、SHA-256 与逐文件清单，再更新 Compose 服务并等待健康检查。ZIP 内不含 `modules-src/`。本仓库尚未配置具体 Jenkins job、服务器地址和凭据；可先在独立 Jenkins job 上运行此流水线，再将主页入口指向反向代理地址。

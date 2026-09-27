@@ -1,0 +1,28 @@
+services:
+  agent:
+    image: ai-rag-platform:local
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    ports:
+      - "${AI_RAG_BIND:-127.0.0.1}:${AI_RAG_PORT:-18080}:8000"
+    environment:
+      STATE_DIR: /opt/agent/state
+      RAG_EMBED: ${RAG_EMBED:-hash}
+      BGE_MODEL: ${BGE_MODEL:-BAAI/bge-small-zh-v1.5}
+      FASTEMBED_CACHE_PATH: /opt/agent/models/fastembed_cache
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+    volumes:
+      - agent-state:/opt/agent/state
+      - user-notebooks:/opt/agent/data/kb/user-notebooks
+      - agent-files:/opt/agent/data/agent-files
+      - model-cache:/opt/agent/models/fastembed_cache
+
+volumes:
+  agent-state:
+  user-notebooks:
+  agent-files:
+  model-cache:

@@ -137,7 +137,7 @@ def main(argv: list[str] | None = None) -> None:
             "name": pkg,
             "version": version,
             "checksum": checksum,
-            "path": str(out.relative_to(ROOT)),
+            "path": out.relative_to(ROOT).as_posix(),
             "status": "published" if has_binary else "contract-only",
         }
     REGISTRY.write_text(json.dumps({"format": 1, "modules": modules}, ensure_ascii=False, indent=2), encoding="utf-8")

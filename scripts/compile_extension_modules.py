@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import argparse
-import glob
+import importlib.machinery
 import json
-import os
 import shutil
 import subprocess
 import tomllib
@@ -13,6 +12,18 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "modules-src"
 ART = ROOT / "artifacts"
 SCHEMA = ROOT / "contracts" / "API_SCHEMA.json"
+
+
+def compiled_init_files(package_dir: Path) -> list[Path]:
+    """Return this platform's compiled package entrypoints after cythonize -i."""
+    suffixes = tuple(importlib.machinery.EXTENSION_SUFFIXES)
+    return sorted(
+        path
+        for path in package_dir.iterdir()
+        if path.is_file()
+        and path.name.startswith("__init__")
+        and path.name.endswith(suffixes)
+    )
 
 
 def _select_modules(requested: list[str]) -> set[str] | None:
@@ -87,12 +98,15 @@ def main(argv: list[str] | None = None) -> None:
         subprocess.run(["cythonize", "-i", str(init)], cwd=ROOT, check=True)
         out = ART / module_id / version / pkg
         out.mkdir(parents=True, exist_ok=True)
-        for pyd in glob.glob(str(mod / pkg / "__init__*.pyd")):
-            shutil.copy2(pyd, out / Path(pyd).name)
+        compiled = compiled_init_files(mod / pkg)
+        if not compiled:
+            raise RuntimeError(f"{pkg}: cythonize did not produce a compiled extension")
+        for extension in compiled:
+            shutil.copy2(extension, out / extension.name)
         built += 1
     if skipped:
         print(f"skipped {skipped} unselected module(s)")
-    print(f"built {built} compiled packages; .pyd under artifacts/<module-id>/<version>/<pkg>/")
+    print(f"built {built} compiled packages under artifacts/<module-id>/<version>/<pkg>/")
 
 
 if __name__ == "__main__":
