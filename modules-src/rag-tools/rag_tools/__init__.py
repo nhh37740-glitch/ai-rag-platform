@@ -424,9 +424,9 @@ class RagTools:
         try:
             normalized_query = _require_query(query)
             scope_for_trace = _normalize_knowledge_base_ids(knowledge_base_ids)
-            limit = self.top_k if top_k is None else _validate_top_k(top_k)
             meta["query"] = normalized_query
             meta["knowledge_base_ids"] = scope_for_trace
+            limit = self.top_k if top_k is None else _validate_top_k(top_k)
 
             result = runner(normalized_query, scope_for_trace, limit)
             citations = list(result.citations)

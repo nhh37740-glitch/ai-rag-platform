@@ -108,7 +108,7 @@ class TestAgentRuntime(unittest.TestCase):
         self.assertEqual(observed["trace_id"], "trace")
         self.assertEqual(observed["knowledge_base_ids"], ["cmrc2018-demo"])
         self.assertIn("已选择: cmrc2018-demo", provider.system_prompt)
-        self.assertIn("即使你确信自己知道答案，也必须先检索核实", provider.system_prompt)
+        self.assertIn("你确信自己知道答案的问题，一律先检索再作答", provider.system_prompt)
 
     def test_tool_round_limit_cannot_be_below_ten(self):
         with self.assertRaisesRegex(ValueError, "10"):
