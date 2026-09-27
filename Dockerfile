@@ -30,7 +30,8 @@ RUN pip install --no-cache-dir --no-deps -e contracts \
            pip install --no-cache-dir --no-deps -e "$module"; \
          fi; \
        done
-RUN python -m pytest -q modules-src
+RUN python -m pytest -q modules-src \
+    && python -m pytest -q scripts/tests/test_deploy_compose_rollback.py
 
 RUN python scripts/compile_extension_modules.py \
     && python scripts/package_release_artifacts.py \

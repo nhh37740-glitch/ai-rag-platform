@@ -1,5 +1,12 @@
 pipeline {
     agent { label 'media-workspace-agent' }
+    parameters {
+        booleanParam(
+            name: 'DeployDemo',
+            defaultValue: true,
+            description: 'Deploy the tested image to the isolated ai-rag Compose service.'
+        )
+    }
     options {
         timestamps()
         disableConcurrentBuilds()
@@ -23,24 +30,11 @@ pipeline {
             }
         }
         stage('Deploy') {
+            when {
+                expression { params.DeployDemo }
+            }
             steps {
-                sh '''
-                    set -eu
-                    sudo docker compose --project-name ai-rag up -d --build
-                    cid="$(sudo docker compose --project-name ai-rag ps -q agent)"
-                    test -n "$cid"
-                    for attempt in $(seq 1 72); do
-                        status="$(sudo docker inspect --format '{{.State.Health.Status}}' "$cid")"
-                        if [ "$status" = healthy ]; then exit 0; fi
-                        if [ "$status" = unhealthy ]; then
-                            sudo docker compose --project-name ai-rag logs --tail=100 agent
-                            exit 1
-                        fi
-                        sleep 5
-                    done
-                    sudo docker compose --project-name ai-rag logs --tail=100 agent
-                    exit 1
-                '''
+                sh 'BUILD_NUMBER="$BUILD_NUMBER" sh scripts/deploy_compose.sh'
             }
         }
     }
