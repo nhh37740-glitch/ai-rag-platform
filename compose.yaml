@@ -6,7 +6,16 @@ services:
       target: runtime
     restart: unless-stopped
     ports:
-      - "${AI_RAG_BIND:-127.0.0.1}:${AI_RAG_PORT:-18080}:8000"
+      - "127.0.0.1:18080:8000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 0.50
     environment:
       STATE_DIR: /opt/agent/state
       RAG_EMBED: ${RAG_EMBED:-hash}
