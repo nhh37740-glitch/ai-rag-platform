@@ -261,6 +261,16 @@ svg { display: block; fill: none; stroke: currentColor; stroke-linecap: round; s
 .side-status[data-kind="success"] { color: var(--green); }
 
 .chat-header { gap: 10px; }
+.key-config-btn { padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); cursor: pointer; white-space: nowrap; }
+.key-config-btn:disabled { color: var(--ink-faint); cursor: not-allowed; }
+.key-config-dialog { width: min(440px, calc(100vw - 32px)); padding: 22px; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-pop); }
+.key-config-dialog::backdrop { background: rgba(25, 31, 45, .4); }
+.key-config-dialog h2 { margin: 0 0 8px; font-size: 17px; }
+.key-config-dialog .field { display: flex; flex-direction: column; gap: 5px; margin: 16px 0 10px; }
+.key-config-dialog input { width: 100%; padding: 9px 10px; border: 1px solid var(--line-strong); border-radius: 8px; }
+.key-config-hint { color: var(--ink-soft); font-size: 12px; }
+.key-config-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.key-config-actions button { padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
 .chat-heading { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .current-summary { color: var(--ink-faint); font-size: 11px; white-space: nowrap; }
 .chat-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
@@ -386,7 +396,9 @@ svg { display: block; fill: none; stroke: currentColor; stroke-linecap: round; s
 @media (max-width: 640px) {
   .app-header { gap: 8px; height: 60px; padding: 0 11px; }
   .brand-name, .local-pill { display: none; }
-  .notebook-switcher { min-width: 0; max-width: calc(100vw - 112px); }
+  .notebook-switcher { min-width: 0; max-width: calc(100vw - 220px); }
+  .profile-chip { display: none; }
+  .key-config-btn { padding: 6px; font-size: 11px; }
   .notebook-menu { position: fixed; top: 64px; right: 10px; left: 10px; width: auto; }
   .workspace { height: calc(100vh - 60px); }
   .grounded-pill { display: none; }

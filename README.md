@@ -49,7 +49,7 @@ uv pip install -e contracts -e modules-src/observability -e modules-src/memory -
 .\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server server:app --port 8000
 ```
 
-浏览器打开 `http://127.0.0.1:8000/`。未配置 `DEEPSEEK_API_KEY` 时使用离线 Mock；在根目录 `.env` 配置该变量后使用 DeepSeek。
+浏览器打开 `http://127.0.0.1:8000/`。未配置 `DEEPSEEK_API_KEY` 时使用离线 Mock；在根目录 `.env` 配置该变量后使用 DeepSeek。页面右上角「DeepSeek 设置」可为当前页面设置、替换或移除个人密钥。仅 HTTPS 或本机页面允许输入个人密钥；服务端也会拒绝来自公网 HTTP 页面携带密钥的请求。密钥只保留在页面内存中，通过同源 `POST /api/chat` 的请求头传递，刷新后清除；移除后恢复服务器配置或离线 Mock。服务端不保存浏览器密钥，`GET /api/llm/config` 只返回服务器是否已配置的布尔值和模型名。旧 `GET /api/chat/stream` 继续使用服务器配置。
 
 `rag_core` 会通过包依赖自动安装 FastEmbed，并在首次启动时加载 `.env` 中 `BGE_MODEL=BAAI/bge-small-zh-v1.5` 指定的中文向量模型。如果运行库或模型不可用，服务会直接报错；只有显式设置 `RAG_EMBED=hash` 才会启用无模型的离线向量。
 

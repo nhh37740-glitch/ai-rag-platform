@@ -45,6 +45,13 @@ const dom = {
   examples: $("examples"),
   form: $("f"),
   message: $("m"),
+  openKeyConfig: $("open-key-config"),
+  keyConfigDialog: $("key-config-dialog"),
+  keyConfigForm: $("key-config-form"),
+  keyConfigInput: $("key-config-input"),
+  keyConfigStatus: $("key-config-status"),
+  removeKeyConfig: $("remove-key-config"),
+  closeKeyConfig: $("close-key-config"),
 };
 
 const state = {
@@ -58,7 +65,32 @@ const state = {
   busy: false,
   uploading: false,
   sourceDocuments: [],
+  deepseekKey: "",
+  serverKeyConfigured: false,
 };
+
+function canEnterWebKey() {
+  const host = window.location.hostname.toLowerCase();
+  const loopback = host === "localhost" || host.endsWith(".localhost") || host === "[::1]" ||
+    /^127(?:\.[0-9]{1,3}){3}$/.test(host);
+  return window.location.protocol === "https:" || (window.location.protocol === "http:" && loopback);
+}
+
+function updateKeyStatus() {
+  if (!canEnterWebKey()) {
+    dom.keyConfigStatus.textContent = "当前地址未使用 HTTPS；个人密钥输入已禁用。";
+    dom.openKeyConfig.textContent = "DeepSeek 设置 · 需 HTTPS";
+    dom.openKeyConfig.disabled = true;
+    return;
+  }
+  const status = state.deepseekKey
+    ? "已配置本页密钥（内容隐藏，刷新后清除）"
+    : state.serverKeyConfigured
+      ? "本页未设置密钥；正在使用服务器配置"
+      : "未配置密钥；使用离线演示模型";
+  dom.keyConfigStatus.textContent = status;
+  dom.openKeyConfig.textContent = state.deepseekKey ? "DeepSeek · 已配置" : "DeepSeek 设置";
+}
 
 // ---------------------------------------------------------------- 小工具
 
@@ -441,7 +473,7 @@ async function loadNotebooks(preferredId = "") {
 
 // ---------------------------------------------------------------- 对话
 
-function send(question) {
+async function send(question) {
   const text = question.trim();
   if (!text || !state.activeId || state.busy) return;
 
@@ -459,41 +491,36 @@ function send(question) {
   dom.message.value = "";
   state.drafts.set(notebookId, "");
 
-  // 范围只含当前笔记本；会话也按笔记本隔离。
-  const url =
-    `/api/chat/stream?message=${encodeURIComponent(text)}` +
-    `&session_id=${encodeURIComponent(sessionId)}` +
-    `&user_id=anon` +
-    `&knowledge_base_ids=${encodeURIComponent(notebookId)}`;
-
-  const events = new EventSource(url);
-  const finish = () => {
-    events.close();
-    state.busy = false;
-  };
-
-  events.onmessage = (eventMessage) => {
-    let result = {};
-    try {
-      result = JSON.parse(eventMessage.data);
-    } catch (error) {
-      result = { answer: "回答解析失败。" };
-    }
+  // 密钥只进入此 POST 请求头；不放入 URL、浏览器持久存储或聊天正文。
+  try {
+    const headers = { "Content-Type": "application/json" };
+    if (canEnterWebKey() && state.deepseekKey) headers["X-DeepSeek-Api-Key"] = state.deepseekKey;
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers,
+      cache: "no-store",
+      body: JSON.stringify({
+        message: text,
+        session_id: sessionId,
+        user_id: "anon",
+        knowledge_base_ids: [notebookId],
+      }),
+    });
+    if (!response.ok) throw new Error(`请求失败（${response.status}）`);
+    const result = await response.json();
     pending.pending = false;
     pending.text = result.answer || "(空回答)";
     pending.traceId = result.trace_id || "";
     renderTranscript();
     scrollToBottom();
-    finish();
     loadNotebooks(notebookId).catch(() => {});
-  };
-
-  events.onerror = () => {
+  } catch (error) {
     pending.pending = false;
-    pending.text = "连接中断，没有收到回答。";
+    pending.text = error.message || "连接中断，没有收到回答。";
     renderTranscript();
-    finish();
-  };
+  } finally {
+    state.busy = false;
+  }
 }
 
 // ---------------------------------------------------------------- 事件绑定
@@ -502,6 +529,39 @@ dom.form.onsubmit = (event) => {
   event.preventDefault();
   send(dom.message.value);
 };
+
+dom.openKeyConfig.onclick = () => {
+  if (!canEnterWebKey()) return;
+  updateKeyStatus();
+  dom.keyConfigDialog.showModal();
+};
+dom.closeKeyConfig.onclick = () => dom.keyConfigDialog.close();
+dom.keyConfigForm.onsubmit = (event) => {
+  event.preventDefault();
+  if (!canEnterWebKey()) return;
+  const key = dom.keyConfigInput.value.trim();
+  if (!key || key.length > 512) {
+    dom.keyConfigStatus.textContent = "请输入有效的密钥（最多 512 个字符）";
+    return;
+  }
+  state.deepseekKey = key;
+  dom.keyConfigInput.value = "";
+  updateKeyStatus();
+  dom.keyConfigDialog.close();
+};
+dom.removeKeyConfig.onclick = () => {
+  state.deepseekKey = "";
+  dom.keyConfigInput.value = "";
+  updateKeyStatus();
+};
+fetch("/api/llm/config", { cache: "no-store" })
+  .then((response) => response.ok ? response.json() : Promise.reject())
+  .then((config) => {
+    state.serverKeyConfigured = Boolean(config.server_key_configured);
+    updateKeyStatus();
+  })
+  .catch(() => {});
+updateKeyStatus();
 
 dom.message.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {

@@ -38,10 +38,25 @@
 
     <div class="header-actions">
       <p id="demo-status" class="dataset-status" aria-live="polite"></p>
+      <button id="open-key-config" class="key-config-btn" type="button" aria-haspopup="dialog">DeepSeek 设置</button>
       <span class="local-pill"><span class="online-dot"></span>本地运行</span>
       <span class="profile-chip" aria-label="当前用户">Z</span>
     </div>
   </header>
+
+  <dialog id="key-config-dialog" class="key-config-dialog" aria-labelledby="key-config-title">
+    <form id="key-config-form">
+      <h2 id="key-config-title">DeepSeek API Key</h2>
+      <p id="key-config-status" role="status"></p>
+      <label class="field"><span>本次页面使用的密钥</span><input id="key-config-input" type="password" autocomplete="off" spellcheck="false" placeholder="输入新密钥以设置或替换"></label>
+      <p class="key-config-hint">密钥仅保留在当前页面内存中，刷新后清除。仅在 HTTPS 或本机页面允许输入，聊天请求会发送到此服务。</p>
+      <div class="key-config-actions">
+        <button id="remove-key-config" type="button">移除本页密钥</button>
+        <button id="close-key-config" type="button">关闭</button>
+        <button class="primary-btn" type="submit">保存</button>
+      </div>
+    </form>
+  </dialog>
 
   <div id="workspace" class="workspace">
     <aside id="sources-panel" class="panel sources-panel" aria-label="来源">
