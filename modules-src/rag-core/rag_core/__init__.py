@@ -11,7 +11,7 @@ import numpy as np
 
 from core_contracts import Citation, RequestContext, RetrievalResult
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 DIM = 384
 SearchHit = Tuple[str, str, float]
