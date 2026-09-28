@@ -1,11 +1,13 @@
 # observability - 接口契约
 
-## observability
 ```python
-class Span:   # async context manager，记�?trace_id/span/耗时
-    def __init__(self, ctx, name: str): ...
 class TraceStore:
+    def __init__(self, maxlen: int = 2000) -> None: ...
     def record(self, span: SpanEvent) -> None: ...
     def get(self, trace_id: str) -> list[SpanEvent]: ...
+
+class Span:  # 同步上下文管理器，记录 trace_id/span/耗时
+    def __init__(self, ctx, name: str, store: TraceStore | None = None) -> None: ...
 ```
 
+`ASpan` 提供相同记录行为的异步上下文管理器；`make_trace_store() -> TraceStore` 创建默认内存追踪存储。

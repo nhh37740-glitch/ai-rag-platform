@@ -18,10 +18,10 @@ class TraceStore:
         self._maxlen = maxlen
         self._lock = threading.Lock()
 
-    def record(self, ev: SpanEvent) -> None:
+    def record(self, span: SpanEvent) -> None:
         with self._lock:
-            d = self._buffers.setdefault(ev.trace_id, deque(maxlen=self._maxlen))
-            d.append(ev)
+            d = self._buffers.setdefault(span.trace_id, deque(maxlen=self._maxlen))
+            d.append(span)
 
     def get(self, trace_id: str) -> List[SpanEvent]:
         with self._lock:

@@ -1,6 +1,13 @@
-# observability
+# Observability module
 
-mypyc 交付。`n
-对应契约见本仓库 \INTERFACE.md\ / \API_SCHEMA.json\；任务书�?\contracts/INTERFACES.md\。`n
-**只允许改动本仓库，不得修�?\contracts/\、其他模块或 \docs/PLAN.md\�?*
+The `observability` package provides the in-memory trace store and synchronous/asynchronous span context managers used by the agent service.
 
+Public facade:
+
+- `TraceStore.record(span: SpanEvent) -> None`
+- `TraceStore.get(trace_id: str) -> list[SpanEvent]`
+- `Span(ctx, name, store=None)` is a synchronous context manager.
+- `ASpan(ctx, name, store=None)` is its asynchronous counterpart.
+- `make_trace_store() -> TraceStore` creates the default in-memory store.
+
+The canonical parameter and return contracts are maintained in [`contracts/API_SCHEMA.json`](../../contracts/API_SCHEMA.json); this module directory is a Python package inside the root repository, not a separate Git repository. Jenkins compiles its process module with Cython for the Linux `.so` release.

@@ -166,11 +166,22 @@ def _exports(mod_dir: Path, pkg: str) -> list[str]:
 def _contract_test(pkg: str) -> str:
     return (
         "import importlib\n"
+        "import importlib.machinery\n"
+        "from pathlib import Path\n"
+        "import sys\n"
         "import unittest\n\n"
         f"class Contract(unittest.TestCase):\n"
         f"    def test_import(self):\n"
+        "        artifact = Path(__file__).resolve().parent\n"
+        "        sys.path.insert(0, str(artifact))\n"
         f"        m = importlib.import_module('{pkg}')\n"
-        f"        self.assertTrue(hasattr(m, '__version__'))\n\n"
+        "        module_path = Path(m.__file__).resolve()\n"
+        "        self.assertTrue(\n"
+        "            module_path.name.endswith(tuple(importlib.machinery.EXTENSION_SUFFIXES)),\n"
+        "            f'{m.__name__} loaded source instead of a compiled extension: {module_path}',\n"
+        "        )\n"
+        f"        self.assertEqual(module_path.parent, (artifact / '{pkg}').resolve())\n"
+        "        self.assertEqual(getattr(m, '__version__', None), artifact.name)\n\n"
         "if __name__ == '__main__':\n"
         "    unittest.main()\n"
     )

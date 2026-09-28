@@ -25,14 +25,14 @@
 
 ## 3. 模块与接口
 
-> 每模块的 `INTERFACE.md`/`API_SCHEMA.json` 见各自目录；此处为对外摘要。所有模块函数/方法首参为 `RequestContext`（trace/request/user/session）。
+> 已发布接口以 `contracts/API_SCHEMA.json` 为准；请求级操作把 `RequestContext` 作为首参，构造器与纯工具函数按各自契约定义。
 
 ### 契约层 `contracts/core_contracts`
 共享类型（无实现）：`RequestContext`、`ChatMessage`、`ToolCall`、`ToolDef`、`Citation`、`RetrievalResult`、`MemoryEntry`、`SkillDef`、`SpanEvent`。
 
 ### 可观测 `observability`
-- `TraceStore.record(ev) / get(trace_id)`
-- `Span(ctx, name, store)` / `ASpan(...)`：记录耗时/成败。
+- `TraceStore.record(span) / get(trace_id)`
+- `Span(ctx, name, store=None)` / `ASpan(...)`：记录耗时/成败。
 
 ### 记忆 `memory`
 - `MemoryStore.get/write/search/forget(ctx, namespace, ...)`（session/user 双命名空间，SQLite）
@@ -50,7 +50,7 @@
 - 提示词层面的检索顺序与回退规则在 `skills/rag-retrieval/SKILL.md`
 
 ### 模型网关 `llm_gateway`
-- `LLMProvider.generate(ctx, messages, tools) -> (content, list[ToolCall])` / `stream(...)`
+- `LLMProvider.generate(ctx, messages, tools) -> (content, list[ToolCall])` / `stream(...) -> AsyncIterator[str]`
 - `DeepSeekProvider(api_key, base_url, model, transport)`、`MockProvider(scenario)`
 
 ### 工具运行时 `tool_runtime`
@@ -58,7 +58,7 @@
 - `ToolRegistry.execute(ctx, call, runtime_context)` 可为受信工具注入当前知识库范围与会话消息
 
 ### 技能运行时 `skill_runtime`
-- `SkillRegistry.load_dir(path) / list(ctx) / load(ctx, name) / render(ctx, query)`，选中后惰性加载完整 SKILL.md
+- `SkillRegistry.load_dir(path) / list(ctx=None) / load(ctx, name) / render(ctx, query)`，选中后惰性加载完整 SKILL.md
 
 ### Agent 编排 `agent_runtime`
 - `AgentRuntime.run(ctx, user_input, knowledge_base_ids) -> str`（记忆/历史/完整 Skill→LLM→工具循环→写记忆；循环上限默认 10 轮且不得配置小于 10；已选择知识库时事实与定义类问题优先检索）
@@ -74,12 +74,12 @@
 - CLI `python -m mcp_servers`（stdio 的 `tools/list`、`tools/call`；`MCP_GITHUB_REPO` 切真实）
 
 ### 评测 `evaluation`
-- `evaluate_qa(ctx, qa) -> dict`（Recall/Precision/Faithfulness/Answer Relevance）
+- `evaluate_qa(ctx, qa_set) -> dict`（Recall/Precision/Faithfulness/Answer Relevance）
 - `llm_as_judge(ctx, provider, question, answer, context) -> int`
 - `evaluate_agent(ctx, trajectory) -> dict`
 
 ### 入库 `ingestion`
-- `parse(path)` / `chunk(texts, size, overlap)` / `build_index(ctx, dir, store, embed_fn)`
+- `parse(path)` / `chunk(texts, size, overlap)` / `build_index(ctx, docs_dir, store, embed_fn)`
 - CLI `python -m ingestion <dir> --out index.json`（独立进程产索引，主进程读索引）
 
 ### 统一存储 `storage`
@@ -108,7 +108,7 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
 前端与产物：
 - **上传适配**：`apps/agent-server/document_upload.py` 负责类型/大小校验、临时文件清理并调用 ingestion 转换 Markdown。
 - **Web 前端**：`apps/agent-server/webui/index.html` 负责页面结构，`knowledge_demo.css` 负责样式，`knowledge_demo.js` 负责笔记本创建、文件上传、知识库选择、示例问题和 SSE 聊天。
-- **编译产物**：进程内模块由 `scripts/compile_extension_modules.py` 编成 `.pyd`；独立进程由 `scripts/compile_service_executables.ps1` 编成 `bin/*.exe`；`scripts/package_release_artifacts.py` 生成发布元数据与注册表。
+- **编译产物**：Jenkins/Linux 通过 `scripts/compile_extension_modules.py` 用 Cython 编成 `.so`；Windows 目标为 `.pyd`，独立 worker 的手动交付可由 `scripts/compile_service_executables.ps1` 生成 `bin/*.exe`；`scripts/package_release_artifacts.py` 生成发布元数据与注册表。
 
 ## 5. 关键设计决策
 
