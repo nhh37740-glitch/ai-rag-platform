@@ -8,11 +8,13 @@ PUBLISHED_MODULES = runtime_boundary.enforce_binary_runtime()
 from datetime import datetime, timezone
 import asyncio
 import hashlib
+import ipaddress
 import json
 import os
 import re
 import uuid
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -32,6 +34,7 @@ from memory import make_memory
 from observability import make_trace_store
 from rag_core import SqliteVectorStore, embed
 from rag_tools import RagTools
+from request_provider import RequestScopedProvider
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
@@ -87,6 +90,7 @@ skills = SkillRegistry()
 skills.load_dir(str(SKILL_DIR))
 
 provider = DeepSeekProvider(API_KEY, BASE_URL, MODEL) if API_KEY else MockProvider("qa")
+request_provider = RequestScopedProvider(provider, BASE_URL, MODEL)
 tools = ToolRegistry()
 
 
@@ -505,7 +509,7 @@ tools.register(
 )
 
 runtime = AgentRuntime(
-    provider=provider,
+    provider=request_provider,
     memory=memory,
     tools=tools,
     skills=skills,
@@ -817,8 +821,35 @@ def upload_status(upload_id: str) -> JSONResponse:
     return JSONResponse({"upload_id": upload_id, **record})
 
 
+def _is_loopback_host(host: str) -> bool:
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def _web_key_origin_allowed(req: Request) -> bool:
+    # Validate the browser-facing origin, since TLS may terminate at a local proxy.
+    origin = req.headers.get("origin", "")
+    try:
+        parsed = urlsplit(origin)
+        host = parsed.hostname or ""
+    except ValueError:
+        return False
+    if parsed.path or parsed.query or parsed.fragment or parsed.username or parsed.password:
+        return False
+    if parsed.netloc.lower() != req.headers.get("host", "").lower():
+        return False
+    return parsed.scheme == "https" or (parsed.scheme == "http" and _is_loopback_host(host))
+
+
 @app.post("/api/chat")
 async def chat(req: Request) -> JSONResponse:
+    api_key = req.headers.get("x-deepseek-api-key")
+    if api_key is not None and not _web_key_origin_allowed(req):
+        raise HTTPException(status_code=403, detail="个人 API Key 仅允许通过 HTTPS 或本机页面使用")
     body = await req.json()
     user_id = body.get("user_id", "anon")
     session_id = body.get("session_id", "s1")
@@ -826,8 +857,22 @@ async def chat(req: Request) -> JSONResponse:
     knowledge_base_ids = _selected_notebook_ids(body.get("knowledge_base_ids"))
     trace_id = uuid.uuid4().hex
     ctx = RequestContext(trace_id=trace_id, request_id=trace_id, user_id=user_id, session_id=session_id)
-    answer = await runtime.run(ctx, message, knowledge_base_ids)
-    return JSONResponse({"answer": answer, "trace_id": trace_id, "knowledge_base_ids": knowledge_base_ids})
+    if api_key is not None and (not api_key.strip() or len(api_key) > 512):
+        raise HTTPException(status_code=422, detail="无效的 DeepSeek API Key")
+    with request_provider.use_key(api_key.strip() if api_key else None):
+        answer = await runtime.run(ctx, message, knowledge_base_ids)
+    return JSONResponse(
+        {"answer": answer, "trace_id": trace_id, "knowledge_base_ids": knowledge_base_ids},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/llm/config")
+def llm_config() -> JSONResponse:
+    return JSONResponse(
+        {"server_key_configured": bool(API_KEY), "model": MODEL},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/api/chat/stream")
