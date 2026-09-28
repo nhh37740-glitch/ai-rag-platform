@@ -14,7 +14,7 @@ from rag_core import list_documents as run_list_documents
 from rag_core import read_document as run_read_document
 from rag_core import retrieve
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 MIN_TOP_K = 1
 MAX_TOP_K = 20
