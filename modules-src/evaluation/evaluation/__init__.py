@@ -14,20 +14,22 @@ def _token_set(text: str) -> set:
     return set(re.findall(r"[\w\u4e00-\u9fff]+", text.lower()))
 
 
-def evaluate_qa(ctx: RequestContext, qa: Dict[str, Any]) -> Dict[str, Any]:
+def evaluate_qa(ctx: RequestContext, qa_set: Dict[str, Any]) -> Dict[str, Any]:
     """对单个问答对做 RAG 指标评估（近似规则，后续可接 DeepEval/LLM-as-Judge）。"""
-    expected = set(qa.get("expected_contexts", []))
-    retrieved = set(qa.get("retrieved", []))
+    expected = set(qa_set.get("expected_contexts", []))
+    retrieved = set(qa_set.get("retrieved", []))
     recall = len(expected & retrieved) / len(expected) if expected else 0.0
     precision = len(expected & retrieved) / len(retrieved) if retrieved else 0.0
 
-    answer = qa.get("answer", "")
+    answer = qa_set.get("answer", "")
     answer_terms = _token_set(answer)
-    context_terms = _token_set(" ".join(qa.get("retrieved_texts", qa.get("retrieved", []))))
+    context_terms = _token_set(
+        " ".join(qa_set.get("retrieved_texts", qa_set.get("retrieved", [])))
+    )
     faithfulness = len(answer_terms & context_terms) / len(answer_terms) if answer_terms else 0.0
-    relevance = round(min(1.0, len(answer) / max(20, len(qa.get("question", "")))), 3)
+    relevance = round(min(1.0, len(answer) / max(20, len(qa_set.get("question", "")))), 3)
     return {
-        "question": qa.get("question", ""),
+        "question": qa_set.get("question", ""),
         "recall": round(recall, 3),
         "precision": round(precision, 3),
         "faithfulness": round(faithfulness, 3),

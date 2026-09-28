@@ -1,18 +1,18 @@
 # Module Interfaces（模块接口契约）
 
-所有模块实现 `modules-src/<module>/`（独立可安装包，含 `pyproject.toml` + `src/` + `tests/` + `README.md`），对外只暴露下面这些接口。集成侧 `apps/agent-server` 只 import 这些接口直调。除 `core_contracts` 外，任何模块不得直接依赖另一个模块的实现，只能通过 `contracts.core_contracts` 共享类型。
+所有模块实现位于根仓库 `modules-src/<module>/`，各目录是独立可安装 Python 包（通常含 `pyproject.toml`、包目录与 `tests/`），但并非独立 Git 仓库。对外只暴露下面这些接口；集成侧 `apps/agent-server` 通过这些接口调用。跨模块依赖必须显式声明并只调用对方公开 facade；共享数据结构来自 `contracts.core_contracts`。
 
-约定：所有公共函数**必须接收 `RequestContext`**；除 `generate/stream` 外的同步方法如需阻塞 IO，由调用方 `asyncio.to_thread` 包裹。返回类型来自 `core_contracts`。
+约定：请求级操作以 `RequestContext` 为首参并命名为 `ctx`；构造器与纯工具函数按各自公开契约声明参数。除 `generate/stream` 外的同步方法如需阻塞 IO，由调用方 `asyncio.to_thread` 包裹。共享返回类型来自 `core_contracts`。
 
 ## llm_gateway
 ```python
 class LLMProvider(Protocol):
     async def generate(self, ctx, messages: list[ChatMessage], tools: list[ToolDef] | None = None
                        ) -> tuple[str, list[ToolCall]]: ...        # (answer, tool_calls)
-    async def stream(self, ctx, messages: list[ChatMessage], tools: list[ToolDef] | None = None): ...
+    async def stream(self, ctx, messages: list[ChatMessage], tools: list[ToolDef] | None = None) -> AsyncIterator[str]: ...
 
 class DeepSeekProvider:  # httpx，读 DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL / DEEPSEEK_MODEL
-    def __init__(self, api_key: str, base_url: str = "https://api.deepseek.com", model: str = "deepseek-chat"): ...
+    def __init__(self, api_key: str, base_url: str = "https://api.deepseek.com", model: str = "deepseek-chat", transport: AsyncBaseTransport | None = None): ...
 
 class MockProvider:  # 离线：按预置答案/工具调用规则返回，用于演示与测试
     def __init__(self, scenario: str = "qa"): ...
@@ -98,7 +98,7 @@ def tool(name: str, description: str, parameters: dict,
          context_aware: bool = False) -> Callable: ...   # 装饰器，注册进默认 registry
 class ToolRegistry:
     def register(self, t: ToolDef, fn, context_aware: bool = False): ...
-    def list(self, ctx) -> list[ToolDef]: ...
+    def list(self, ctx: RequestContext | None = None) -> list[ToolDef]: ...
     def execute(self, ctx, call: ToolCall, runtime_context: dict | None = None) -> str: ...
 ```
 
@@ -125,7 +125,7 @@ def tools_manifest() -> list[ToolDef]: ...   # 与 mcp_gateway.normalize_to_tool
 ## skill_runtime
 ```python
 class SkillRegistry:
-    def list(self, ctx) -> list[SkillDef]: ...
+    def list(self, ctx: RequestContext | None = None) -> list[SkillDef]: ...
     def load(self, ctx, name: str) -> SkillDef: ...        # 惰性展开 SKILL.md 指令
     def load_dir(self, path: str) -> None: ...             # 扫描 skills/<name>/SKILL.md
     def render(self, ctx, query: str) -> str: ...          # 选择相关 Skill 并返回完整指令
@@ -140,8 +140,8 @@ class AgentRuntime:
 
 ## observability
 ```python
-class Span:   # async context manager，记录 trace_id/span/耗时
-    def __init__(self, ctx, name: str): ...
+class Span:   # sync context manager，记录 trace_id/span/耗时
+    def __init__(self, ctx, name: str, store: TraceStore | None = None): ...
 class TraceStore:
     def record(self, span: SpanEvent) -> None: ...
     def get(self, trace_id: str) -> list[SpanEvent]: ...
@@ -162,7 +162,7 @@ def evaluate_agent(ctx, trajectory: list) -> dict: ...
 def parse(path: str) -> list[str]: ...        # PDF/DOCX/MD/TXT → 文本块
 def to_markdown(path: str, title: str = "") -> str: ...  # 统一转换成带标题的 Markdown
 def chunk(texts: list[str], size: int = 500, overlap: int = 50) -> list[str]: ...
-def build_index(ctx, docs_dir: str, store: VectorStore) -> int: ...   # parse→chunk→embed→索引
+def build_index(ctx, docs_dir: str, store: VectorStore, embed_fn: Callable) -> int: ...   # parse→chunk→embed→索引
 
 # 同仓库另产 ingestion-worker(.exe)：包装上述函数，仅暴露 POST /ingest
 #   POST /ingest  body: {"docs_dir": "...", "scope": "kb"}  ->  {"indexed": <int>}
@@ -171,13 +171,12 @@ def build_index(ctx, docs_dir: str, store: VectorStore) -> int: ...   # parse→
 ## 集成约束
 - 依赖上限：`core_contracts` 外的模块只允许用标准库、`httpx`、`numpy`、`sklearn`、`pypdf`；不得引入未声明的第三方库。
 - 测试用标准库 `unittest`（无 pytest），放在各模块 `tests/`。
-- 不得改动 `contracts/`、其他模块或 `docs/PLAN.md`；只写自己模块目录。
+- 模块专职 Agent 只修改分配给自己的实现与测试；共享契约、schema、流水线和集成文档由协调 Agent 维护，并在接口变更时同步评审。
 
 ## 模块生命周期（subagent 发布流程）
-每个模块是 `modules-src/<module>` 下的独立 git 仓库。发布一次 = 一次提交：
-1. 实现 `src/<package>/` 并让 `tests/`（unittest，mock 外部依赖）全绿。
-2. 编译：进程内模块用 mypyc（默认）/Cython（回退）产出 `.pyd`；`mcp-servers`、`ingestion-worker` 用 Nuitka 产出 `.exe`。
-3. 在仓库内更新 `README.md`、`INTERFACE.md`、`API_SCHEMA.json`、`CHANGELOG.md`、`VERSION`（遵循 semver）。
-4. 计算二进制 `checksum.sha256`，把 `INTERFACE.md`/`API_SCHEMA.json`/`VERSION`/`CHANGELOG.md`/`test_contract.py`/`checksum.sha256`/编译产物 发布到 `artifacts/<module>/<version>/`。
-5. 更新根 `registry.json` 中该模块的 `version`/`checksum`/`status="published"`。
-6. 集成侧运行 `python contracts/test_contract.py` 校验，通过后视为发布成功。
+每个模块是根 Git 仓库中的独立 Python 包与版本化发布单元，不另建嵌套仓库。改动流程为：
+1. 在 `modules-src/<module>` 实现接口并补充模块测试；跨模块调用只用已声明的公开 facade。
+2. 更新共享 `contracts/API_SCHEMA.json`、`contracts/INTERFACES.md` 与模块接口文档，使参数名和返回类型与实现一致。
+3. Jenkins 在 Linux Docker builder 中用 Cython 产出 `.so`，运行模块测试、严格契约测试与应用端到端测试；Windows 手动 worker 交付可用 Nuitka 生成 `.exe`。
+4. 发布脚本生成版本化 `artifacts/<module>/<version>/` 元数据与包内契约测试；根仓库 `registry.json` pin 发布版本。Linux 交付 ZIP 的逐文件清单记录二进制 SHA-256，外层另有 ZIP SHA-256。
+5. 严格契约闸门从注册表路径导入实际扩展，校验公开 facade 的参数名与返回类型，并运行包内测试；只有该闸门与应用端到端检查通过后才允许部署。

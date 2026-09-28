@@ -17,13 +17,13 @@ apps/            # 集成 Agent 编写：agent-server(FastAPI) + web-ui + ingest
 docs/            # PLAN.md 与 architecture/ 说明
 ```
 
-命名约定：模块目录用 `kebab-case`（如 `rag-core`、`tool-runtime`）；当前发布单元是根目录仓库。各模块以独立 Python 包、契约和版本维护。部分目录含历史本地 `.git`，但没有远程仓库，不应将其误认为已发布的独立仓库。
+命名约定：模块目录用 `kebab-case`（如 `rag-core`、`tool-runtime`）；当前 Git 发布单元是根目录仓库。各模块以独立 Python 包、契约和版本维护，模块目录不是独立 Git 仓库。部分目录含历史本地 `.git`，但没有远程仓库，不应将其误认为已发布的独立仓库。
 
 ## 架构原则
 
 - **契约先行**：所有接口先写进 `contracts/`，类型化签名固定后再实现。
 - **源码隔离**：实现源码放 `modules-src/`，集成侧只消费 `artifacts/` 里的二进制与契约。运行时不使用 editable 源码模式：`apps/agent-server/runtime_boundary.py` 在导入业务模块前读取 `registry.json`，只把 `published` 的 `artifacts` 路径加入运行时，并在导入后校验每个模块确实来自 `.pyd/.so`；任何模块若从 `modules-src` 或 `.py` 加载，服务立即拒绝启动。源码只用于编译和模块单测。
-- **二进制交付**：进程内模块用 mypyc（默认）/Cython（回退）编译成 `.pyd/.so`；`ingestion-worker`、`mcp-servers` 用 Nuitka 生成 `.exe`，或仅暴露 `POST /ingest`、`POST /evaluate`、MCP `tools/call`。
+- **二进制交付**：当前 Jenkins/Linux 路径用 Cython 编译进程内模块成 `.so`，Windows 目标为 `.pyd`；Windows 手动 worker 交付可用 Nuitka 生成 `.exe`。实际交付形式以 `contracts/API_SCHEMA.json` 与流水线配置为准。
 - **进程/线程**：`agent-server` 内走接口直调 + asyncio/`asyncio.to_thread`；真正独立的模块（ingestion-worker、MCP servers）才拆成独立进程。
 - **存储**：统一 `storage` 接口，默认 SQLite 元数据 + 本地向量库（FAISS/Chroma），接口与 PostgreSQL+pgvector 同构，可无痛切换。
 - **可观测**：所有模块接收 `RequestContext(trace_id, request_id, user_id, session_id)`，打结构化日志 + span 耗时；`GET /api/trace/{trace_id}` 看全链路。

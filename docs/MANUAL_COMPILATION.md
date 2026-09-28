@@ -1,12 +1,12 @@
 # 手动编译与二进制交付
 
-本页只描述操作者需要执行的顺序，不记录某次机器上的测试结果。目标是把 `modules-src/` 中的实现发布为 `artifacts/<module-id>/<version>/` 下的二进制与契约。
+本页保留编译脚本的维护参考，不记录某次机器上的测试结果。日常发布由服务器 Jenkins 在 Docker builder 中完成；Codex 本机不执行编译。手动命令仅供维护构建流程时在匹配目标平台的隔离构建机使用。目标是把 `modules-src/` 中的实现发布为 `artifacts/<module-id>/<version>/` 下的二进制与契约。
 
 ## 1. 准备环境
 
 在仓库根目录创建虚拟环境并按 [`README.md`](../README.md) 安装项目依赖。Windows 编译 `.pyd` 需要 MSVC Build Tools；Linux 编译 `.so` 需要 C 编译器。Dockerfile 在 Linux 构建阶段准备编译环境。
 
-当前批量脚本使用 Cython；mypyc 是目标默认方案，模块遇到不支持的动态特性时可继续使用 Cython 回退。
+当前批量脚本和服务器 Jenkins 流水线均使用 Cython 编译进程内模块；仓库没有 mypyc 构建路径。
 
 ```powershell
 uv pip install cython nuitka build

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import List, Optional, Protocol
+from typing import AsyncIterator, List, Optional, Protocol
 
 import httpx
 
@@ -12,7 +12,12 @@ __version__ = "0.1.0"
 
 class LLMProvider(Protocol):
     async def generate(self, ctx: RequestContext, messages: List[ChatMessage], tools: Optional[List[ToolDef]] = None) -> tuple[str, List[ToolCall]]: ...
-    async def stream(self, ctx: RequestContext, messages: List[ChatMessage], tools: Optional[List[ToolDef]] = None): ...
+    async def stream(
+        self,
+        ctx: RequestContext,
+        messages: List[ChatMessage],
+        tools: Optional[List[ToolDef]] = None,
+    ) -> AsyncIterator[str]: ...
 
 
 class MockProvider:
@@ -33,7 +38,7 @@ class MockProvider:
             return _last_tool(messages), []
         return _mock_answer(user, self.scenario), []
 
-    async def stream(self, ctx, messages, tools=None):
+    async def stream(self, ctx, messages, tools=None) -> AsyncIterator[str]:
         text, calls = await self.generate(ctx, messages, tools)
         yield text
 
@@ -73,7 +78,7 @@ class DeepSeekProvider:
             tool_calls.append(ToolCall(tc.get("id", ""), tc["function"]["name"], args))
         return content, tool_calls
 
-    async def stream(self, ctx, messages, tools=None):
+    async def stream(self, ctx, messages, tools=None) -> AsyncIterator[str]:
         text, _ = await self.generate(ctx, messages, tools)
         yield text
 
