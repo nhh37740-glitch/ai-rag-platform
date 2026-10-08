@@ -6,6 +6,7 @@
 - `INTERFACES.md`：每个模块的公开接口（函数/签名/职责），即各 subagent 的任务书。
 - `API_SCHEMA.json`：接口的机器可读形式（模块 → facade → 方法 → 参数/返回类型），供结算/校验/生成任务书使用；是 `INTERFACES.md` 的结构化镜像。
 - `test_contract.py`：契约闸门，从 `registry.json` 指定的 `artifacts/` 加载目标平台扩展，对照 `API_SCHEMA.json` 校验公开参数名与返回类型，并回放包内契约测试。
+- `WEB_DEMO.md`、`WEB_DEMO_SCHEMA.json`：独立公开演示的 HTTP 契约，限定固定问题、只读 CMRC 范围和实际检索 trace；不改变业务模块门面。
 - 任何模块实现不得修改本目录；接口变化必须先改这里，再同步 `docs/PLAN.md`。
 
 ## 这个目录告诉你什么
