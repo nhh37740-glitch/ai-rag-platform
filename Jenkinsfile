@@ -3,8 +3,13 @@ pipeline {
     parameters {
         booleanParam(
             name: 'DeployDemo',
-            defaultValue: true,
+            defaultValue: false,
             description: 'Deploy the tested image to the isolated ai-rag Compose service.'
+        )
+        booleanParam(
+            name: 'DeployPublicDemo',
+            defaultValue: false,
+            description: 'Publish the isolated read-only interview demo after live candidate smoke.'
         )
     }
     options {
@@ -35,6 +40,14 @@ pipeline {
             }
             steps {
                 sh 'BUILD_NUMBER="$BUILD_NUMBER" sh scripts/deploy_compose.sh'
+            }
+        }
+        stage('Deploy public interview demo') {
+            when {
+                expression { params.DeployPublicDemo }
+            }
+            steps {
+                sh 'BUILD_NUMBER="$BUILD_NUMBER" sh scripts/deploy_public_demo.sh'
             }
         }
     }

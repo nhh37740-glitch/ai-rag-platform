@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="研发文档问答原型：选择问题，核对模型回答、检索来源和真实执行记录。">
+  <title>研发文档问答 · Dev Knowledge Agent</title>
+  <link rel="stylesheet" href="./static/public_demo.css">
+  <script src="./static/public_demo.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">DEV KNOWLEDGE AGENT / 公开只读演示</p>
+      <h1>研发文档问答</h1>
+      <p class="intro">答案从哪里来，系统如何执行，都可以核对。<br>选一个问题，走完一次检索增强问答。</p>
+      <div class="mode-strip" aria-label="实际运行模式">
+        <span id="provider-badge" class="badge">模型：读取中</span>
+        <span id="embedding-badge" class="badge">检索：读取中</span>
+        <span id="readonly-badge" class="badge">公开只读</span>
+      </div>
+      <p id="dataset" class="muted">正在读取服务器知识库状态…</p>
+    </header>
+
+    <nav class="steps" aria-label="演示步骤">
+      <a href="#questions"><span>01</span>选问题</a>
+      <a href="#answer"><span>02</span>回答</a>
+      <a href="#sources"><span>03</span>来源</a>
+      <a href="#execution"><span>04</span>执行记录</a>
+    </nav>
+
+    <section id="questions" class="panel" aria-labelledby="questions-heading">
+      <div class="section-head"><h2 id="questions-heading"><span class="step-number">01</span> 选一个问题</h2><span class="muted">服务器精选 · 固定范围</span></div>
+      <p class="section-note">以 CMRC2018 公开中文资料演示技术链路；这里的资料不是企业内部研发文档。</p>
+      <form id="question-form">
+        <fieldset id="question-options" disabled><legend class="visually-hidden">选择精选问题</legend><p class="muted">正在加载问题…</p></fieldset>
+        <div class="action-row"><button id="ask-button" type="submit" disabled>开始问答 <span aria-hidden="true">↗</span></button><p id="selection-note" class="muted">选中后点击开始，不会自动调用模型。</p></div>
+      </form>
+      <p id="request-status" class="status" role="status" aria-live="polite">正在连接演示服务…</p>
+      <div id="error-box" class="error-box" role="alert" hidden><p id="error-message"></p><button id="retry-button" type="button">重试</button></div>
+    </section>
+
+    <section id="answer" class="panel" aria-labelledby="answer-heading" aria-busy="false">
+      <div class="section-head"><h2 id="answer-heading"><span class="step-number">02</span> 查看回答</h2><span id="cache-badge" class="badge subtle">尚未请求</span></div>
+      <p id="answered-question" class="answered-question" hidden></p>
+      <p id="answer-note" class="section-note">提交后显示本次模型的实际输出。来源与执行记录在下方。</p>
+      <div id="answer-content" class="answer-content empty">答案将显示在这里。</div>
+      <details id="raw-answer-details" hidden><summary>查看 Mock 原始输出</summary><pre id="raw-answer"></pre></details>
+    </section>
+
+    <div class="evidence-grid">
+      <section id="sources" class="panel" aria-labelledby="sources-heading">
+        <div class="section-head"><h2 id="sources-heading"><span class="step-number">03</span> 核对来源</h2><span id="source-count" class="muted">尚未检索</span></div>
+        <p class="section-note">以下为本次 trace 中实际检索到的片段。检索命中不等于模型答案已通过真实性验证。</p>
+        <div id="source-list"><p class="empty">执行问答后，可查看来源名称、原文片段与检索分数。</p></div>
+      </section>
+      <section id="execution" class="panel" aria-labelledby="execution-heading">
+        <div class="section-head"><h2 id="execution-heading"><span class="step-number">04</span> 读执行记录</h2><span id="span-count" class="muted">尚未执行</span></div>
+        <p class="section-note">模型决定是否调用工具；工具检索知识库，再交给模型生成输出。</p>
+        <div id="execution-list"><p class="empty">等待实际 Agent、LLM、Tool、RAG 执行记录。</p></div>
+        <p id="trace-note" class="muted"></p>
+        <button id="trace-retry-button" class="secondary" type="button" hidden>重新读取执行记录</button>
+        <details id="trace-details" hidden><summary>查看 trace 原始数据</summary><pre id="trace-json"></pre></details>
+      </section>
+    </div>
+
+    <details class="panel learning-panel">
+      <summary>我如何解释这个项目 <span class="muted">架构、取舍与原型边界</span></summary>
+      <div class="learning-content">
+        <h3>一条可以讲清楚的请求链路</h3>
+        <p>HTTP 接口接收固定问题 → Agent 加载检索指令并调用 LLM → ToolRegistry 执行只读 RAG 工具 → rag-core 在内置知识库中检索 → 工具返回片段 → LLM 输出回答。RequestContext 的 trace_id 把各模块执行串起来。</p>
+        <h3>为什么保留模块化与 Jenkins</h3>
+        <p>共享契约规定模块接口，各模块独立实现与版本管理。服务器 Jenkins 负责测试、Linux 二进制编译、契约与运行来源校验，门禁通过后才能交付；运行进程只加载发布工件。页面上的 trace 展示请求执行，不代表 Jenkins 构建证明。</p>
+        <h3>这次演示能证明什么</h3>
+        <p>可以核对一次固定问题的回答、实际检索来源和调用记录。模型与 embedding 标签来自服务器配置：DeepSeek 是真实模型调用；Mock 是离线工具流程演示；hash 是离线向量方案，不能当作 BGE 语义检索质量。</p>
+        <h3>还没有完成什么</h3>
+        <p>这是固定问题、内置公开资料、只读工具的原型。知识库 scope 过滤不是用户鉴权；尚无生产级准确率或可信度评测。检索分数不是答案置信度，不能跨检索方式直接比较。当前 Web 未接入 MCP，也未依赖 LangChain、LangGraph 或 Hermes；Skill 是指令加载，不是可持久恢复的工作流。</p>
+        <p>各 span 有嵌套关系，耗时单独显示，不相加。缓存命中会复用原请求的答案与 trace，因此缓存记录里的耗时不是本次重新推理耗时。</p>
+      </div>
+    </details>
+    <footer>Dev Knowledge Agent · 用实际来源与执行记录解释结果</footer>
+  </main>
+</body>
+</html>

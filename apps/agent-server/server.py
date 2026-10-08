@@ -8,11 +8,13 @@ PUBLISHED_MODULES = runtime_boundary.enforce_binary_runtime()
 from datetime import datetime, timezone
 import asyncio
 import hashlib
+import ipaddress
 import json
 import os
 import re
 import uuid
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -32,6 +34,7 @@ from memory import make_memory
 from observability import make_trace_store
 from rag_core import SqliteVectorStore, embed
 from rag_tools import RagTools
+from request_provider import RequestScopedProvider
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
@@ -56,9 +59,11 @@ def _load_dotenv(path: Path) -> None:
         os.environ.setdefault(key.strip(), val.strip())
 
 
-_load_dotenv(ROOT / ".env")
+PUBLIC_DEMO = os.environ.get("PUBLIC_DEMO", "") == "1"
+if not PUBLIC_DEMO:
+    _load_dotenv(ROOT / ".env")
 
-DEMO_KB_ID = os.environ.get("DEMO_KB_ID", "cmrc2018-demo")
+DEMO_KB_ID = "cmrc2018-demo" if PUBLIC_DEMO else os.environ.get("DEMO_KB_ID", "cmrc2018-demo")
 DEMO_KB_DIR = KB_DIR / DEMO_KB_ID
 STATE_DIR = Path(os.environ.get("STATE_DIR", str(ROOT / "data")))
 DB_PATH = os.environ.get("DB_PATH", str(STATE_DIR / "app.db"))
@@ -82,11 +87,20 @@ VECTOR_DB_PATH = os.environ.get(
 )
 
 trace_store = make_trace_store()
-memory = make_memory(DB_PATH)
+memory = make_memory(":memory:" if PUBLIC_DEMO else DB_PATH)
 skills = SkillRegistry()
 skills.load_dir(str(SKILL_DIR))
 
-provider = DeepSeekProvider(API_KEY, BASE_URL, MODEL) if API_KEY else MockProvider("qa")
+DEMO_PROVIDER = os.environ.get("DEMO_PROVIDER", "mock").strip().lower()
+if PUBLIC_DEMO:
+    if DEMO_PROVIDER not in {"mock", "deepseek"}:
+        raise RuntimeError("DEMO_PROVIDER 必须为 mock 或 deepseek")
+    if DEMO_PROVIDER == "deepseek" and not API_KEY.strip():
+        raise RuntimeError("公开 DeepSeek 演示缺少服务器凭据")
+    provider = DeepSeekProvider(API_KEY, BASE_URL, MODEL) if DEMO_PROVIDER == "deepseek" else MockProvider("qa")
+else:
+    provider = DeepSeekProvider(API_KEY, BASE_URL, MODEL) if API_KEY else MockProvider("qa")
+request_provider = RequestScopedProvider(provider, BASE_URL, MODEL)
 tools = ToolRegistry()
 
 
@@ -287,11 +301,13 @@ def _selected_notebook_ids(raw_ids) -> list[str]:
 
 def _load_kb() -> tuple[SqliteVectorStore, int]:
     store = SqliteVectorStore(VECTOR_DB_PATH)
-    loaded_sources = {source_id for source_id, _ in store.list_documents()}
+    loaded_sources = {
+        source_id for source_id, _ in store.list_documents([DEMO_KB_ID] if PUBLIC_DEMO else None)
+    }
 
     # 兼容旧版 JSON 索引：若存在且 embedding 配置一致，只迁移数据库中缺失的来源。
     index = Path(INDEX_PATH)
-    if index.exists():
+    if not PUBLIC_DEMO and index.exists():
         data = json.loads(index.read_text(encoding="utf-8"))
         if data.get("embed", "__unknown__") == os.environ.get("RAG_EMBED", "hash"):
             for s in data.get("sources", []):
@@ -299,7 +315,7 @@ def _load_kb() -> tuple[SqliteVectorStore, int]:
                     continue
                 store.add(s["id"], s["chunks"], s["embs"])
                 loaded_sources.add(s["id"])
-    files = sorted(f for f in KB_DIR.glob("*.md") if f.name.lower() != "readme.md")
+    files = [] if PUBLIC_DEMO else sorted(f for f in KB_DIR.glob("*.md") if f.name.lower() != "readme.md")
     for f in files:
         source_id = f"local-documents/{f.stem}"
         if source_id in loaded_sources:
@@ -320,7 +336,7 @@ def _load_kb() -> tuple[SqliteVectorStore, int]:
         loaded_sources.add(source_id)
         imported += 1
 
-    for notebook_dir, metadata in _list_user_notebooks():
+    for notebook_dir, metadata in ([] if PUBLIC_DEMO else _list_user_notebooks()):
         documents_dir = notebook_dir / "markdown-documents"
         for document in metadata.get("documents", []):
             markdown_file = document.get("markdown_file", "")
@@ -343,6 +359,8 @@ rag_tools = RagTools(vector_store, trace_store)
 
 def _knowledge_base_scope(runtime_context: dict | None) -> list[str]:
     """检索范围只能来自当前请求，LLM 无法通过工具参数扩大。"""
+    if PUBLIC_DEMO:
+        return [DEMO_KB_ID]
     if runtime_context is None:
         raise ValueError("缺少工具运行上下文")
     return runtime_context.get("knowledge_base_ids", [])
@@ -388,11 +406,13 @@ def _list_knowledge_documents(
 
 def _read_knowledge_document(
     source_id: str,
+    offset: int = 0,
+    max_chunks: int | None = None,
     *,
     ctx: RequestContext,
     runtime_context: dict | None,
 ) -> str:
-    return rag_tools.read_document(ctx, source_id, _knowledge_base_scope(runtime_context))
+    return rag_tools.read_document(ctx, source_id, _knowledge_base_scope(runtime_context), offset, max_chunks)
 
 
 def _create_agent_file(filename: str, content: str) -> str:
@@ -470,7 +490,12 @@ for tool_definition in rag_tools.tool_definitions():
         raise RuntimeError(f"知识库工具缺少执行函数: {tool_definition.name}")
     tools.register(tool_definition, knowledge_base_handler, context_aware=True)
 
-tools.register(
+def _register_private_tool(*args, **kwargs) -> None:
+    if not PUBLIC_DEMO:
+        tools.register(*args, **kwargs)
+
+
+_register_private_tool(
     ToolDef(
         "create_file",
         "在受限的 data/agent-files 目录创建新文本文件；不能覆盖已有文件或写入仓库其他位置。",
@@ -486,7 +511,7 @@ tools.register(
     ),
     _create_agent_file,
 )
-tools.register(
+_register_private_tool(
     ToolDef(
         "save_conversation_to_knowledge_base",
         "当用户明确要求保存当前对话时，将截至调用时的用户与 Agent 消息转为 Markdown，创建新笔记本并立即入库。",
@@ -505,7 +530,7 @@ tools.register(
 )
 
 runtime = AgentRuntime(
-    provider=provider,
+    provider=request_provider,
     memory=memory,
     tools=tools,
     skills=skills,
@@ -518,7 +543,8 @@ app = FastAPI(title="Dev Knowledge Agent")
 
 @app.get("/")
 def index() -> FileResponse:
-    return FileResponse(str(BASE / "webui" / "index.html"))
+    filename = "public_demo.html" if PUBLIC_DEMO else "index.html"
+    return FileResponse(str(BASE / "webui" / filename))
 
 
 def _demo_suggested_questions() -> list[dict]:
@@ -603,6 +629,10 @@ def demo() -> JSONResponse:
             "imported": demo_kb_imported,
             "knowledge_base": "data/kb/cmrc2018-demo",
             "purpose": "project-demo-only",
+            "public_demo": PUBLIC_DEMO,
+            "read_only": PUBLIC_DEMO,
+            "provider": DEMO_PROVIDER if PUBLIC_DEMO else ("deepseek" if API_KEY else "mock"),
+            "embedding": os.environ.get("RAG_EMBED", "fastembed").strip().lower(),
         }
     )
 
@@ -817,8 +847,35 @@ def upload_status(upload_id: str) -> JSONResponse:
     return JSONResponse({"upload_id": upload_id, **record})
 
 
+def _is_loopback_host(host: str) -> bool:
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def _web_key_origin_allowed(req: Request) -> bool:
+    # Validate the browser-facing origin, since TLS may terminate at a local proxy.
+    origin = req.headers.get("origin", "")
+    try:
+        parsed = urlsplit(origin)
+        host = parsed.hostname or ""
+    except ValueError:
+        return False
+    if parsed.path or parsed.query or parsed.fragment or parsed.username or parsed.password:
+        return False
+    if parsed.netloc.lower() != req.headers.get("host", "").lower():
+        return False
+    return parsed.scheme == "https" or (parsed.scheme == "http" and _is_loopback_host(host))
+
+
 @app.post("/api/chat")
 async def chat(req: Request) -> JSONResponse:
+    api_key = req.headers.get("x-deepseek-api-key")
+    if api_key is not None and not _web_key_origin_allowed(req):
+        raise HTTPException(status_code=403, detail="个人 API Key 仅允许通过 HTTPS 或本机页面使用")
     body = await req.json()
     user_id = body.get("user_id", "anon")
     session_id = body.get("session_id", "s1")
@@ -826,8 +883,22 @@ async def chat(req: Request) -> JSONResponse:
     knowledge_base_ids = _selected_notebook_ids(body.get("knowledge_base_ids"))
     trace_id = uuid.uuid4().hex
     ctx = RequestContext(trace_id=trace_id, request_id=trace_id, user_id=user_id, session_id=session_id)
-    answer = await runtime.run(ctx, message, knowledge_base_ids)
-    return JSONResponse({"answer": answer, "trace_id": trace_id, "knowledge_base_ids": knowledge_base_ids})
+    if api_key is not None and (not api_key.strip() or len(api_key) > 512):
+        raise HTTPException(status_code=422, detail="无效的 DeepSeek API Key")
+    with request_provider.use_key(api_key.strip() if api_key else None):
+        answer = await runtime.run(ctx, message, knowledge_base_ids)
+    return JSONResponse(
+        {"answer": answer, "trace_id": trace_id, "knowledge_base_ids": knowledge_base_ids},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/llm/config")
+def llm_config() -> JSONResponse:
+    return JSONResponse(
+        {"server_key_configured": bool(API_KEY), "model": MODEL},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/api/chat/stream")
@@ -850,8 +921,36 @@ async def chat_stream(
 
 @app.get("/api/trace/{trace_id}")
 def trace(trace_id: str) -> JSONResponse:
+    if PUBLIC_DEMO:
+        return JSONResponse(public_demo.trace(trace_id), headers={"Cache-Control": "no-store"})
     events = trace_store.get(trace_id)
     return JSONResponse([e.__dict__ for e in events])
+
+
+if PUBLIC_DEMO:
+    from public_demo import PublicDemo, PublicDemoBoundary
+
+    # Each invocation owns its history and an ephemeral memory module. The five
+    # registered tools still execute the actual published RAG module facades.
+    public_demo = PublicDemo(
+        runtime_factory=lambda: AgentRuntime(
+            provider=provider, memory=make_memory(":memory:"), tools=tools,
+            skills=skills, tracing=trace_store, max_tool_rounds=10,
+        ),
+        tracing=trace_store,
+        questions=[item["question"] for item in _demo_suggested_questions()],
+        provider=DEMO_PROVIDER,
+        embedding=os.environ.get("RAG_EMBED", "fastembed").strip().lower(),
+        kb_id=DEMO_KB_ID,
+    )
+    app.add_middleware(PublicDemoBoundary)
+
+
+@app.post("/api/demo/chat")
+async def demo_chat(req: Request) -> JSONResponse:
+    if not PUBLIC_DEMO:
+        raise HTTPException(status_code=404, detail="公开演示未启用")
+    return await public_demo.chat(req)
 
 
 app.mount("/static", StaticFiles(directory=str(BASE / "webui")), name="static")

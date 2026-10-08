@@ -72,9 +72,9 @@
 
 - Python 3.11+；Windows 可编辑源码，Linux Docker 交付由服务器 Jenkins 完成。当前批量编译器为 Cython；构建阶段按目标平台生成 `.pyd` 或 `.so` 并写入 `artifacts/`，运行镜像只加载相同平台的扩展模块。Nuitka `.exe` 是 Windows worker 手动交付方式，不作为 Linux 容器前置条件。
 - 除 DeepSeek 聊天 API 外无外部服务依赖；当前 Web 的记忆与向量均存于 SQLite，不经过独立 `storage` 门面；直接 Python 启动时 embedding 默认为 FastEmbed `BAAI/bge-small-zh-v1.5`，Compose 配置默认显式使用 hash。
-- `DEEPSEEK_API_KEY` 经 `.env` 注入，不入库；单用户单租户演示；可选简单 API key。
+- `DEEPSEEK_API_KEY` 经 `.env` 注入，不入库；单用户单租户演示；可选简单 API key。Web 仅在 HTTPS 或本机页面允许单次页面会话内设置个人 DeepSeek 密钥，使用 POST 请求头覆盖该请求的默认 Provider；服务端校验请求 Origin，不持久化个人密钥，也不提供无鉴权的全局密钥修改接口。
 - MCP connector（Git/Issue/工单）v1 用本地 mock，接口与真实连接器一致，便于日后插真。
-- "SKILL" 采用 Agent Skills 的 SKILL.md 开放格式；前端为 agent-server 托管单页聊天（SSE）。
+- "SKILL" 采用 Agent Skills 的 SKILL.md 开放格式；前端为 agent-server 托管单页聊天（POST JSON）；旧 SSE 端点兼容服务器默认配置。
 
 ## Jenkins 与 Docker 部署（2026-09-28 验证状态）
 
@@ -142,4 +142,10 @@
 - AI 仓库 Jenkins 必须完成模块单测、目标 Linux 编译、严格契约、应用集成、运行来源与发布包校验；公开演示边界需有有意义的集成检查。主页仓库 Jenkins 验证新链接/代理路径，并运行镜像和部署后 smoke。门禁失败不切换正式演示，不用改断言绕过失败。
 - 既有 8088 主页路径可用；不改 DNS、云防火墙或 SSH 基础设施。公开 HTTPS 未验证时继续禁用 HTTP 密钥输入。上线完成以实际入口、API调用与 trace 检查为准；连接或门禁失败时如实保留待完成项。
 
-本节为拟实施方案，实际服务器结果和最终模式在验证后补记。
+本节方案已落实到候选代码，实际服务器结果和最终模式在验证后补记。
+
+落实约定见 `contracts/WEB_DEMO.md`：PUBLIC_DEMO 独立进程只加载内置 CMRC 资料、五个只读 RAG 工具和固定精选问题；POST /api/demo/chat 从服务端固定 scope/context，成功时核验实际 rag 来源，拒绝其他 API/浏览器 key/扩权字段；增加一次并发、90 秒总超时、300 秒成功缓存。公开页显示实际 provider、embedding 与缓存状态，并从 trace 展示来源和阶段耗时。DEMO_PROVIDER=deepseek 缺凭据拒绝启动，mock 必须明确标注。
+
+服务器当前 ai-rag-platform #7 在 HEAD 382aa9c 完成 73 项模块测试、2 项回滚测试、11 项严格契约、11 项应用测试和 12 个 Linux .so 来源验证；现有私有容器无模型密钥且使用 hash。项目本机 .env 已配置模型凭据，公开固定问题演示拟经 build-delivery 安全传输为服务器仓库外的 0600 环境文件，Compose 只注入指定模型环境变量，不挂载凭据文件或私人数据。使用已有模型凭据不代表已测 BGE，hash 仍需如实标明。
+
+候选交付配置明确使用 `/home/ubuntu/.config/ai-rag/public-demo.env`。自动审批拒绝了现有密钥向服务器的传输，要求对这项凭据及目标服务器明确授权；当前未读出或传输密钥，授权问题已提交用户。在回复前只允许代码同步、Mock 检查及不启用部署的 Jenkins 构建，不将 DeepSeek 演示记为上线。

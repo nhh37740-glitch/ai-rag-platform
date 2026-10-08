@@ -58,6 +58,8 @@ uv pip install --python .venv/Scripts/python.exe -r requirements-runtime.txt
 
 未配置 `DEEPSEEK_API_KEY` 时使用离线 Mock；在根目录 `.env` 配置该变量后使用 DeepSeek。Mock 通过关键词选工具，可能原样返回工具 JSON 或固定文本，只可证明链路，不可当成真实问答效果。无需模型的离线演练要显式设置 `$env:RAG_EMBED='hash'`；默认 FastEmbed 可能下载模型。
 
+页面右上角「DeepSeek 设置」可为当前页面设置、替换或移除个人密钥。仅 HTTPS 或本机页面允许输入个人密钥；服务端也会拒绝来自公网 HTTP 页面携带密钥的请求。密钥只保留在页面内存中，通过同源 `POST /api/chat` 的请求头传递，刷新后清除；移除后恢复服务器配置或离线 Mock。服务端不保存浏览器密钥，`GET /api/llm/config` 只返回服务器是否已配置的布尔值和模型名。旧 `GET /api/chat/stream` 继续使用服务器配置。
+
 `rag_core` 会通过包依赖自动安装 FastEmbed，并在首次启动时加载 `.env` 中 `BGE_MODEL=BAAI/bge-small-zh-v1.5` 指定的中文向量模型。如果运行库或模型不可用，服务会直接报错；只有显式设置 `RAG_EMBED=hash` 才会启用无模型的离线向量。
 
 Agent 实际获得七个真实工具：五个由 `rag-tools` 模块公布的知识库检索工具（`search_knowledge_base`、`hybrid_search_knowledge_base`、`keyword_search_knowledge_base`、`list_knowledge_documents`、`read_knowledge_document`），以及 `create_file` 和 `save_conversation_to_knowledge_base`。选择知识库后，提示词要求先检索；未检索就收尾时最多追加两次提醒，并留下 `retrieval_guard` span，提醒耗尽仍可能返回未检索答案。回退顺序依赖模型遵循提示词，每轮只执行一次知识库检索。工具循环默认最多 10 轮。
@@ -92,4 +94,6 @@ curl -f http://127.0.0.1:18080/api/demo
 
 默认只监听服务器回环地址的 `18080` 端口，供同机反向代理使用。Compose 显式设置 `RAG_EMBED=hash`，这样无需下载模型即可启动演示；需要 BGE 语义向量时，配置 `RAG_EMBED=fastembed`，模型缓存使用独立 volume。数据库、向量索引、用户笔记本和 Agent 文件分别用 volume 持久化。`DEEPSEEK_API_KEY` 留空时继续使用 Mock；实际密钥仅通过 Jenkins 凭据或服务器环境变量注入。
 
-`Jenkinsfile` 假设 Jenkins agent 运行在目标 Linux Docker 主机且有 Docker/Compose 权限。流水线执行模块单测、Linux 编译、严格契约测试、应用端到端测试和二进制运行边界验证；然后归档 `dist/ai-rag-platform-<version>-<platform>.zip`、SHA-256 与逐文件清单。`DeployDemo` 默认启用部署；部署脚本先构建候选运行镜像，再保存当前镜像并更新 Compose 服务。候选健康检查失败时恢复旧镜像并重建容器；该流程只调用 `compose up/stop`，不删除或重建命名卷，因此数据库、用户笔记本、Agent 文件和模型缓存保留。部署回滚测试在 Docker builder 阶段运行。ZIP 内不含 `modules-src/`。
+`Jenkinsfile` 假设 Jenkins agent 运行在目标 Linux Docker 主机且有 Docker/Compose 权限。流水线执行模块单测、Linux 编译、严格契约测试、应用端到端测试和二进制运行边界验证；然后归档 `dist/ai-rag-platform-<version>-<platform>.zip`、SHA-256 与逐文件清单。`DeployDemo` 和 `DeployPublicDemo` 默认关闭，分别选择私有工作区与独立公开服务。候选健康检查或 smoke 失败时恢复旧镜像并重建容器；该流程不删除原服务命名卷。部署回滚测试在 Docker builder 阶段运行。ZIP 内不含 `modules-src/`。
+
+公开演示使用 `compose.public-demo.yaml`，只监听服务器回环地址 `18106`，由主页反代到 `/projects/apps/rag/`。`PUBLIC_DEMO=1` 限定 CMRC2018、八个精选问题和五个只读检索工具；响应必须带成功检索来源，每次实际计算使用独立上下文。页面展示真实 provider、hash 检索基线、原始 trace 和五分钟缓存，不接受浏览器密钥或私人文件。DeepSeek 凭据保存在仓库外的服务器环境文件中，缺少凭据时拒绝启动。接口见 [`contracts/WEB_DEMO.md`](contracts/WEB_DEMO.md)。

@@ -31,7 +31,8 @@ RUN pip install --no-cache-dir --no-deps -e contracts \
          fi; \
        done
 RUN python -m pytest -q modules-src \
-    && python -m pytest -q scripts/tests/test_deploy_compose_rollback.py
+    && sh -n scripts/deploy_compose.sh scripts/deploy_public_demo.sh \
+    && python -m pytest -q scripts/tests
 
 RUN python scripts/compile_extension_modules.py \
     && python scripts/package_release_artifacts.py \
