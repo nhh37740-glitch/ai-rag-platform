@@ -1,6 +1,8 @@
-# Dev Knowledge Agent
+# 研发文档问答（Dev Knowledge Agent）
 
-面向企业研发知识问答与协作的模块化 Agent，包含 RAG、MCP、Agent Skills、Function Calling、会话记忆和链路追踪。
+上传研发文档，在所选笔记本内查资料、返回来源，并通过 trace 查看检索与工具调用过程。当前 Web 使用自写 Python Agent 循环，集成 RAG、Agent Skills、Function Calling、记忆和链路追踪；MCP 是独立模块，尚未接入该 Web。
+
+准备面试先读 [`docs/INTERVIEW.md`](docs/INTERVIEW.md)：一条请求链路、三天练习安排、演示步骤及能力边界。当前没有 LangChain/LangGraph/Hermes 实践实现，也没有可信的回答质量提升数据。2026-10-08 本机二进制链路和 7 项应用演示测试通过，契约检查有 3 处产物签名不一致，详情见 [`docs/PLAN.md`](docs/PLAN.md#三天面试准备与事实核对2026-10-08)。
 
 文档入口：[`docs/PLAN.md`](docs/PLAN.md) 是唯一实施计划；[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 解释模块关系；[`docs/MANUAL_COMPILATION.md`](docs/MANUAL_COMPILATION.md) 提供手动编译顺序。
 
@@ -36,7 +38,7 @@ Web 启动时从 `data/kb/cmrc2018-demo/` 导入 CMRC2018 dev 子集，共 24 �
 界面按"笔记本 = 独立工作区"组织：左栏列出全部笔记本与当前笔记本的来源，切换到某个笔记本就切换整个工作区——来源列表、对话记录、会话 id 都随之切换，互不干扰。
 
 - 检索范围只包含当前笔记本，不存在"上一次还选中着"的残留状态。
-- 每个笔记本一个会话（页面首次进入时生成），同一笔记本连续提问共享上下文，跨笔记本完全隔离。
+- 页面为每个笔记本生成独立会话 id，同一笔记本连续提问共享聊天历史；后端持久记忆尚未按 session_id 过滤，因此不能保证全部记忆跨笔记本隔离。
 - 上传只作用于当前笔记本；创建或导入完成后自动切到那个笔记本。
 - 每条回答下方以小号等宽字体显示 trace id，可点击跳转到 `/api/trace/<id>`。
 
@@ -44,16 +46,23 @@ Web 启动时从 `data/kb/cmrc2018-demo/` 导入 CMRC2018 dev 子集，共 24 �
 
 ```powershell
 uv venv .venv
-uv pip install -e contracts -e modules-src/observability -e modules-src/memory -e modules-src/rag-core -e modules-src/rag-tools -e modules-src/llm-gateway -e modules-src/tool-runtime -e modules-src/skill-runtime -e modules-src/agent-runtime -e modules-src/evaluation -e modules-src/ingestion -e modules-src/mcp-gateway -e modules-src/mcp-servers -e modules-src/storage fastapi uvicorn python-multipart pypdf pytest
+uv pip install --python .venv/Scripts/python.exe -r requirements-runtime.txt
 
+# 前提：artifacts 中已有与当前 Python ABI/平台匹配的全部 published 扩展。
+# 未交付二进制时先走下方 Linux Docker 构建或构建机流程，不能直接用源码启动。
+.\.venv\Scripts\python.exe scripts/verify_compiled_runtime.py
 .\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server server:app --port 8000
 ```
 
-浏览器打开 `http://127.0.0.1:8000/`。未配置 `DEEPSEEK_API_KEY` 时使用离线 Mock；在根目录 `.env` 配置该变量后使用 DeepSeek。
+浏览器打开 `http://127.0.0.1:8000/`。当前本机工件为 Windows CPython 3.11 扩展，创建新环境时应使用匹配的解释器。编译工件被 Git 忽略，clone 仓库不会自动获得它们；安装 editable 业务源码也无法替代工件。源码安装仅用于模块单测和构建阶段，见 `Dockerfile`。
+
+未配置 `DEEPSEEK_API_KEY` 时使用离线 Mock；在根目录 `.env` 配置该变量后使用 DeepSeek。Mock 通过关键词选工具，可能原样返回工具 JSON 或固定文本，只可证明链路，不可当成真实问答效果。无需模型的离线演练要显式设置 `$env:RAG_EMBED='hash'`；默认 FastEmbed 可能下载模型。
 
 `rag_core` 会通过包依赖自动安装 FastEmbed，并在首次启动时加载 `.env` 中 `BGE_MODEL=BAAI/bge-small-zh-v1.5` 指定的中文向量模型。如果运行库或模型不可用，服务会直接报错；只有显式设置 `RAG_EMBED=hash` 才会启用无模型的离线向量。
 
-Agent 实际获得七个真实工具：五个由 `rag-tools` 模块公布的知识库检索工具（`search_knowledge_base`、`hybrid_search_knowledge_base`、`keyword_search_knowledge_base`、`list_knowledge_documents`、`read_knowledge_document`），以及 `create_file` 和 `save_conversation_to_knowledge_base`。选择知识库后，每个问题都必须至少检索一次——模型若想不检索直接回答，会被打回重来并在 trace 里留下 `retrieval_guard` span；语义检索不理想时按提示词给出的顺序逐级回退到其他检索方式，每轮只执行一次知识库检索。工具循环默认最多 10 轮。
+Agent 实际获得七个真实工具：五个由 `rag-tools` 模块公布的知识库检索工具（`search_knowledge_base`、`hybrid_search_knowledge_base`、`keyword_search_knowledge_base`、`list_knowledge_documents`、`read_knowledge_document`），以及 `create_file` 和 `save_conversation_to_knowledge_base`。选择知识库后，提示词要求先检索；未检索就收尾时最多追加两次提醒，并留下 `retrieval_guard` span，提醒耗尽仍可能返回未检索答案。回退顺序依赖模型遵循提示词，每轮只执行一次知识库检索。工具循环默认最多 10 轮。
+
+当前向量存储是 SQLite 保存 JSON 向量、NumPy 点积排序，不是 FAISS/Chroma；检索范围过滤不等于用户鉴权。SSE 在完整答案生成后一次返回，尚非逐 token 流式生成。聊天历史在进程内按用户/会话保存，SQLite 记忆尚未严格按会话隔离；这些边界均需在展示时说明。
 
 ## 手动编译与验收
 

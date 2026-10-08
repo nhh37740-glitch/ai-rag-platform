@@ -6,7 +6,9 @@
 
 构建一个"会问答、会调工具、会走流程、记得住上下文"的企业研发助手，并以**契约先行 + 源码隔离 + 二进制交付**落地——集成/主 Agent 只拿到接口契约与编译后的二进制，看不到各模块实现源码，从而无法"顺手改"模块内部。
 
-核心展示以公开 CMRC2018 中文语料贯穿“自动导入→检索→回答→引用”；同时提供类似 NotebookLM 的笔记本式知识库：用户可创建分类、上传文档并在每次对话中选择一个或多个知识库。工具调用、MCP、Skill、用户/会话记忆和链路追踪作为独立能力入口展示。
+核心展示以公开 CMRC2018 中文语料贯穿“自动导入→检索→回答→引用”；同时提供类似 NotebookLM 的笔记本式知识库：用户可创建分类、上传文档并在每次对话中选择一个或多个知识库。工具调用、Skill、记忆和链路追踪由 Web 展示；MCP 是独立模块能力，当前 Web 的工具注册没有接入 MCP。
+
+面试准备以“研发文档问答”为唯一主线。2026-10-08 用户明确面试准备时间为三天，理解基本原理但讲不清代码与设计选择。因此本轮优先校正说明、整理请求链路与可重复演示、练习设计取舍，不新增模块或更换运行框架。学习与演示入口见 `docs/INTERVIEW.md`。岗位要求中的 LangChain/LangGraph/Hermes 实践、持久工作流和真实效果评测仍需后续补齐，不能写成已完成。
 
 ## 仓库 / 工件布局（谁只能看到什么）
 
@@ -45,11 +47,11 @@
 - **memory**：`SessionMemory`、`UserMemory` 两命名空间，`get/search/write/forget`；仅 memory 写库。
 - **tool-runtime + mcp-gateway**：`@tool` 函数与 MCP 工具归一为同一 `Tool`；工具可选接收 `RequestContext` 与当前对话运行上下文；mcp-gateway 负责 discovery/connect/list/call/materialize。
 - **skill-runtime**：`skills/*/SKILL.md`（frontmatter name/description + 指令 + 可选 `scripts/references/assets`），根据用户请求选择并加载完整技能内容，不得只把技能描述拼进提示词。
-- **agent-runtime**（最薄）：理解请求→取记忆/对话历史→选并加载 Skill→调 LLM→按需执行 RAG/文件/入库工具→再调 LLM→写记忆→输出；工具循环默认最多 10 轮且可调高。只要当前对话选中了知识库，**每个问题都必须至少检索一次**，闲聊、翻译、计算、创作、玩笑、商品询价也不例外；模型若想不检索直接收尾，`run()` 会把它打回并追加 `RETRIEVAL_REQUIRED_MESSAGE`，最多 `MAX_RETRIEVAL_REMINDERS` 次，每次拦截记一条 `retrieval_guard` span。结果不理想时按 `search → hybrid → keyword → list_documents → read_document` 逐级回退，且每轮只执行一次知识库检索，先读结果再决定下一步。只有未选择知识库时才允许直接回答。引用只能来自本轮工具返回的 `source_id`，历史对话里的引用不得复用。
+- **agent-runtime**（最薄）：理解请求→取记忆/对话历史→选并加载 Skill→调 LLM→按需执行 RAG/文件/入库工具→再调 LLM→写记忆→输出；工具循环默认最多 10 轮且可调高。提示词要求选中知识库时每个问题都先检索，未检索就收尾时追加 `RETRIEVAL_REQUIRED_MESSAGE`，最多 `MAX_RETRIEVAL_REMINDERS` 次并记录 `retrieval_guard` span；当前提醒耗尽可返回未检索答案，严格保证是待修复目标。提示词要求按 `search → hybrid → keyword → list_documents → read_document` 回退，执行器每轮只执行一次知识库检索。引用限于本轮工具返回的 source_id 是提示词约束，尚无严格输出校验。
 - **observability**：跨模块结构化日志 + span 耗时，`GET /api/trace/{trace_id}` 看全链路；RAG 检索必须产生独立的 `rag` span，其元数据记录查询、知识库范围、命中数、来源、分数与短摘要；预留 Phoenix/OTel 适配器，v1 用内存 trace + 日志。
 - **文档入库**：Web 接收 `.md`、`.txt`、`.docx`、`.pdf`，抽取正文后统一保存为 Markdown，再分块并加入所属笔记本的检索范围；原始上传文件与临时文件不进入仓库。
 - **Agent 文件与对话入库**：工具只能在 `data/agent-files/` 创建新文件，不得覆盖仓库源码；用户要求保存对话时，工具将当前会话转为 Markdown，创建新笔记本并立即加入检索。
-- **存储**：`storage` 接口统一用户/会话/记忆/文档元数据/向量/评测结果；默认 **SQLite 元数据 + 本地向量库（FAISS/Chroma）**，接口与 PostgreSQL+pgvector 同构，可无痛切换；本地 BGE（默认 `bge-small-zh`）。
+- **存储**：当前 Web 直接装配 SQLite `MemoryStore` 与 `SqliteVectorStore`；向量以 JSON 存于 SQLite，搜索读出选定范围的向量后用 NumPy 点积排序，没有 FAISS/Chroma/pgvector 实现。独立 `storage` 源码提供组合门面，尚未注册或接入 Web。统一后端和 pgvector 适配属于后续目标，不能称为已验证的无痛切换。
 
 ## 构建与集成工作流（主 agent 指挥，一模块一 subagent）
 
@@ -64,12 +66,12 @@
 - **契约测试**：严格模式仅从已注册 `artifacts/` 导入目标平台扩展，比较公开 facade 参数名与返回类型，并执行每个二进制包内随附的 `test_contract.py`。
 - **集成/端到端**：本地起 agent-server + ingestion-worker(.exe) + mock MCP + SQLite，验证“CMRC2018 自动导入→选中知识库后每个问题至少检索一次→必要时按回退链换工具或改写查询→回答→引用”以及文件创建、对话入库、记忆和追踪链路；同时验证未选知识库时可直接回答，以及未检索就作答会被 `retrieval_guard` 拦截。每次检索可通过 trace 核对选中知识库和具体命中文档。
 - **边界**：不比较中文向量模型，不把 CMRC2018 当作向量模型基准；只验证项目流程可运行。
-- **验收**：所有模块版本化带 checksum、契约测试通过、源码与二进制两种运行模式可复现；集成侧工作区无任何模块实现源码。
+- **验收目标**：所有模块版本化带 checksum、契约测试通过、源码模块单测与二进制集成运行可复现；运行镜像不包含模块实现源码。源码可供开发者学习和模块测试，应用启动仍只接受二进制。
 
 ## 假设与默认
 
 - Python 3.11+；Windows 可编辑源码，Linux Docker 交付由服务器 Jenkins 完成。当前批量编译器为 Cython；构建阶段按目标平台生成 `.pyd` 或 `.so` 并写入 `artifacts/`，运行镜像只加载相同平台的扩展模块。Nuitka `.exe` 是 Windows worker 手动交付方式，不作为 Linux 容器前置条件。
-- 除 DeepSeek 聊天 API 外无外部服务依赖；存储默认 SQLite + 本地向量库，走 `storage` 接口以便切 pgvector；默认由 FastEmbed 在本地运行 `BAAI/bge-small-zh-v1.5`。
+- 除 DeepSeek 聊天 API 外无外部服务依赖；当前 Web 的记忆与向量均存于 SQLite，不经过独立 `storage` 门面；直接 Python 启动时 embedding 默认为 FastEmbed `BAAI/bge-small-zh-v1.5`，Compose 配置默认显式使用 hash。
 - `DEEPSEEK_API_KEY` 经 `.env` 注入，不入库；单用户单租户演示；可选简单 API key。
 - MCP connector（Git/Issue/工单）v1 用本地 mock，接口与真实连接器一致，便于日后插真。
 - "SKILL" 采用 Agent Skills 的 SKILL.md 开放格式；前端为 agent-server 托管单页聊天（SSE）。
@@ -93,6 +95,8 @@
 
 ## 实现状态（2026-09-28）
 
+> 以下为历史记录；面试和当前可用性以文末 2026-10-08 核对为准。历史流水线成功不等于当前本机产物或线上服务重新验收成功。
+
 - 12 个已注册 Python 发布模块及契约、FastAPI 主进程、Web 聊天、RAG、工具、Skill、记忆与追踪代码均保留；另有未注册的 `storage` 源码目录不进入当前模块二进制闸门。
 - Web 演示固定使用 `data/kb/cmrc2018-demo/` 中的 CMRC2018 dev 子集：24 篇文档、99 个问题；服务启动时导入知识库，页面展示导入状态与跨主题问题提示。
 - Web 支持创建笔记本、上传 `.md/.txt/.docx/.pdf` 并统一转为 Markdown；聊天请求携带所选知识库标识，RAG 仅检索选中范围。
@@ -101,5 +105,41 @@
 - RAG 已改为 Agentic RAG：通过独立 `rag-tools` 模块注册为 LLM 工具；选择知识库后每个问题至少检索一次，未检索就想收尾会被 `retrieval_guard` 拦截，低质量结果按 `search → hybrid → keyword → list_documents → read_document` 逐级回退，每轮只执行一次检索。
 - 移除三个无外部连接的模拟工具，改为七个真实工具：`rag-tools` 公布的五个知识库检索工具，加上受限文件创建与对话保存为新知识库。
 - `.circleci`、旧虚构知识库、一次性演示脚本和一次性评测报告已移除。
-- 脚本已收敛为编译扩展、编译独立服务、打包发布、验收源码运行和验收二进制运行五项明确职责。
+- 脚本包含编译扩展、编译独立服务、打包发布契约、发布 ZIP 和验收二进制运行等明确职责；应用源码运行验收入口已移除。
 - 服务器 Jenkins 已完成 Linux 二进制构建、发布包校验与 Compose 健康部署；本机不承担 Linux 编译。
+
+## 三天面试准备与事实核对（2026-10-08）
+
+第一阶段修改仅涉及实施计划、使用/架构说明和面试学习材料，不改变模块实现、契约、VERSION、checksum 或发布工件，尚未触发服务器部署。仓库规定的二进制边界保留；减少的是需要学习与展示的范围。随后用户补充了服务器、Jenkins 与主页演示要求，执行范围以下一节为准。
+
+当前本机已核对：
+
+- 显式 `RAG_EMBED=hash` 时 `scripts/verify_compiled_runtime.py` 输出 `COMPILED_AGENT_OK`，12 个注册模块由 `artifacts/` 的 Windows CPython 3.11 `.pyd` 加载。这仅证明离线二进制链路，不证明 BGE 或真实模型质量。
+- 使用临时 STATE_DIR、hash embedding、空 DEEPSEEK_API_KEY 运行现有应用演示测试：7 项通过。
+- 额外 API 上传复演在系统临时目录写文件时受到沙箱权限限制，申请提升权限未获用户批准，因此“创建笔记本→上传最新项目说明→问答→trace”的完整 API 复演未完成；不列为通过项。本轮没有绕过该拒绝或修改上传实现。
+- `contracts/test_contract.py`：11 项通过、90 个 subtests 通过、3 个 subtests 失败。失败为本机二进制的 `LLMProvider.stream` 缺返回注解、`TraceStore.record(ev)` 与契约参数 `span` 不同、`evaluate_qa(ctx, qa)` 与契约参数 `qa_set` 不同。源码对应位置已是新签名；需由目标平台构建流程核实并重建产物，不能靠跳过测试宣布交付全绿。
+- 当前应用 SSE 在 `runtime.run()` 完成后发送整条答案；模型网关的 `stream()` 也仅 yield 完整结果，不是逐 token 流。
+- `retrieval_guard` 是最多两次提醒：本机二进制复现了模型始终不检索时仍返回答案。因此“每个问题至少检索一次”目前是目标策略，尚非严格保证；`retrieval_done` 在工具执行前设为 True，也没有成功结果闸门。回退顺序和引用可信性主要由提示词约束，不能声称已经硬性验证。
+- 会话历史按 `(user_id, session_id)` 放在进程内；SQLite 记忆按 namespace/user_id 查找，没有 session_id 条件。笔记本检索范围过滤存在，但不能据此前端体验声称持久记忆已严格按会话隔离，更不是多租户鉴权。
+- `evaluation` 中 faithfulness 为词面重叠启发式，answer_relevance 为答案长度启发式；LLM judge 异常也会回退为长度分数。当前无可信真实模型评测结论。
+- 主 Web 未接入 MCP，也未依赖 LangChain/LangGraph/Hermes；Skill 是完整 Markdown 指令加载，并不执行持久工作流。API 尚无用户认证，不能称为生产平台。
+- 注册表本机仍有反斜杠路径，加载器做兼容归一化；“注册表路径只使用 /”是交付目标，不是本机当前文件事实。本轮未核验服务器镜像、API key、BGE 缓存或线上状态。
+
+准备顺序：第一天讲通 `server.chat → AgentRuntime.run → ToolRegistry.execute → RagTools → rag_core → LLM` 并核对 trace；第二天以项目自身 README/架构说明上传到独立笔记本，记录有证据、无证据、跨库问题及失败案例，区分 Mock 和真实模型；第三天完成 90 秒介绍、5 分钟演示、设计取舍追问和个人贡献核对。框架练习优先阅读官方 LangGraph workflow/agent 与 interrupt 示例，只有实际跑过、能解释状态与恢复边界后才写“实践过”。
+
+三天之后的候选迭代按优先级：严格检索失败处理与会话记忆隔离；固定问题集和真实模型效果/延迟评测；一条 LangGraph 业务流程（明确状态、缺信息分支、持久 checkpoint、人工确认与幂等）；按业务需要接入只读 MCP。每项先更新本计划和契约，再做模块版本、单测、目标平台二进制与 checksum 更新。当前不把这些候选项记为实现承诺或已完成能力。
+
+## 服务器与主页演示（2026-10-08 追加执行范围）
+
+用户明确要求保留模块化、由 Jenkins 约束发布，并使用服务器在个人主页演示。因此继续推进服务器交付，不以本机文档或离线验证代替最终结果。当前公网 `/projects/projects.html` 的研发文档问答仍无演示入口，`/projects/apps/rag/` 返回 404；服务器连接由 build-delivery 单一负责人复用 SSH 长连接。
+
+实施边界：
+
+- 先核对服务器最新 Git HEAD、镜像与 Jenkins 门禁，保留后续提交中的请求级模型设置；本机旧代码/二进制结果不推定为服务器结果。
+- 业务模块继续只从注册工件加载，学习界面和 HTTP 适配放在 apps；主页只负责入口，部署负责人只改交付配置和执行流水线。若确需模块实现修复，则按现有契约、版本、CHANGELOG、二进制与 checksum 流程处理。
+- 新公开演示使用独立容器/状态，不挂载原服务的私人笔记本、Agent 文件或密钥文件。公开范围只限 CMRC2018 内置资料、固定示例问题、只读知识库工具与本次调用 trace；关闭上传、建笔记本、创建文件、保存对话及请求级 API key 输入。展示实际模型与 embedding 模式，Mock/hash 不能冒充真实模型质量。
+- 演示页面用简短步骤串起“选问题→调用已有 Agent/RAG→查看来源→读 trace”，以实际响应呈现状态，不放虚构命中或进度。正常私有工作区仍可使用已有模型设置和上传能力。
+- AI 仓库 Jenkins 必须完成模块单测、目标 Linux 编译、严格契约、应用集成、运行来源与发布包校验；公开演示边界需有有意义的集成检查。主页仓库 Jenkins 验证新链接/代理路径，并运行镜像和部署后 smoke。门禁失败不切换正式演示，不用改断言绕过失败。
+- 既有 8088 主页路径可用；不改 DNS、云防火墙或 SSH 基础设施。公开 HTTPS 未验证时继续禁用 HTTP 密钥输入。上线完成以实际入口、API调用与 trace 检查为准；连接或门禁失败时如实保留待完成项。
+
+本节为拟实施方案，实际服务器结果和最终模式在验证后补记。

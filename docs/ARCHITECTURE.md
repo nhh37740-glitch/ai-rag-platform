@@ -2,7 +2,7 @@
 
 ## 1. 一句话
 
-一个 **企业研发知识与协作智能体（Dev Knowledge Agent）**：公开中文文档入库 → 向量检索 → DeepSeek/Mock 回答 → 工具与 Skill → 双层记忆 → 聊天界面；并做成 **契约先行 + 源码隔离 + 二进制交付** 的可换模型、存储和连接器的模块化系统。
+一个研发文档问答原型：文档入库 → 模型选择检索工具 → 在选定笔记本内查资料 → 返回来源与答案 → 查看 trace。部署保留契约先行与二进制边界。面试阅读顺序见 [`INTERVIEW.md`](INTERVIEW.md)，当前验收与未完成能力以 [`PLAN.md`](PLAN.md) 文末核对为准。
 
 ## 2. 设计模式
 
@@ -61,7 +61,7 @@
 - `SkillRegistry.load_dir(path) / list(ctx=None) / load(ctx, name) / render(ctx, query)`，选中后惰性加载完整 SKILL.md
 
 ### Agent 编排 `agent_runtime`
-- `AgentRuntime.run(ctx, user_input, knowledge_base_ids) -> str`（记忆/历史/完整 Skill→LLM→工具循环→写记忆；循环上限默认 10 轮且不得配置小于 10；已选择知识库时事实与定义类问题优先检索）
+- `AgentRuntime.run(ctx, user_input, knowledge_base_ids) -> str`（记忆/历史/完整 Skill→LLM→工具循环→写记忆；循环上限默认 10 轮且不得配置小于 10；提示词要求已选择知识库时所有问题先检索，执行器最多提醒两次，尚非严格成功闸门）
 - `make_runtime(...)`
 
 ### MCP 网关 `mcp_gateway`
@@ -82,9 +82,9 @@
 - `parse(path)` / `chunk(texts, size, overlap)` / `build_index(ctx, docs_dir, store, embed_fn)`
 - CLI `python -m ingestion <dir> --out index.json`（独立进程产索引，主进程读索引）
 
-### 统一存储 `storage`
+### 统一存储 `storage`（未接入 Web）
 - `Storage.memory_*/add_documents/search_documents/save_eval/load_eval`
-- `make_storage(db_path, memory_store, vector_store)`（组合 memory + vector + SQLite，接口与 pgvector 同构）
+- `make_storage(db_path, memory_store, vector_store)`（组合 memory + vector + SQLite 门面；没有 pgvector 适配器，也未进入当前发布注册表）
 
 ### 主进程 `apps/agent-server/server.py`
 FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问题）、`GET/POST /api/notebooks`（列出/创建笔记本）、`POST /api/notebooks/{id}/files`（上传并转 Markdown）、`POST /api/chat`、`GET /api/chat/stream`（携带知识库选择的 SSE）、`GET /api/trace/{trace_id}`。
@@ -102,7 +102,7 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
                             └─ observability→ TraceStore(/api/trace)
 项目知识库：data/kb（内置 CMRC2018 + 用户笔记本；上传文件统一转为 Markdown）
 独立进程：ingestion(可产 data/index.json)      mcp_servers(stdio MCP)
-持久化：SQLite + 本地向量库（storage 接口可切 pgvector）
+持久化：SQLite MemoryStore + SqliteVectorStore(JSON 向量/NumPy 点积)
 ```
 
 前端与产物：
@@ -113,13 +113,24 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
 ## 5. 关键设计决策
 
 - **契约先行**：接口/类型先用 `contracts/` 定死，各模块按 `INTERFACE.md` 实现，减少联调返工。
-- **源码隔离 + 二进制交付**：实现源码在 `modules-src/`，集成侧只消费 `artifacts/` 下二进制、契约与 checksum；源码模式和二进制模式分别由两个 `verify_*_runtime.py` 入口验收。
-- **可替换而不重写**：换模型（DeepSeek↔OpenAI）、换向量/存储（FastEmbed 模型↔显式 hash 开发后端、SQLite↔pgvector）、换技能/工具、换 MCP 连接器，均只改一个适配器/注册项。
+- **源码隔离 + 二进制交付**：实现源码在 `modules-src/`，源码用于阅读、模块单测和构建；应用只消费 `artifacts/` 下编译扩展。当前只有 `verify_compiled_runtime.py` 运行验收入口，不支持应用源码模式。
+- **接口为替换留出边界**：已经实现 DeepSeek/Mock 与 FastEmbed/hash 的选择；OpenAI provider、pgvector 和 Web MCP 接入仍需实现与测试，不能仅凭接口宣称已可切换。
 - **演示数据边界**：CMRC2018 子集位于 `data/kb/cmrc2018-demo/`，通过正式知识库链路加载；它仅用于展示中文知识导入、检索、回答与引用，不承担向量模型评测。
 
 ## 6. 运行 / 测试
+
+前提为依赖和当前平台编译工件齐备。新环境安装与离线 hash 配置见根 README；源码 editable 安装不能替代运行工件。下面的启动默认使用 FastEmbed，运行验收也会使用当前 embedding 配置。
 
 ```bash
 .\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server server:app --port 8000
 .\.venv\Scripts\python.exe scripts/verify_compiled_runtime.py
 ```
+
+## 7. 原型边界
+
+- Web 注册五个 RAG 工具与两个文件/保存工具，未注册 MCP 工具；LangChain/LangGraph/Hermes 未用于实现。
+- Skill 是按匹配规则加载的完整 Markdown 指令，bug-triage/incident-analysis 文档写了业务步骤，不等于自动建单或持久工作流已实现。
+- SSE 与 provider.stream 都在完整生成后返回一次结果；没有真正的 token streaming。
+- retrieval_guard 最多提醒两次，之后可返回未检索答案。引用来源约束与回退顺序主要属于提示词策略，没有严格的输出验证闸门。
+- RAG scope 是所选笔记本的过滤范围。服务无用户认证，客户端可提交 user_id，因此不能声称多租户权限隔离。SQLite 记忆不按 session_id 过滤，进程内聊天历史才使用用户/会话联合键。
+- evaluate_qa 的词面重叠与长度分数属于启发式，不能证明回答正确率或真实性；当前没有真实模型的基准对比结论。
