@@ -41,11 +41,17 @@ p=Path(os.environ['PUBLIC_STATE']); s=json.loads(p.read_text()); s['smokes']+=1
 s['smoke_modes'].append(sys.argv[-1])
 p.write_text(json.dumps(s)); sys.exit(1 if s['smokes']==s['fail_smoke'] else 0)
 '''
+SUDO = r'''#!/usr/bin/env python3
+import os,sys
+# Match sudo's environment reset; env NAME=value must explicitly reintroduce values.
+env={k:v for k,v in os.environ.items() if k not in ('PUBLIC_DEMO_PROVIDER','PUBLIC_DEMO_ENV_FILE','PUBLIC_DEMO_MOCK_ENV_FILE')}
+os.execvpe(sys.argv[1],sys.argv[1:],env)
+'''
 
 
 def prepare(tmp_path, fail_smoke, candidate_provider):
     bin_dir = tmp_path / 'bin'; bin_dir.mkdir()
-    for name, code in {'docker': DOCKER, 'python3': PYTHON, 'sudo': '#!/bin/sh\nexec "$@"\n'}.items():
+    for name, code in {'docker': DOCKER, 'python3': PYTHON, 'sudo': SUDO}.items():
         code = code.replace('#!/usr/bin/env python3', '#!' + sys.executable, 1)
         target = bin_dir / name; target.write_text(code); target.chmod(0o755)
     env_file = tmp_path / 'provider.env'; env_file.write_text('DEMO_TEST=1\n')

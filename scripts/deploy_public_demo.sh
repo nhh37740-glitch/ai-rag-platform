@@ -23,7 +23,11 @@ export PUBLIC_DEMO_ENV_FILE="$ENV_FILE"
 SMOKE_VOLUME=ai-rag-public-smoke-${BUILD_NUMBER}
 SMOKE_CONTAINER=
 docker() { sudo docker "$@"; }
-compose() { docker compose -f compose.public-demo.yaml --project-name ai-rag-public "$@"; }
+compose() {
+    # sudo clears the caller environment; forward only mode and config path.
+    sudo env PUBLIC_DEMO_PROVIDER="$PUBLIC_DEMO_PROVIDER" PUBLIC_DEMO_ENV_FILE="$PUBLIC_DEMO_ENV_FILE" \
+        docker compose -f compose.public-demo.yaml --project-name ai-rag-public "$@"
+}
 cleanup() {
     if [ -n "$SMOKE_CONTAINER" ]; then docker rm -f "$SMOKE_CONTAINER" >/dev/null 2>&1 || true; fi
     docker volume rm "$SMOKE_VOLUME" >/dev/null 2>&1 || true
