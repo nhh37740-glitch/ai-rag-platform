@@ -11,6 +11,11 @@ pipeline {
             defaultValue: false,
             description: 'Publish the isolated read-only interview demo after live candidate smoke.'
         )
+        choice(
+            name: 'PublicDemoProvider',
+            choices: ['deepseek', 'mock'],
+            description: 'Explicit public provider; mock is an offline tool-flow demonstration.'
+        )
     }
     options {
         timestamps()
@@ -47,7 +52,7 @@ pipeline {
                 expression { params.DeployPublicDemo }
             }
             steps {
-                sh 'BUILD_NUMBER="$BUILD_NUMBER" sh scripts/deploy_public_demo.sh'
+                sh 'BUILD_NUMBER="$BUILD_NUMBER" PUBLIC_DEMO_PROVIDER="$PublicDemoProvider" sh scripts/deploy_public_demo.sh'
             }
         }
     }

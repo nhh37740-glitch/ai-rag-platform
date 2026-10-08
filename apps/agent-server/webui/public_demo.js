@@ -118,7 +118,7 @@
   function renderAnswer(data) {
     showModes(data);
     byId("cache-badge").textContent = data.cache_hit === true ? "缓存命中 · 复用原结果" : data.cache_hit === false ? "本次新执行 · 未命中缓存" : "缓存状态未提供";
-    byId("answer-note").textContent = data.provider === "mock" ? "Mock 离线流程输出：可核对工具返回的检索数据，不代表真实模型回答质量。" : "DeepSeek 本次输出；请结合下方实际来源核对内容。";
+    byId("answer-note").textContent = data.provider === "mock" ? "Mock 离线流程输出：可核对工具返回的检索数据，不代表真实模型回答质量。" : (data.cache_hit ? "复用原请求的 DeepSeek 输出；请结合下方原始来源核对内容。" : "DeepSeek 本次输出；请结合下方实际来源核对内容。");
     byId("answer-content").className = "answer-content";
     byId("answer-content").textContent = typeof data.answer === "string" ? data.answer : JSON.stringify(data.answer, null, 2);
     if (data.provider === "mock" && typeof data.answer === "string") {
