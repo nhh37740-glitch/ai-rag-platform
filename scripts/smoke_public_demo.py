@@ -19,10 +19,11 @@ def request(base, path, method="GET", payload=None, headers=None):
         return error.code, None
 
 
-def smoke(base):
+def smoke(base, expected_provider="deepseek"):
+    assert expected_provider in ("mock", "deepseek")
     status, demo = request(base, "api/demo")
     assert status == 200 and demo["public_demo"] and demo["read_only"]
-    assert demo["provider"] == "deepseek", "public release must use configured real provider"
+    assert demo["provider"] == expected_provider, "provider must match the explicit release mode"
     assert demo["embedding"] == "hash", "hash baseline must be labeled honestly"
     question = demo["suggested_questions"][0]["question"]
     for path in ("api/chat", "api/notebooks", "api/files", "api/evaluate"):
@@ -34,7 +35,7 @@ def smoke(base):
     assert status == 200 and unknown == []
     status, result = request(base, "api/demo/chat", "POST", {"question": question})
     assert status == 200, f"curated model request failed with HTTP {status}"
-    assert result["provider"] == "deepseek" and result["read_only"] and result["answer"]
+    assert result["provider"] == expected_provider and result["read_only"] and result["answer"]
     assert result["knowledge_base_ids"] == ["cmrc2018-demo"]
     status, trace = request(base, "api/trace/" + result["trace_id"])
     assert status == 200 and trace, "answer must have an actual trace"
@@ -47,4 +48,4 @@ def smoke(base):
 
 
 if __name__ == "__main__":
-    smoke(sys.argv[1])
+    smoke(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else "deepseek")

@@ -25,7 +25,7 @@ docs/            # PLAN.md 与 architecture/ 说明
 - **源码隔离**：实现源码放 `modules-src/`，集成侧只消费 `artifacts/` 里的二进制与契约。运行时不使用 editable 源码模式：`apps/agent-server/runtime_boundary.py` 在导入业务模块前读取 `registry.json`，只把 `published` 的 `artifacts` 路径加入运行时，并在导入后校验每个模块确实来自 `.pyd/.so`；任何模块若从 `modules-src` 或 `.py` 加载，服务立即拒绝启动。源码只用于编译和模块单测。
 - **二进制交付**：当前 Jenkins/Linux 路径用 Cython 编译进程内模块成 `.so`，Windows 目标为 `.pyd`；Windows 手动 worker 交付可用 Nuitka 生成 `.exe`。实际交付形式以 `contracts/API_SCHEMA.json` 与流水线配置为准。
 - **进程/线程**：`agent-server` 内走接口直调 + asyncio/`asyncio.to_thread`；真正独立的模块（ingestion-worker、MCP servers）才拆成独立进程。
-- **存储**：统一 `storage` 接口，默认 SQLite 元数据 + 本地向量库（FAISS/Chroma），接口与 PostgreSQL+pgvector 同构，可无痛切换。
+- **存储**：统一 `storage` 接口是后续架构目标。当前 Web 直接使用 SQLite 元数据、JSON 向量与 NumPy 排序；`storage` 尚未注册进入运行链路，FAISS/Chroma、PostgreSQL+pgvector 切换尚未实现。实际能力以 `docs/PLAN.md` 为准。
 - **可观测**：所有模块接收 `RequestContext(trace_id, request_id, user_id, session_id)`，打结构化日志 + span 耗时；`GET /api/trace/{trace_id}` 看全链路。
 
 ## 构建、测试与运行

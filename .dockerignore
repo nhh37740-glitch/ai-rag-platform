@@ -17,6 +17,7 @@ bin
 build
 dist
 reports
+data/_tests
 .env
 .env.*
 !.env.example
