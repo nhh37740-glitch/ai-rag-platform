@@ -16,6 +16,22 @@ POST/PUT/PATCH/DELETE 等非安全方法及 GET /api/chat/stream 必须携带与
 
 ## 原业务接口
 
+外部固定管理前缀 `/projects/apps/rag/admin/`、Origin `https://portfolio.72945645.xyz:8443`。独立 `admin_login:app_factory`（uvicorn `--factory`）服务绑定回环 18107，不挂载 RAG 数据，调用 `http://host.docker.internal:8088/api/v1/auth`。Media 只发 `ROLE_USER`，没有全局管理员角色；本适配将经 `/me` 验证的指定 UUID 且 username=owner 映射为 RAG 管理员，UUID 必须由部署前真实服务器账户核对得到。
+
+反代路由映射：
+
+|外部/内部路由|独立登录适配服务路由|说明|
+|---|---|---|
+|GET `/projects/apps/rag/admin/login`|GET `/`|公开登录页，页面资源使用相对 auth/ 路径|
+|GET `/projects/apps/rag/admin/auth/csrf`|GET `/csrf`|取得 Media session CSRF token|
+|POST `/projects/apps/rag/admin/auth/login`|POST `/login`|转发账号密码与 X-CSRF-TOKEN；仅拥有者返回成功|
+|POST `/projects/apps/rag/admin/auth/logout`|POST `/logout`|使 Media session 失效并清除管理 cookie|
+|GET `/projects/apps/rag/admin/auth/login.js`、`login.css`|GET `/login.js`、`/login.css`|登录页外部资源；其他 auth/ 路径禁止公开|
+|Nginx internal auth_request（不得公网开放）|GET `/verify`|必须携带服务器证明；实时 /me 验证拥有者后返回 X-Rag-User-Id 和 X-Rag-Role|
+|GET `/health`（仅服务健康检查）|GET `/health`|无身份或凭据内容|
+
+认证 cookie 为 `rag_admin_session`，HttpOnly、Secure、SameSite=Strict、Path=`/projects/apps/rag/admin/`；浏览器脚本不能读取会话值。适配调用 Media 时才将其转换成 `SESSION` cookie，不返回 Media 的原始 Set-Cookie。密码只在一次 HTTPS 表单提交中转发，不持久化、不写日志、不回显。任何身份检查异常拒绝进入工作区，普通账号或其他拥有者拒绝；每进程五分钟最多十次登录尝试。登录和退出都要求精确 HTTPS Origin 且转发框架 CSRF token。每次认证检查均请求 Media `/me`，没有身份缓存，退出立刻生效。
+
 - POST /api/notebooks：原名称、说明字段创建笔记本；返回原 201 结构。
 - POST /api/notebooks/{id}/files：原 multipart 上传、类型与大小限制以及 Markdown 转换/分块入库；返回原 201 结构。
 - GET /api/uploads/{id}：仅同一拥有者可读取处理进度。

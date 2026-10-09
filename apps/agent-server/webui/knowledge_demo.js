@@ -778,6 +778,7 @@ fetch("/api/admin/session")
     const session = await response.json();
     $("workspace-mode-label").textContent = session.administrator ? "管理员工作区" : "本地工作区";
     $("admin-identity").title = session.administrator ? "已通过拥有者管理员认证" : "本地工作区";
+    $("admin-logout").hidden = !session.administrator;
   })
   .catch((error) => {
     $("workspace-mode-label").textContent = "会话已失效";
@@ -785,6 +786,26 @@ fetch("/api/admin/session")
     dom.openUpload.disabled = true;
     setStatus(dom.notebookStatus, error.message, "error");
   });
+
+$("admin-logout").onclick = async () => {
+  const button = $("admin-logout");
+  button.disabled = true;
+  try {
+    const auth = new URL("./auth/", window.location.href);
+    const csrfResponse = await fetch(new URL("csrf", auth), { cache: "no-store" });
+    const csrf = await csrfResponse.json();
+    if (!csrfResponse.ok) throw new Error(csrf.detail || "退出登录失败。");
+    const response = await fetch(new URL("logout", auth), {
+      method: "POST", headers: { [csrf.headerName]: csrf.token },
+    });
+    if (!response.ok) throw new Error("退出登录失败，请稍后重试。");
+    state.deepseekKey = "";
+    window.location.assign(new URL("./login", window.location.href));
+  } catch (error) {
+    setStatus(dom.notebookStatus, error.message, "error");
+    button.disabled = false;
+  }
+};
 
 fetch("/api/demo")
   .then((response) => {
