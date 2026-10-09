@@ -25,6 +25,7 @@ from agent_facade import AgentService, make_provider
 from data_facade import DataService
 from rag_facade import RagService
 from core_specifications import ChatMessage, RequestContext, ToolCall, ToolDef, VectorStore
+from admin_workspace import AdminWorkspaceBoundary
 from document_upload import (
     MAX_UPLOAD_BYTES,
     SUPPORTED_EXTENSIONS,
@@ -58,6 +59,18 @@ def _load_dotenv(path: Path) -> None:
 PUBLIC_DEMO = os.environ.get("PUBLIC_DEMO", "") == "1"
 if not PUBLIC_DEMO:
     _load_dotenv(ROOT / ".env")
+
+ADMIN_AUTH = "public" if PUBLIC_DEMO else os.environ.get("RAG_ADMIN_AUTH", "local")
+if not PUBLIC_DEMO and ADMIN_AUTH not in {"local", "proxy"}:
+    raise RuntimeError("RAG_ADMIN_AUTH 必须为 local 或 proxy")
+ADMIN_PROXY_CONFIG = {
+    "proxy_token": os.environ.get("RAG_ADMIN_PROXY_TOKEN", ""),
+    "owner_id": os.environ.get("RAG_ADMIN_OWNER_ID", ""),
+    "origin": os.environ.get("RAG_ADMIN_ORIGIN", ""),
+}
+if ADMIN_AUTH == "proxy":
+    # Reject bad ingress configuration before opening persistent private state.
+    AdminWorkspaceBoundary(None, **ADMIN_PROXY_CONFIG)
 
 DEMO_KB_ID = "cmrc2018-demo" if PUBLIC_DEMO else os.environ.get("DEMO_KB_ID", "cmrc2018-demo")
 DEMO_KB_DIR = KB_DIR / DEMO_KB_ID
@@ -859,7 +872,7 @@ async def chat(req: Request) -> JSONResponse:
     if api_key is not None and not _web_key_origin_allowed(req):
         raise HTTPException(status_code=403, detail="个人 API Key 仅允许通过 HTTPS 或本机页面使用")
     body = await req.json()
-    user_id = body.get("user_id", "anon")
+    user_id = getattr(req.state, "admin_owner_id", body.get("user_id", "anon"))
     session_id = body.get("session_id", "s1")
     message = body.get("message", "")
     knowledge_base_ids = _selected_notebook_ids(body.get("knowledge_base_ids"))
@@ -883,14 +896,28 @@ def llm_config() -> JSONResponse:
     )
 
 
+@app.get("/api/admin/session")
+def admin_session(req: Request) -> JSONResponse:
+    return JSONResponse(
+        {
+            "mode": ADMIN_AUTH,
+            "user_id": getattr(req.state, "admin_owner_id", "local"),
+            "administrator": ADMIN_AUTH == "proxy",
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.get("/api/chat/stream")
 async def chat_stream(
+    req: Request,
     message: str,
     session_id: str = "s1",
     user_id: str = "u",
     knowledge_base_ids: str = DEMO_KB_ID,
 ):
     selected_ids = _selected_notebook_ids(knowledge_base_ids)
+    user_id = getattr(req.state, "admin_owner_id", user_id)
 
     async def gen():
         trace_id = uuid.uuid4().hex
@@ -934,6 +961,8 @@ if PUBLIC_DEMO:
         kb_id=DEMO_KB_ID,
     )
     app.add_middleware(PublicDemoBoundary)
+elif ADMIN_AUTH == "proxy":
+    app.add_middleware(AdminWorkspaceBoundary, **ADMIN_PROXY_CONFIG)
 
 
 @app.post("/api/demo/chat")

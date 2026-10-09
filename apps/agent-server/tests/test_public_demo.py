@@ -70,10 +70,22 @@ async def main():
         assert len(info["suggested_questions"]) == 8
         questions = [item["question"] for item in info["suggested_questions"]]
         assert s.index().path.endswith("public_demo.html")
+        page = await client.get("/")
+        assert page.status_code == 200
+        assert 'class="workspace public-workspace"' in page.text
+        assert 'id="sources-panel"' in page.text and 'id="studio-panel"' in page.text
+        assert 'id="question-options"' in page.text and 'id="answer-content"' in page.text
+        for forbidden in ["knowledge_demo.js", 'id="upload-form"', 'id="key-config-input"', 'id="notebook-name"', 'id="m"']:
+            assert forbidden not in page.text
+        for asset in ["/static/knowledge_demo.css", "/static/public_demo.css", "/static/public_demo.js"]:
+            assert (await client.get(asset)).status_code == 200, asset
+        for asset in ["/static/index.html", "/static/knowledge_demo.js", "/static/public_demo.html", "/static/no-such-file"]:
+            assert (await client.get(asset)).status_code == 403, asset
         for method, path in [("POST", "/api/chat"), ("GET", "/api/chat/stream"), ("POST", "/api/notebooks"), ("POST", "/api/notebooks/anything/files"), ("GET", "/api/notebooks"), ("GET", "/api/llm/config"), ("GET", "/docs"), ("GET", "/openapi.json"), ("DELETE", "/api/demo"), ("HEAD", "/api/demo")]:
             assert (await client.request(method, path)).status_code == 403, (method, path)
         for header in ["authorization", "x-deepseek-api-key"]:
             assert (await client.post("/api/demo/chat", json={"question": questions[0]}, headers={header: "placeholder"})).status_code == 403
+        assert (await client.get("/api/admin/session")).status_code == 403
         for payload in [{}, [], {"question": 4}, {"question": "unknown"}, {"question": questions[0] + " "}, {"question": questions[0], "knowledge_base_ids": []}, {"question": questions[0], "user_id": "private"}, {"question": questions[0], "key": "placeholder"}]:
             assert (await client.post("/api/demo/chat", json=payload)).status_code == 422
         for body, content_type in [("{}", "text/plain"), ("{", "application/json"), (" " * 4097, "application/json"), ('{"question":"x","question":"x"}', "application/json")]:
@@ -92,6 +104,37 @@ async def main():
         assert all(hit["source_id"].startswith("cmrc2018-demo/") for e in rag for hit in e["meta"].get("hits", []))
         again = (await client.post("/api/demo/chat", json={"question": questions[0]})).json()
         assert again == {**result, "cache_hit": True}
+        # Browser credentials are allowed only on this route and secure same origin.
+        for origin in ["http://demo.test", "https://elsewhere.test", "https://demo.test/path", "null"]:
+            rejected = await client.post("/api/demo/chat", json={"question": questions[0]}, headers={"origin": origin, "x-deepseek-api-key": "temporary-placeholder"})
+            assert rejected.status_code == 403
+        for value in [" ", "x" * 513]:
+            rejected = await client.post("/api/demo/chat", json={"question": questions[0]}, headers={"origin": "https://demo.test", "x-deepseek-api-key": value})
+            assert rejected.status_code == 422
+        assert (await client.get("/api/demo", headers={"x-deepseek-api-key": "placeholder"})).status_code == 403
+        keys = []
+        def request_model(key, base, model):
+            keys.append(key)
+            return original
+        with patch("request_provider.make_provider", side_effect=request_model):
+            keyed = []
+            for key in ["first-placeholder", "second-placeholder"]:
+                response = await client.post("/api/demo/chat", json={"question": questions[0]}, headers={"origin": "https://demo.test", "x-deepseek-api-key": key})
+                assert response.status_code == 200, response.text
+                keyed.append(response.json())
+            assert keys == ["first-placeholder", "second-placeholder"]
+            assert all(item["provider"] == "deepseek" and not item["cache_hit"] for item in keyed)
+            assert len({item["trace_id"] for item in keyed} | {result["trace_id"]}) == 3
+        assert s.request_provider.for_request() is original
+        assert s.public_demo._cache[questions[0]][1] == result
+        assert (await client.post("/api/demo/chat", json={"question": questions[0]})).json() == {**result, "cache_hit": True}
+        # Upstream exception data is sanitized before it reaches error spans.
+        with patch("request_provider.make_provider", return_value=Failure()):
+            response = await client.post("/api/demo/chat", json={"question": questions[0]}, headers={"origin": "https://demo.test", "x-deepseek-api-key": "secret-sentinel-must-not-leak"})
+            assert response.status_code == 502 and "secret-sentinel" not in response.text
+            latest_trace = s.public_demo._trace_ids[-1]
+            assert "secret-sentinel" not in json.dumps(s.public_demo.trace(latest_trace))
+        assert s.request_provider.for_request() is original
         s.trace_store.record(SpanEvent("private-trace", "agent", 1, 2))
         assert (await client.get("/api/trace/private-trace")).json() == []
 

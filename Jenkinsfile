@@ -2,6 +2,7 @@ pipeline {
     agent { label 'media-workspace-agent' }
     parameters {
         booleanParam(name: 'DeployDemo', defaultValue: false, description: '发布通过测试的私有服务')
+        booleanParam(name: 'DeployAdminWorkspace', defaultValue: false, description: '发布已验证的隔离管理员工作区')
         booleanParam(name: 'DeployPublicDemo', defaultValue: false, description: '发布隔离的只读公开演示')
         choice(name: 'PublicDemoProvider', choices: ['mock', 'deepseek'], description: '新部署选 mock：服务器无 key，Web 手动临时 key')
     }
@@ -82,6 +83,14 @@ pipeline {
         stage('发布只读公开演示') {
             when { expression { params.DeployPublicDemo } }
             steps { sh 'BUILD_NUMBER="$BUILD_NUMBER" PUBLIC_DEMO_PROVIDER="$PublicDemoProvider" sh scripts/deploy_public_demo.sh' }
+        }
+        stage('发布管理员笔记本工作区') {
+            when {
+                expression { params.DeployAdminWorkspace }
+            }
+            steps {
+                sh 'BUILD_NUMBER="$BUILD_NUMBER" sh scripts/deploy_admin_workspace.sh'
+            }
         }
     }
     post {

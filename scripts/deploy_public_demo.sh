@@ -6,7 +6,7 @@ IMAGE=ai-rag-public:local
 CANDIDATE=ai-rag-public:candidate-${BUILD_NUMBER}
 BACKUP=ai-rag-public:rollback-${BUILD_NUMBER}
 ENV_FILE=${PUBLIC_DEMO_ENV_FILE:-/home/ubuntu/.config/ai-rag/public-demo.env}
-PUBLIC_DEMO_PROVIDER=${PUBLIC_DEMO_PROVIDER:-deepseek}
+PUBLIC_DEMO_PROVIDER=${PUBLIC_DEMO_PROVIDER:-mock}
 case "$PUBLIC_DEMO_PROVIDER" in
     deepseek) ;;
     mock)

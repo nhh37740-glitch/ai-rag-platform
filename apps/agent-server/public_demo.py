@@ -27,7 +27,14 @@ class PublicDemoBoundary:
         credential = b"authorization" in headers or (
             b"x-deepseek-api-key" in headers and not (method == "POST" and path == "/api/demo/chat")
         )
-        readable = path in {"/", "/api/demo"} or path.startswith("/static/")
+        # StaticFiles shares the private webui directory. Only the public page's
+        # styles and script are needed; do not serve the private UI or its script.
+        readable = path in {
+            "/", "/api/demo",
+            "/static/knowledge_demo.css",
+            "/static/public_demo.css",
+            "/static/public_demo.js",
+        }
         readable = readable or (
             path.startswith("/api/trace/") and len(path.split("/")) == 4
         )

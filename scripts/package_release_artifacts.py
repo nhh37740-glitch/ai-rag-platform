@@ -22,7 +22,7 @@ def sha256_tree(d: Path) -> str:
             p.is_file()
             and "__pycache__" not in p.parts
             and not {".git", "build", "dist", ".test-tmp", ".pytest_cache"}.intersection(p.parts)
-            and ".egg-info" not in p.parts
+            and not any(part.endswith(".egg-info") for part in p.parts)
             and p.suffix not in (".c", ".pyd", ".so", ".pyc")
         ):
             h.update(p.relative_to(d).as_posix().encode("utf-8"))

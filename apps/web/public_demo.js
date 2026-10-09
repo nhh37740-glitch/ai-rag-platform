@@ -30,7 +30,8 @@
     byId("trace-retry-button").disabled = busy;
     byId("apply-key").disabled = busy || !secureKeyPage;
     byId("clear-key").disabled = busy;
-    byId("ask-button").textContent = busy ? "正在等待服务器…" : "开始问答 ↗";
+    byId("ask-button").setAttribute("aria-label", busy ? "正在等待服务器" : "开始问答");
+    byId("ask-button").title = busy ? "正在等待服务器" : "开始问答";
     byId("answer").setAttribute("aria-busy", String(busy));
   }
   function showModes(data) {
@@ -77,6 +78,7 @@
       state.selected = questions[0].question;
       showModes(data);
       byId("dataset").textContent = `${data.name || "CMRC2018 公开中文资料"} · 已导入 ${data.imported ?? "未知"}/${data.documents ?? "未知"} 篇 · ${questions.length} 个精选问题`;
+      byId("selection-note").textContent = questions[0].question;
       const fieldset = byId("question-options");
       fieldset.replaceChildren(node("legend", "选择精选问题", "visually-hidden"));
       questions.forEach((item, index) => {
@@ -86,7 +88,7 @@
         radio.name = "question";
         radio.value = item.question;
         radio.checked = index === 0;
-        radio.addEventListener("change", () => { state.selected = item.question; });
+        radio.addEventListener("change", () => { state.selected = item.question; byId("selection-note").textContent = item.question; });
         const text = node("span");
         text.append(node("span", item.topic || "公开资料", "topic"), node("span", item.question, "question-text"));
         label.append(radio, text);
@@ -101,6 +103,10 @@
   }
   function resetResult(question) {
     state.traceId = "";
+    byId("empty-state").hidden = true;
+    byId("log").hidden = false;
+    byId("user-message").hidden = false;
+    byId("question-picker").open = false;
     byId("answered-question").hidden = false;
     byId("answered-question").textContent = question;
     byId("answer-note").textContent = "正在等待实际模型与检索返回；当前接口完成后一次性显示答案。";
@@ -111,7 +117,7 @@
     byId("raw-answer").textContent = "";
     byId("source-list").replaceChildren(node("p", "等待本次实际检索记录。", "empty"));
     byId("execution-list").replaceChildren(node("p", "等待本次真实执行记录。", "empty"));
-    byId("source-count").textContent = "等待检索";
+    byId("source-count").textContent = "…";
     byId("span-count").textContent = "等待执行";
     byId("trace-note").textContent = "";
     byId("trace-retry-button").hidden = true;
@@ -127,7 +133,8 @@
     if (data.provider === "mock" && typeof data.answer === "string") {
       try {
         const parsed = JSON.parse(data.answer);
-        byId("answer-content").textContent = JSON.stringify(parsed, null, 2);
+        const hitCount = parsed && Number.isInteger(parsed.hit_count) && parsed.hit_count >= 0 ? parsed.hit_count : null;
+        byId("answer-content").textContent = `${hitCount === null ? "本次工具流程已完成。" : `本次检索返回 ${hitCount} 个片段。`}请在左侧核对原文，在右侧查看执行记录。当前离线演示尚未生成自然语言答案。`;
         byId("raw-answer").textContent = data.answer;
         byId("raw-answer-details").hidden = false;
       } catch { /* Plain Mock text is displayed verbatim. */ }
@@ -149,7 +156,7 @@
     }
     const list = byId("source-list");
     list.replaceChildren();
-    byId("source-count").textContent = `${sources.length} 条实际命中`;
+    byId("source-count").textContent = String(sources.length);
     sources.forEach(({ hit, span }, index) => {
       const article = node("article", undefined, "source-card");
       article.append(node("h3", `${index + 1}. ${hit.title || "未提供标题"}`), node("p", hit.source_id || "未提供 source_id", "source-id"), node("p", hit.text_preview || "此记录没有提供原文片段。", "source-preview"));
@@ -192,7 +199,7 @@
       return true;
     } catch (error) {
       byId("trace-note").textContent = `回答已返回，但执行记录读取失败：${error.message || "连接失败"}`;
-      byId("source-count").textContent = "记录暂不可用";
+      byId("source-count").textContent = "—";
       byId("span-count").textContent = "记录暂不可用";
       byId("trace-retry-button").hidden = false;
       return false;
@@ -219,7 +226,7 @@
       byId("answer-content").textContent = "本次没有取得可用答案。";
       byId("answer-note").textContent = "请查看请求错误并重试。";
       byId("cache-badge").textContent = "请求失败";
-      byId("source-count").textContent = "未取得记录";
+      byId("source-count").textContent = "0";
       byId("span-count").textContent = "未取得记录";
       status("本次请求失败。");
       showError(error.message || "网络连接失败，请检查连接后重试。", "question");
@@ -251,5 +258,21 @@
       setBusy(false);
     }
   });
+  for (const name of ["sources", "studio"]) {
+    const panel = byId(`${name}-panel`);
+    const collapse = byId(`collapse-${name}`);
+    collapse.addEventListener("click", () => {
+      if (window.matchMedia("(max-width: 900px)").matches) {
+        panel.classList.remove("mobile-open");
+      } else {
+        const collapsed = panel.classList.toggle("is-collapsed");
+        collapse.setAttribute("aria-expanded", String(!collapsed));
+      }
+    });
+    byId(`show-${name}`).addEventListener("click", () => {
+      byId(name === "sources" ? "studio-panel" : "sources-panel").classList.remove("mobile-open");
+      panel.classList.add("mobile-open");
+    });
+  }
   loadMetadata();
 })();

@@ -39,8 +39,9 @@
     <div class="header-actions">
       <p id="demo-status" class="dataset-status" aria-live="polite"></p>
       <button id="open-key-config" class="key-config-btn" type="button" aria-haspopup="dialog">DeepSeek 设置</button>
-      <span class="local-pill"><span class="online-dot"></span>本地运行</span>
-      <span class="profile-chip" aria-label="当前用户">Z</span>
+      <button id="admin-logout" class="key-config-btn" type="button" hidden>退出登录</button>
+      <span class="local-pill"><span class="online-dot"></span><span id="workspace-mode-label">正在验证身份</span></span>
+      <span id="admin-identity" class="profile-chip" aria-label="管理员知识工作区">Z</span>
     </div>
   </header>
 

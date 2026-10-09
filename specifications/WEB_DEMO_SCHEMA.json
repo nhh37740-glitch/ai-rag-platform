@@ -1,23 +1,62 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Public read-only RAG demo HTTP contract",
-  "version": "1.0.0",
+  "title": "Public read-only RAG demo HTTP specification",
+  "version": "1.1.0",
   "endpoints": {
     "GET /api/demo": {
       "description": "Existing corpus metadata plus public mode information; suggested_questions are the only permitted input questions.",
       "mode_fields": {
-        "public_demo": {"type": "boolean"},
-        "read_only": {"type": "boolean"},
-        "provider": {"enum": ["mock", "deepseek"]},
-        "embedding": {"enum": ["hash", "fastembed"]}
+        "public_demo": {
+          "type": "boolean"
+        },
+        "read_only": {
+          "type": "boolean"
+        },
+        "provider": {
+          "enum": [
+            "mock",
+            "deepseek"
+          ]
+        },
+        "embedding": {
+          "enum": [
+            "hash",
+            "fastembed"
+          ]
+        }
       }
     },
     "POST /api/demo/chat": {
-      "request": {"$ref": "#/$defs/ChatRequest"},
-      "response": {"$ref": "#/$defs/ChatResponse"},
-      "errors": [403, 404, 422, 429, 502, 504],
-      "limits": {"max_body_bytes": 4096, "max_inflight": 1, "timeout_seconds": 90, "success_cache_ttl_seconds": 300},
-      "description": "Only available in public mode. Reject browser credentials and non-featured questions; server fixes scope and request identities. Successful response requires actual in-scope retrieval hits."
+      "request": {
+        "$ref": "#/$defs/ChatRequest"
+      },
+      "response": {
+        "$ref": "#/$defs/ChatResponse"
+      },
+      "errors": [
+        403,
+        404,
+        422,
+        429,
+        502,
+        504
+      ],
+      "limits": {
+        "max_body_bytes": 4096,
+        "max_inflight": 1,
+        "timeout_seconds": 90,
+        "success_cache_ttl_seconds": 300
+      },
+      "description": "Featured questions only; optional request header x-deepseek-api-key requires secure same-origin Origin. Server fixes scope and identities; keyed requests bypass shared cache. Successful response requires in-scope retrieval.",
+      "request_headers": {
+        "x-deepseek-api-key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "optional": true,
+          "secure_same_origin": true
+        }
+      }
     },
     "GET /api/trace/{trace_id}": {
       "description": "Existing SpanEvent array for this isolated public process only; no synthetic spans or private-service data."
@@ -26,23 +65,62 @@
   "$defs": {
     "ChatRequest": {
       "type": "object",
-      "required": ["question"],
+      "required": [
+        "question"
+      ],
       "additionalProperties": false,
-      "properties": {"question": {"type": "string", "minLength": 1, "maxLength": 1024}},
+      "properties": {
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      },
       "description": "question must exactly equal an item in GET /api/demo suggested_questions; allowlist is checked at runtime."
     },
     "ChatResponse": {
       "type": "object",
-      "required": ["answer", "trace_id", "knowledge_base_ids", "provider", "embedding", "read_only", "cache_hit"],
+      "required": [
+        "answer",
+        "trace_id",
+        "knowledge_base_ids",
+        "provider",
+        "embedding",
+        "read_only",
+        "cache_hit"
+      ],
       "additionalProperties": false,
       "properties": {
-        "answer": {"type": "string"},
-        "trace_id": {"type": "string", "pattern": "^[a-f0-9]{32}$"},
-        "knowledge_base_ids": {"const": ["cmrc2018-demo"]},
-        "provider": {"enum": ["mock", "deepseek"]},
-        "embedding": {"enum": ["hash", "fastembed"]},
-        "read_only": {"const": true},
-        "cache_hit": {"type": "boolean"}
+        "answer": {
+          "type": "string"
+        },
+        "trace_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "knowledge_base_ids": {
+          "const": [
+            "cmrc2018-demo"
+          ]
+        },
+        "provider": {
+          "enum": [
+            "mock",
+            "deepseek"
+          ]
+        },
+        "embedding": {
+          "enum": [
+            "hash",
+            "fastembed"
+          ]
+        },
+        "read_only": {
+          "const": true
+        },
+        "cache_hit": {
+          "type": "boolean"
+        }
       }
     }
   }
