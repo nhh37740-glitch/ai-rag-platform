@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir --no-deps -e contracts \
          fi; \
        done
 RUN python -m pytest -q modules-src \
-    && sh -n scripts/deploy_compose.sh scripts/deploy_public_demo.sh \
+    && sh -n scripts/deploy_compose.sh scripts/deploy_public_demo.sh scripts/deploy_admin_workspace.sh \
     && python -m pytest -q scripts/tests
 
 RUN python scripts/compile_extension_modules.py \

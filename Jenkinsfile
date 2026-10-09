@@ -11,6 +11,11 @@ pipeline {
             defaultValue: false,
             description: 'Publish the isolated read-only interview demo after live candidate smoke.'
         )
+        booleanParam(
+            name: 'DeployAdminWorkspace',
+            defaultValue: false,
+            description: 'Deploy isolated owner login and guarded private notebook services after candidate import and Media auth smoke.'
+        )
         choice(
             name: 'PublicDemoProvider',
             choices: ['deepseek', 'mock'],
@@ -53,6 +58,14 @@ pipeline {
             }
             steps {
                 sh 'BUILD_NUMBER="$BUILD_NUMBER" PUBLIC_DEMO_PROVIDER="$PublicDemoProvider" sh scripts/deploy_public_demo.sh'
+            }
+        }
+        stage('Deploy owner notebook workspace') {
+            when {
+                expression { params.DeployAdminWorkspace }
+            }
+            steps {
+                sh 'BUILD_NUMBER="$BUILD_NUMBER" sh scripts/deploy_admin_workspace.sh'
             }
         }
     }
