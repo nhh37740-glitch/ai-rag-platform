@@ -85,6 +85,7 @@ async def main():
             assert (await client.request(method, path)).status_code == 403, (method, path)
         for header in ["authorization", "x-deepseek-api-key"]:
             assert (await client.post("/api/demo/chat", json={"question": questions[0]}, headers={header: "placeholder"})).status_code == 403
+        assert (await client.get("/api/admin/session")).status_code == 403
         for payload in [{}, [], {"question": 4}, {"question": "unknown"}, {"question": questions[0] + " "}, {"question": questions[0], "knowledge_base_ids": []}, {"question": questions[0], "user_id": "private"}, {"question": questions[0], "key": "placeholder"}]:
             assert (await client.post("/api/demo/chat", json=payload)).status_code == 422
         for body, content_type in [("{}", "text/plain"), ("{", "application/json"), (" " * 4097, "application/json"), ('{"question":"x","question":"x"}', "application/json")]:

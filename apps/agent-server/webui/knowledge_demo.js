@@ -772,6 +772,20 @@ dom.uploadForm.onsubmit = async (event) => {
 
 // ---------------------------------------------------------------- 启动
 
+fetch("/api/admin/session")
+  .then(async (response) => {
+    if (!response.ok) throw new Error("管理员会话已失效，请重新登录。");
+    const session = await response.json();
+    $("workspace-mode-label").textContent = session.administrator ? "管理员工作区" : "本地工作区";
+    $("admin-identity").title = session.administrator ? "已通过拥有者管理员认证" : "本地工作区";
+  })
+  .catch((error) => {
+    $("workspace-mode-label").textContent = "会话已失效";
+    dom.toggleCreate.disabled = true;
+    dom.openUpload.disabled = true;
+    setStatus(dom.notebookStatus, error.message, "error");
+  });
+
 fetch("/api/demo")
   .then((response) => {
     if (!response.ok) throw new Error("demo unavailable");
