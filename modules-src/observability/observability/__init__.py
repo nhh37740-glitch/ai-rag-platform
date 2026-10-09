@@ -5,9 +5,9 @@ import time
 from collections import deque
 from typing import Dict, List
 
-from core_contracts import RequestContext, SpanEvent
+from core_specifications import RequestContext, SpanEvent
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 class TraceStore:

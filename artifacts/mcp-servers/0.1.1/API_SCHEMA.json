@@ -1,0 +1,8 @@
+{
+  "module": "mcp_servers",
+  "version": "0.1.1",
+  "public_api": [
+    "MockMcpServer",
+    "build_default_server"
+  ]
+}

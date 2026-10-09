@@ -1,0 +1,44 @@
+{
+  "package": "tool_runtime",
+  "delivery": "Cython extension (.pyd/.so)",
+  "version": "0.2.1",
+  "facade": {
+    "tool": {
+      "kind": "function",
+      "params": {
+        "name": "str",
+        "description": "str",
+        "parameters": "dict",
+        "context_aware": "bool=false"
+      },
+      "returns": "callable(decorator)"
+    },
+    "ToolRegistry": {
+      "kind": "class",
+      "methods": {
+        "register": {
+          "params": {
+            "t": "ToolDef",
+            "fn": "callable",
+            "context_aware": "bool=false"
+          },
+          "returns": "None"
+        },
+        "list": {
+          "params": {
+            "ctx": "RequestContext|null"
+          },
+          "returns": "list[ToolDef]"
+        },
+        "execute": {
+          "params": {
+            "ctx": "RequestContext",
+            "call": "ToolCall",
+            "runtime_context": "dict|null"
+          },
+          "returns": "str"
+        }
+      }
+    }
+  }
+}

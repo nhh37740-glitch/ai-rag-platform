@@ -1,0 +1,9 @@
+{
+  "module": "rag_tools",
+  "version": "0.3.1",
+  "public_api": [
+    "MAX_TOP_K",
+    "MIN_TOP_K",
+    "RagTools"
+  ]
+}

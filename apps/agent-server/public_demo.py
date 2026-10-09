@@ -7,7 +7,7 @@ import time
 import uuid
 from collections import OrderedDict, deque
 
-from core_contracts import RequestContext
+from core_specifications import RequestContext
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -24,7 +24,9 @@ class PublicDemoBoundary:
             return
         path, method = scope["path"], scope["method"]
         headers = {key.lower() for key, _ in scope.get("headers", [])}
-        credential = bool(headers & {b"x-deepseek-api-key", b"authorization"})
+        credential = b"authorization" in headers or (
+            b"x-deepseek-api-key" in headers and not (method == "POST" and path == "/api/demo/chat")
+        )
         readable = path in {"/", "/api/demo"} or path.startswith("/static/")
         readable = readable or (
             path.startswith("/api/trace/") and len(path.split("/")) == 4
@@ -107,13 +109,13 @@ class PublicDemo:
             raise HTTPException(422, "请选择公开演示中的固定问题")
         return question
 
-    async def chat(self, request: Request):
+    async def chat(self, request: Request, *, temporary_key=False):
         question = await self._question(request)
         now = time.monotonic()
         for old_question, (expires, _) in list(self._cache.items()):
             if expires <= now:
                 del self._cache[old_question]
-        cached = self._cache.get(question)
+        cached = None if temporary_key else self._cache.get(question)
         if cached and self.trace(cached[1]["trace_id"]):
             return JSONResponse({**cached[1], "cache_hit": True}, headers={"Cache-Control": "no-store"})
         # No await between the busy check and assignment: atomic within one event loop.
@@ -155,10 +157,11 @@ class PublicDemo:
             raise HTTPException(502, "未获得成功的内置资料检索结果")
         result = {
             "answer": answer, "trace_id": trace_id, "knowledge_base_ids": [self.kb_id],
-            "provider": self.provider, "embedding": self.embedding,
+            "provider": "deepseek" if temporary_key else self.provider, "embedding": self.embedding,
             "read_only": True, "cache_hit": False,
         }
-        self._cache[question] = (time.monotonic() + self.cache_seconds, result)
+        if not temporary_key:
+            self._cache[question] = (time.monotonic() + self.cache_seconds, result)
         return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
     @staticmethod

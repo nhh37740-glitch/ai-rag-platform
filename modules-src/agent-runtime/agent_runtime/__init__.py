@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import threading
 import time
+from copy import deepcopy
 from typing import Dict, List, Optional, Tuple
 
-from core_contracts import ChatMessage, RequestContext, SpanEvent
-from llm_gateway import LLMProvider
-from memory import MemoryStore
-from observability import ASpan, TraceStore
+from core_specifications import ChatMessage, LLMProviderPort, MemoryStorePort, RequestContext, SpanEvent, TraceStorePort
+from observability import ASpan
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.3.3"
+__version__ = "0.4.0"
 
 RETRIEVAL_TOOL_NAMES = frozenset(
     {
@@ -42,11 +41,11 @@ class AgentRuntime:
 
     def __init__(
         self,
-        provider: LLMProvider,
-        memory: MemoryStore,
+        provider: LLMProviderPort,
+        memory: MemoryStorePort,
         tools: ToolRegistry,
         skills: SkillRegistry,
-        tracing: TraceStore,
+        tracing: TraceStorePort,
         max_tool_rounds: int = 10,
     ) -> None:
         if max_tool_rounds < 10:
@@ -61,9 +60,13 @@ class AgentRuntime:
         self._history_lock = threading.Lock()
 
     def _history(self, ctx: RequestContext) -> List[ChatMessage]:
+        return self.history(ctx)
+
+    def history(self, ctx: RequestContext) -> list[ChatMessage]:
+        """Return an isolated snapshot for this user and session."""
         key = (ctx.user_id, ctx.session_id)
         with self._history_lock:
-            return list(self._histories.get(key, []))
+            return deepcopy(self._histories.get(key, []))
 
     def _remember_turn(self, ctx: RequestContext, user_input: str, answer: str) -> None:
         key = (ctx.user_id, ctx.session_id)

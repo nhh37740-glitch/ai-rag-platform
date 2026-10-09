@@ -18,7 +18,7 @@ sys.path.insert(0, str(SERVER))
 os.environ["RAG_EMBED"] = "hash"
 
 import server as server_app  # noqa: E402
-from core_contracts import RequestContext  # noqa: E402
+from core_specifications import RequestContext  # noqa: E402
 from rag_core import retrieve  # noqa: E402
 
 
@@ -82,7 +82,7 @@ class DemoKnowledgeBaseTests(unittest.TestCase):
         self.assertTrue(any("静电感应" in item.source_id for item in result.citations))
 
     def test_agent_receives_all_real_project_tools(self) -> None:
-        names = [tool.name for tool in server_app.tools.list(RequestContext("t", "r"))]
+        names = [tool.name for tool in server_app.runtime.tool_definitions(RequestContext("t", "r"))]
         self.assertEqual(
             names,
             [

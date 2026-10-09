@@ -1,6 +1,6 @@
 import unittest
 
-from core_contracts import RequestContext, ToolCall, ToolDef
+from core_specifications import RequestContext, ToolCall, ToolDef
 from tool_runtime import ToolRegistry, default_registry, tool
 
 

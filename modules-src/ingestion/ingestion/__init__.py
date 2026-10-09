@@ -8,9 +8,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Callable, List
 
-from core_contracts import RequestContext
+from core_specifications import RequestContext
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 _NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 SUPPORTED_EXTENSIONS = frozenset({".md", ".txt", ".docx", ".pdf"})

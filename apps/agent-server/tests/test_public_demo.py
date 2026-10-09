@@ -37,10 +37,10 @@ with patch.object(Path, "glob", guarded_glob), patch.object(Path, "iterdir", gua
     import server as s
 
 import httpx
-from core_contracts import RequestContext, SpanEvent
+from core_specifications import RequestContext, SpanEvent
 assert s.DEMO_KB_ID == "cmrc2018-demo"
-assert isinstance(s.provider, s.MockProvider), "mock must override any configured server key"
-assert len(s.tools.list(RequestContext("t", "r"))) == 5
+assert type(s.provider).__name__ == "MockProvider", "mock must override any configured server key"
+assert len(s.runtime.tool_definitions(RequestContext("t", "r"))) == 5
 assert all(source.startswith("cmrc2018-demo/") for source, _ in s.vector_store.list_documents())
 original = s.provider
 
@@ -97,11 +97,11 @@ async def main():
 
         s.public_demo._cache.clear()
         from rag_core import InMemoryVectorStore
-        populated_rag_tools = s.rag_tools
-        s.rag_tools = s.RagTools(InMemoryVectorStore(), s.trace_store)
+        populated_rag_service = s.rag_service
+        s.rag_service = s.RagService(InMemoryVectorStore(), s.trace_store)
         assert (await client.post("/api/demo/chat", json={"question": questions[0]})).status_code == 502
         assert not s.public_demo._cache
-        s.rag_tools = populated_rag_tools
+        s.rag_service = populated_rag_service
         try:
             s._read_knowledge_document("private/doc", ctx=RequestContext("outside-tool", "r"), runtime_context={"knowledge_base_ids": ["private"]})
             raise AssertionError("read tool accepted source outside CMRC")
@@ -203,8 +203,8 @@ class PublicDemoIntegrationTests(unittest.TestCase):
 import asyncio
 import httpx
 import server as s
-from core_contracts import RequestContext
-assert len(s.tools.list(RequestContext("t", "r"))) == 7
+from core_specifications import RequestContext
+assert len(s.runtime.tool_definitions(RequestContext("t", "r"))) == 7
 assert s.runtime.provider is s.request_provider
 assert s.index().path.endswith("index.html")
 async def main():

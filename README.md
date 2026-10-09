@@ -2,14 +2,14 @@
 
 上传研发文档，在所选笔记本内查资料、返回来源，并通过 trace 查看检索与工具调用过程。当前 Web 使用自写 Python Agent 循环，集成 RAG、Agent Skills、Function Calling、记忆和链路追踪；MCP 是独立模块，尚未接入该 Web。
 
-准备面试先读 [`docs/INTERVIEW.md`](docs/INTERVIEW.md)：一条请求链路、三天练习安排、演示步骤及能力边界。当前没有 LangChain/LangGraph/Hermes 实践实现，也没有可信的回答质量提升数据。2026-10-08 本机二进制链路和 7 项应用演示测试通过，契约检查有 3 处产物签名不一致，详情见 [`docs/PLAN.md`](docs/PLAN.md#三天面试准备与事实核对2026-10-08)。
+准备面试先读 [`docs/INTERVIEW.md`](docs/INTERVIEW.md)：一条请求链路、三天练习安排、演示步骤及能力边界。当前没有 LangChain/LangGraph/Hermes 实践实现，也没有可信的回答质量提升数据。2026-10-08 本机二进制链路和 7 项应用演示测试通过，接口规范检查有 3 处产物签名不一致，详情见 [`docs/PLAN.md`](docs/PLAN.md#三天面试准备与事实核对2026-10-08)。
 
 文档入口：[`docs/PLAN.md`](docs/PLAN.md) 是唯一实施计划；[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 解释模块关系；[`docs/MANUAL_COMPILATION.md`](docs/MANUAL_COMPILATION.md) 提供手动编译顺序。
 
 ## 目录职责
 
 ```text
-contracts/                  共享类型、接口契约与契约测试
+specifications/                  共享类型、接口接口规范与接口规范测试
 modules-src/                各独立模块的实现源码
 artifacts/                  手动编译和发布后生成的版本化交付物
 apps/agent-server/server.py FastAPI 服务与模块装配入口
@@ -26,8 +26,24 @@ registry.json               模块版本、校验和与发布状态
 
 - `compile_extension_modules.py`：编译进程内 Python 扩展模块。
 - `compile_service_executables.ps1`：编译独立服务可执行文件。
-- `package_release_artifacts.py`：生成发布契约、校验和与注册表。
+- `package_release_artifacts.py`：生成发布接口规范、校验和与注册表。
 - `verify_compiled_runtime.py`：验收二进制模式；业务模块必须全部来自 `artifacts/`，源码模式会被运行边界拒绝。
+
+## 三个中间模块（2026-10-09）
+
+服务通过 `AgentService`、`RagService`、`DataService` 装配；共享接口见 [specifications/DOMAIN_INTERFACES.md](specifications/DOMAIN_INTERFACES.md)。网页位于 `apps/web/`，仅调用 API。三个中间包和所有一级实现均编译交付，服务拒绝源码加载。
+
+```powershell
+.venv/Scripts/python.exe scripts/run_tests.py --mode source --group leaf
+.venv/Scripts/python.exe scripts/run_tests.py --mode source --group facade
+.venv/Scripts/python.exe scripts/compile_extension_modules.py
+.venv/Scripts/python.exe scripts/package_release_artifacts.py
+.venv/Scripts/python.exe scripts/run_tests.py --mode binary --group specification
+.venv/Scripts/python.exe scripts/run_tests.py --mode binary --group domain
+.venv/Scripts/python.exe scripts/run_tests.py --mode binary --group app
+```
+
+Jenkins 每次构建通过 secret text 凭据 `rag-deepseek-api-key` 跑真实模型验收；凭据不进入源码、前端和发布包。检索回归跑 CMRC 全99题，模型验收跑两道固定题。Linux 部署回滚测试在 Linux 环境运行。
 
 ## 中文 RAG 演示
 
@@ -75,14 +91,14 @@ Agent 实际获得七个真实工具：五个由 `rag-tools` 模块公布的知�
 .\scripts\compile_service_executables.ps1
 .\.venv\Scripts\python.exe scripts/package_release_artifacts.py
 .\.venv\Scripts\python.exe scripts/verify_compiled_runtime.py
-.\.venv\Scripts\python.exe -m pytest contracts/test_contract.py
+.\.venv\Scripts\python.exe -m pytest specifications/test_specification.py
 ```
 
 总体方案见 [`docs/PLAN.md`](docs/PLAN.md)，架构说明见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
 
 ## Linux Docker 与 Jenkins 交付
 
-根仓库是当前发布单元；`modules-src/` 中每个模块保留独立包、接口和版本，构建阶段用 Cython 编译为 Linux `.so`，运行镜像只包含 `artifacts/` 中的扩展、契约、应用、技能和演示语料。`runtime_boundary.py` 在启动时验证模块来源，缺少扩展时拒绝启动。
+根仓库是当前发布单元；`modules-src/` 中每个模块保留独立包、接口和版本，构建阶段用 Cython 编译为 Linux `.so`，运行镜像只包含 `artifacts/` 中的扩展、接口规范、应用、技能和演示语料。`runtime_boundary.py` 在启动时验证模块来源，缺少扩展时拒绝启动。
 
 在有 Docker Compose 的 Linux 主机上，从仓库根目录运行：
 
@@ -94,8 +110,8 @@ curl -f http://127.0.0.1:18080/api/demo
 
 默认只监听服务器回环地址的 `18080` 端口，供同机反向代理使用。Compose 显式设置 `RAG_EMBED=hash`，这样无需下载模型即可启动演示；需要 BGE 语义向量时，配置 `RAG_EMBED=fastembed`，模型缓存使用独立 volume。数据库、向量索引、用户笔记本和 Agent 文件分别用 volume 持久化。`DEEPSEEK_API_KEY` 留空时继续使用 Mock；实际密钥仅通过 Jenkins 凭据或服务器环境变量注入。
 
-`Jenkinsfile` 假设 Jenkins agent 运行在目标 Linux Docker 主机且有 Docker/Compose 权限。流水线执行模块单测、Linux 编译、严格契约测试、应用端到端测试和二进制运行边界验证；然后归档 `dist/ai-rag-platform-<version>-<platform>.zip`、SHA-256 与逐文件清单。`DeployDemo` 和 `DeployPublicDemo` 默认关闭，分别选择私有工作区与独立公开服务。候选健康检查或 smoke 失败时恢复旧镜像并重建容器；该流程不删除原服务命名卷。部署回滚测试在 Docker builder 阶段运行。ZIP 内不含 `modules-src/`。
+`Jenkinsfile` 假设 Jenkins agent 运行在目标 Linux Docker 主机且有 Docker/Compose 权限。流水线执行模块单测、Linux 编译、严格接口规范测试、应用端到端测试和二进制运行边界验证；然后归档 `dist/ai-rag-platform-<version>-<platform>.zip`、SHA-256 与逐文件清单。`DeployDemo` 和 `DeployPublicDemo` 默认关闭，分别选择私有工作区与独立公开服务。候选健康检查或 smoke 失败时恢复旧镜像并重建容器；该流程不删除原服务命名卷。部署回滚测试在 Docker builder 阶段运行。ZIP 内不含 `modules-src/`。
 
-公开演示使用 `compose.public-demo.yaml`，只监听服务器回环地址 `18106`，由主页反代到 `/projects/apps/rag/`。`PUBLIC_DEMO=1` 限定 CMRC2018、八个精选问题和五个只读检索工具；响应必须带成功检索来源，每次实际计算使用独立上下文。页面展示真实 provider、hash 检索基线、原始 trace 和五分钟缓存，不接受浏览器密钥或私人文件。DeepSeek 凭据保存在仓库外的服务器环境文件中，缺少凭据时拒绝启动。接口见 [`contracts/WEB_DEMO.md`](contracts/WEB_DEMO.md)。
+公开演示使用 `compose.public-demo.yaml`，只监听服务器回环地址 `18106`，由主页反代到 `/projects/apps/rag/`。`PUBLIC_DEMO=1` 限定 CMRC2018、八个精选问题和五个只读检索工具；响应必须带成功检索来源，每次实际计算使用独立上下文。页面展示真实 provider、hash 检索基线、原始 trace 和五分钟缓存，不接受浏览器密钥或私人文件。DeepSeek 凭据保存在仓库外的服务器环境文件中，缺少凭据时拒绝启动。接口见 [`specifications/WEB_DEMO.md`](specifications/WEB_DEMO.md)。
 
 [服务器公开入口](http://43.153.176.182:8088/projects/apps/rag/) 已于 2026-10-08 上线，当前模式为 **Mock + hash 的离线工具流程**，不代表真实模型回答质量。AI Jenkins #10、主页 #24 和八个问题的公网复验通过；记录见 PLAN 文末，三天学习与口述练习见 [`docs/INTERVIEW.md`](docs/INTERVIEW.md)。真实 DeepSeek 启用仍等待密钥目标授权。

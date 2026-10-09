@@ -1,134 +1,58 @@
-﻿{
-    "format":  2,
-    "context":  {
-                    "type":  "RequestContext",
-                    "package":  "contracts.core_contracts",
-                    "fields":  {
-                                   "trace_id":  "str",
-                                   "request_id":  "str",
-                                   "user_id":  "str",
-                                   "session_id":  "str"
-                               },
-                    "note":  "Every public facade method MUST accept this as its first argument, named \u0027ctx\u0027."
-                },
-    "shared_types":  {
-                         "ChatMessage":  {
-                                             "role":  "str",
-                                             "content":  "str",
-                                             "tool_call_id":  "str",
-                                             "name":  "str"
-                                         },
-                         "ToolCall":  {
-                                          "id":  "str",
-                                          "name":  "str",
-                                          "arguments":  "dict"
-                                      },
-                         "ToolDef":  {
-                                         "name":  "str",
-                                         "description":  "str",
-                                         "parameters":  "dict(json schema)"
-                                     },
-                         "Citation":  {
-                                          "source_id":  "str",
-                                          "title":  "str",
-                                          "text":  "str",
-                                          "score":  "float",
-                                          "metadata":  "dict"
-                                      },
-                         "RetrievalResult":  {
-                                                 "query":  "str",
-                                                 "contexts":  "list[str]",
-                                                 "citations":  "list[Citation]"
-                                             },
-                         "MemoryEntry":  {
-                                             "id":  "str",
-                                             "namespace":  "session|user",
-                                             "key":  "str",
-                                             "content":  "str",
-                                             "created":  "str",
-                                             "importance":  "float"
-                                         },
-                         "SkillDef":  {
-                                          "name":  "str",
-                                          "description":  "str",
-                                          "version":  "str",
-                                          "load":  "callable|null"
-                                      },
-                         "SpanEvent":  {
-                                           "trace_id":  "str",
-                                           "span":  "str",
-                                           "start_ns":  "int",
-                                           "end_ns":  "int",
-                                           "status":  "ok|error",
-                                           "error":  "str",
-                                           "meta":  "dict"
-                                       }
-                     },
-    "rules":  {
-                  "dependency_ceiling":  [
-                                             "stdlib",
-                                             "httpx",
-                                             "numpy",
-                                             "sklearn"
-                                         ],
-                  "tests":  "unittest (no pytest)",
-                  "ctx_first":  true,
-                  "compile_default":  "mypyc",
-                  "compile_fallback":  "Cython",
-                  "concurrency":  "sync methods that block IO are wrapped by caller via asyncio.to_thread"
-              },
-    "module":  {
-                   "package":  "memory",
-                   "delivery":  "mypyc",
-                   "version":  "0.0.0",
-                   "facade":  {
-                                  "MemoryStore":  {
-                                                      "kind":  "class",
-                                                      "methods":  {
-                                                                      "get":  {
-                                                                                  "params":  {
-                                                                                                 "ctx":  "RequestContext",
-                                                                                                 "namespace":  "str",
-                                                                                                 "key":  "str"
-                                                                                             },
-                                                                                  "returns":  "MemoryEntry|null"
-                                                                              },
-                                                                      "write":  {
-                                                                                    "params":  {
-                                                                                                   "ctx":  "RequestContext",
-                                                                                                   "namespace":  "str",
-                                                                                                   "key":  "str",
-                                                                                                   "content":  "str",
-                                                                                                   "importance":  "float"
-                                                                                               },
-                                                                                    "returns":  "MemoryEntry"
-                                                                                },
-                                                                      "search":  {
-                                                                                     "params":  {
-                                                                                                    "ctx":  "RequestContext",
-                                                                                                    "namespace":  "str",
-                                                                                                    "query":  "str",
-                                                                                                    "top_k":  "int"
-                                                                                                },
-                                                                                     "returns":  "list[MemoryEntry]"
-                                                                                 },
-                                                                      "forget":  {
-                                                                                     "params":  {
-                                                                                                    "ctx":  "RequestContext",
-                                                                                                    "namespace":  "str",
-                                                                                                    "key":  "str"
-                                                                                                },
-                                                                                     "returns":  "None"
-                                                                                 }
-                                                                  }
-                                                  },
-                                  "make_memory":  {
-                                                      "kind":  "function",
-                                                      "params":  {
-                                                                     "db_path":  "str"
-                                                                 },
-                                                      "returns":  "MemoryStore"
-                                                  }
-                              }
-               }
+{
+  "package": "memory",
+  "delivery": "Cython extension (.pyd/.so)",
+  "version": "0.2.0",
+  "facade": {
+    "MemoryStore": {
+      "kind": "class",
+      "methods": {
+        "get": {
+          "params": {
+            "ctx": "RequestContext",
+            "namespace": "str",
+            "key": "str"
+          },
+          "returns": "MemoryEntry|null"
+        },
+        "write": {
+          "params": {
+            "ctx": "RequestContext",
+            "namespace": "str",
+            "key": "str",
+            "content": "str",
+            "importance": "float"
+          },
+          "returns": "MemoryEntry"
+        },
+        "search": {
+          "params": {
+            "ctx": "RequestContext",
+            "namespace": "str",
+            "query": "str",
+            "top_k": "int"
+          },
+          "returns": "list[MemoryEntry]"
+        },
+        "forget": {
+          "params": {
+            "ctx": "RequestContext",
+            "namespace": "str",
+            "key": "str"
+          },
+          "returns": "None"
+        },
+        "close": {
+          "params": {},
+          "returns": "None"
+        }
+      }
+    },
+    "make_memory": {
+      "kind": "function",
+      "params": {
+        "db_path": "str"
+      },
+      "returns": "MemoryStore"
+    }
+  }
 }

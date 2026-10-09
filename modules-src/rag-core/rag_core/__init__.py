@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import re
-import sqlite3
-from typing import Callable, Dict, List, Optional, Protocol, Tuple, Union, runtime_checkable
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from core_contracts import Citation, RequestContext, RetrievalResult
+from core_specifications import Citation, RequestContext, RetrievalResult, VectorStore
 
-__version__ = "0.4.1"
+__version__ = "0.5.0"
 
 DIM = 384
 SearchHit = Tuple[str, str, float]
@@ -98,22 +96,6 @@ def make_embed(backend: str = "fastembed"):
     raise ValueError(f"不支持的向量后端: {backend!r}")
 
 
-@runtime_checkable
-class VectorStore(Protocol):
-    def add(self, source_id: str, chunks: List[str], embeddings) -> None: ...
-
-    def search(
-        self,
-        embedding,
-        top_k: int = 5,
-        scopes: Optional[List[str]] = None,
-    ) -> List[SearchHit]: ...
-
-    def list_documents(self, scopes: Optional[List[str]] = None) -> List[Tuple[str, int]]: ...
-
-    def document_chunks(self, source_id: str) -> List[str]: ...
-
-
 class InMemoryVectorStore:
     def __init__(self) -> None:
         self._rows: list[tuple[str, str, List[float]]] = []
@@ -146,73 +128,6 @@ class InMemoryVectorStore:
 
     def document_chunks(self, source_id: str) -> List[str]:
         return [text for row_source, text, _emb in self._rows if row_source == source_id]
-
-
-class SqliteVectorStore:
-    """SQLite-backed vector store with the same facade as the in-memory store."""
-
-    def __init__(self, db_path: str) -> None:
-        os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
-        self._conn = sqlite3.connect(db_path, check_same_thread=False)
-        self._conn.execute(
-            "CREATE TABLE IF NOT EXISTS vectors (source_id TEXT, text TEXT, embedding TEXT)"
-        )
-        self._conn.commit()
-
-    def add(self, source_id: str, chunks: List[str], embeddings) -> None:
-        rows = [
-            (source_id, text, json.dumps(list(map(float, embedding))))
-            for text, embedding in zip(chunks, embeddings)
-        ]
-        self._conn.executemany(
-            "INSERT INTO vectors (source_id, text, embedding) VALUES (?, ?, ?)",
-            rows,
-        )
-        self._conn.commit()
-
-    def search(
-        self,
-        embedding,
-        top_k: int = 5,
-        scopes: Optional[List[str]] = None,
-    ) -> List[SearchHit]:
-        allowed = set(scopes) if scopes is not None else None
-        stored_rows = self._conn.execute(
-            "SELECT source_id, text, embedding FROM vectors"
-        ).fetchall()
-        rows = [
-            (source_id, text, json.loads(stored_embedding))
-            for source_id, text, stored_embedding in stored_rows
-            if allowed is None or source_id.partition("/")[0] in allowed
-        ]
-        query_vector = np.array(embedding, dtype=np.float32)
-        scores = [
-            float(np.dot(np.array(stored_embedding, dtype=np.float32), query_vector))
-            for _, _, stored_embedding in rows
-        ]
-        order = sorted(range(len(scores)), key=lambda index: -scores[index])[
-            : min(top_k, len(scores))
-        ]
-        return [(rows[index][0], rows[index][1], scores[index]) for index in order]
-
-    def list_documents(self, scopes: Optional[List[str]] = None) -> List[Tuple[str, int]]:
-        allowed = set(scopes) if scopes is not None else None
-        counts: Dict[str, int] = {}
-        stored = self._conn.execute(
-            "SELECT source_id FROM vectors ORDER BY rowid"
-        ).fetchall()
-        for (source_id,) in stored:
-            if allowed is not None and source_id.partition("/")[0] not in allowed:
-                continue
-            counts[source_id] = counts.get(source_id, 0) + 1
-        return sorted(counts.items())
-
-    def document_chunks(self, source_id: str) -> List[str]:
-        stored = self._conn.execute(
-            "SELECT text FROM vectors WHERE source_id = ? ORDER BY rowid",
-            (source_id,),
-        ).fetchall()
-        return [text for (text,) in stored]
 
 
 def _normalize_scopes(scope: Scope) -> Optional[List[str]]:
@@ -461,8 +376,7 @@ __all__ = [
     "MAX_READ_CHUNKS",
     "VectorStore",
     "InMemoryVectorStore",
-    "SqliteVectorStore",
-    "RagClient",
+        "RagClient",
     "embed",
     "make_embed",
     "retrieve",

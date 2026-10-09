@@ -1,0 +1,8 @@
+{
+  "module": "memory",
+  "version": "0.2.0",
+  "public_api": [
+    "MemoryStore",
+    "make_memory"
+  ]
+}

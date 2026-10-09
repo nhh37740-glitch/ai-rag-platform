@@ -90,7 +90,7 @@ JD 的 Hermes 具体所指未得到官方招聘页确认。如果指 NousResearc
 
 **为什么使用 SQLite？** 个人原型易复现、无需另建数据库；当前向量保存为 JSON，点积搜索适合小数据验证。代价是搜索需要扫描读取，规模扩大后会慢；没有实现 pgvector/ANN，不能说“向量库可无痛切换”。
 
-部署追问时再补：接口契约与编译交付便于固定模块边界、检查版本来源；代价是构建复杂、跨平台 ABI 限制和源码/产物一致性风险。本项目的三处本机签名不一致正是一个待解决的例子。Cython 没有经过性能对比，不声称它让推理更快；二进制也不提供绝对保密。
+部署追问时再补：接口接口规范与编译交付便于固定模块边界、检查版本来源；代价是构建复杂、跨平台 ABI 限制和源码/产物一致性风险。本项目的三处本机签名不一致正是一个待解决的例子。Cython 没有经过性能对比，不声称它让推理更快；二进制也不提供绝对保密。
 
 ## 5. 五分钟演示：先证明查到了什么
 
@@ -174,7 +174,7 @@ Invoke-RestMethod -Uri ('http://127.0.0.1:8000/api/trace/' + $interviewReply.tra
 - `RAG_EMBED=hash` 下二进制运行验收输出 `COMPILED_AGENT_OK`。
 - 临时 STATE_DIR、空模型 key、hash 模式的应用演示测试 7 项通过。
 - 额外 API 上传复演因系统临时目录写权限失败，提升权限请求未获批准；完整“新建→上传→问答→trace”未列为本轮已通过项。第 5 节是待操作者实际复演的步骤。
-- 契约检查 11 项通过、90 个 subtests 通过、3 个 subtests 失败，涉及 llm-gateway/observability/evaluation 的本机旧产物签名。不能说交付闸门全绿；需在目标构建流程核实重建。
+- 接口规范检查 11 项通过、90 个 subtests 通过、3 个 subtests 失败，涉及 llm-gateway/observability/evaluation 的本机旧产物签名。不能说交付闸门全绿；需在目标构建流程核实重建。
 - 对“不检索的 provider”进行本机二进制复演：记录两次 retrieval_guard，随后仍返回 `UNRETRIEVED_ANSWER`。因此必须把提醒和严格保证区分开。
 
 以上是第一阶段本机历史结果，不代表真实 DeepSeek/BGE 质量评测。服务器公开演示是随后新增的执行范围，最终交付记录以 PLAN 文末为准。
@@ -184,7 +184,7 @@ Invoke-RestMethod -Uri ('http://127.0.0.1:8000/api/trace/' + $interviewReply.tra
 ```powershell
 $env:RAG_EMBED = 'hash'
 .\.venv\Scripts\python.exe scripts/verify_compiled_runtime.py
-.\.venv\Scripts\python.exe -m pytest contracts/test_contract.py -q
+.\.venv\Scripts\python.exe -m pytest specifications/test_specification.py -q
 
 # 应用测试在独立进程中使用临时状态，避免覆盖已有数据库；不影响模型密钥文件。
 $env:STATE_DIR = Join-Path $env:TEMP ('dev-agent-interview-' + [guid]::NewGuid().ToString('N'))
@@ -203,7 +203,7 @@ $env:DEEPSEEK_API_KEY = ''
 1. 浏览器只发送一个固定问题。HTTP 适配层设置 CMRC scope 和独立身份，禁止上传、写工具及浏览器密钥。
 2. AgentRuntime 通过工具注册表调用已发布的 RAG 二进制，工具结果进入下一次模型请求；有 trace 才能核对是否发生检索。
 3. 公开适配层在返回前检查成功 rag span、非空命中及 CMRC 来源。这个附加门禁只作用于公开接口，不宣称私有 Agent 的两次提醒已变为严格证据保证。
-4. Jenkins 先跑模块单测、编译、契约和应用检查，候选服务实际问答通过后才切换。源码供构建和学习，运行镜像通过二进制来源检查启动。
+4. Jenkins 先跑模块单测、编译、接口规范和应用检查，候选服务实际问答通过后才切换。源码供构建和学习，运行镜像通过二进制来源检查启动。
 
 问到取舍时说明：固定问题、单并发和五分钟缓存控制公开演示范围；缓存复用原答案和原 trace，不算本次模型调用。hash 便于小服务器启动，不能代表中文语义向量质量。命中来源证明检索执行过，尚不证明答案每句话都有证据支持。
 
@@ -211,4 +211,4 @@ $env:DEEPSEEK_API_KEY = ''
 
 一个实际排障例子也可以拿来学习：Jenkins #9 的候选问答通过，但发布失败。脚本导出的模式和配置路径被 sudo 清除，Compose 使用了默认 DeepSeek 配置；修复在 `deploy_public_demo.sh` 的 `compose()` 中显式转交两个非敏感变量，并让回滚测试的 sudo 替身真的清理环境。你要能解释“为什么候选通过、正式切换却失败”和“测试为什么漏掉了它”。这是本轮 AI 辅助处理的记录，只有自己读懂并复核以后才能按实际参与程度讲述。
 
-交付证据：AI Jenkins #10 与主页 #24 成功；73 项模块、6 项回滚、11 项严格契约、15 项应用检查及 12 个 Linux 二进制来源检查通过。八个问题的公网检索/trace/缓存复验通过，完整记录在 PLAN 文末。这里可以证明工具执行和交付边界，不能据此报真实模型准确率、并发能力或生产收益。
+交付证据：AI Jenkins #10 与主页 #24 成功；73 项模块、6 项回滚、11 项严格接口规范、15 项应用检查及 12 个 Linux 二进制来源检查通过。八个问题的公网检索/trace/缓存复验通过，完整记录在 PLAN 文末。这里可以证明工具执行和交付边界，不能据此报真实模型准确率、并发能力或生产收益。

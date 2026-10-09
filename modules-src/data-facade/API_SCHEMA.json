@@ -1,0 +1,47 @@
+{
+  "package": "data_facade",
+  "delivery": "Cython extension (.pyd/.so)",
+  "version": "0.1.0",
+  "facade": {
+    "DataService": {
+      "kind": "class",
+      "init": {
+        "state_dir": "str",
+        "memory_db_path": "str|null",
+        "vector_db_path": "str|null"
+      },
+      "methods": {
+        "initialize": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "None"
+        },
+        "memory_store": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "MemoryStorePort"
+        },
+        "vector_store": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "VectorStore"
+        },
+        "state_db": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "StateStorePort"
+        },
+        "close": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "None"
+        }
+      }
+    }
+  }
+}

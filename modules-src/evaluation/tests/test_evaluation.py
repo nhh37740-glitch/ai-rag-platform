@@ -1,7 +1,7 @@
 import unittest
 import asyncio
 
-from core_contracts import RequestContext
+from core_specifications import RequestContext
 from evaluation import evaluate_agent, evaluate_qa, llm_as_judge
 from llm_gateway import MockProvider
 
@@ -18,7 +18,7 @@ class TestEvaluation(unittest.TestCase):
         self.assertLessEqual(r["precision"], 0.99)
 
     def test_judge(self):
-        s = asyncio.get_event_loop().run_until_complete(llm_as_judge(RequestContext("t", "r"), MockProvider("qa"), "q", "很长的答案内容", "资料"))
+        s = asyncio.run(llm_as_judge(RequestContext("t", "r"), MockProvider("qa"), "q", "很长的答案内容", "资料"))
         self.assertGreaterEqual(s, 1)
 
     def test_agent(self):

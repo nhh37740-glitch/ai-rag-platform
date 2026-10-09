@@ -1,88 +1,116 @@
 {
   "format": 1,
   "modules": {
+    "agent-facade": {
+      "name": "agent_facade",
+      "version": "0.1.0",
+      "checksum": "487f5204b559e96f508f137967a82ee68192801c2554f4f4b9e7d557312d4780",
+      "path": "artifacts/agent-facade/0.1.0",
+      "status": "published"
+    },
     "agent-runtime": {
       "name": "agent_runtime",
-      "version": "0.3.3",
-      "checksum": "bb3c9765f288cab35ca5bbdd501cbb1add3c4a3121103f01487479284e7b51a5",
-      "path": "artifacts\\agent-runtime\\0.3.3",
+      "version": "0.4.0",
+      "checksum": "013d4f2a6b09dd05c31b4fa7449e44eaf51e12e82652a69d65eb4733caea870b",
+      "path": "artifacts/agent-runtime/0.4.0",
+      "status": "published"
+    },
+    "data-facade": {
+      "name": "data_facade",
+      "version": "0.1.0",
+      "checksum": "5cdee5f683ffae071cf55c5695ebc86724c1d2afffd01bd9faf1f803d05727ec",
+      "path": "artifacts/data-facade/0.1.0",
       "status": "published"
     },
     "evaluation": {
       "name": "evaluation",
-      "version": "0.1.0",
-      "checksum": "87d0c0fcf217c38a4b44cdcee226ac5663829db326738d6c11cd56e72be0a97d",
-      "path": "artifacts\\evaluation\\0.1.0",
+      "version": "0.1.1",
+      "checksum": "476a7ef8a223eb7cc0d36903307342628138216e10a7d7d01cddf54426eba26a",
+      "path": "artifacts/evaluation/0.1.1",
       "status": "published"
     },
     "ingestion": {
       "name": "ingestion",
-      "version": "0.2.0",
-      "checksum": "de520f32c17045177a23daae4333f6b776b84e131a6fb02884c966e3f67369ab",
-      "path": "artifacts\\ingestion\\0.2.0",
+      "version": "0.2.1",
+      "checksum": "615fe337f1100465793e8a1abca08d0fcdca0e6451c03f2f53aaf5b14dfd62d3",
+      "path": "artifacts/ingestion/0.2.1",
       "status": "published"
     },
     "llm-gateway": {
       "name": "llm_gateway",
-      "version": "0.1.0",
-      "checksum": "f6cda7adc2b31a26b6ced779ec1171e3be6286723e5257f2dbcd9c6b55fe7624",
-      "path": "artifacts\\llm-gateway\\0.1.0",
+      "version": "0.1.1",
+      "checksum": "07954a02fc4b2c6b94a5f9d9af230d83a31012ecd915e8a88c7c872b9082f01e",
+      "path": "artifacts/llm-gateway/0.1.1",
       "status": "published"
     },
     "mcp-gateway": {
       "name": "mcp_gateway",
-      "version": "0.1.0",
-      "checksum": "7c9cffdf9187fbd459d485670884c436365a69dde7d5ee55bf7755e5e8ff297d",
-      "path": "artifacts\\mcp-gateway\\0.1.0",
+      "version": "0.1.1",
+      "checksum": "1c998aacd011f337782f6a2f32735a0a78d2908b03527f8837fa758f54282474",
+      "path": "artifacts/mcp-gateway/0.1.1",
       "status": "published"
     },
     "mcp-servers": {
       "name": "mcp_servers",
-      "version": "0.1.0",
-      "checksum": "4eb45700698503f2d56a93a71240268344b43a71bc0e2a7f6aad7f566b3bed26",
-      "path": "artifacts\\mcp-servers\\0.1.0",
+      "version": "0.1.1",
+      "checksum": "6517cef387b3c89c3a8bf882f04e43feb6bcd9924b7f841d4a01c47818cf7487",
+      "path": "artifacts/mcp-servers/0.1.1",
       "status": "published"
     },
     "memory": {
       "name": "memory",
-      "version": "0.1.0",
-      "checksum": "e9ba7b295dca2d0ed10d92605e599ad9f71cbd1ece2bae5dde178a5303aa0b4d",
-      "path": "artifacts\\memory\\0.1.0",
+      "version": "0.2.0",
+      "checksum": "4f04d611c773a8c2bbee6a256d11e343ebfd18f112612a2e238f6317b06fffdb",
+      "path": "artifacts/memory/0.2.0",
       "status": "published"
     },
     "observability": {
       "name": "observability",
-      "version": "0.1.0",
-      "checksum": "612ceb6b2fdabc96499d9484b396f11656ef99f38f46e1fa8fbda6acf6e16ad0",
-      "path": "artifacts\\observability\\0.1.0",
+      "version": "0.1.1",
+      "checksum": "1c3c559873fe50bb623f44f22189fec6bd19cd5e7d1843fcc237982d567bf9ae",
+      "path": "artifacts/observability/0.1.1",
       "status": "published"
     },
     "rag-core": {
       "name": "rag_core",
-      "version": "0.4.1",
-      "checksum": "b531d7b3506384d92bc2b22f8811a20ced9d846df96ffdc8d0c88b740a154857",
-      "path": "artifacts\\rag-core\\0.4.1",
+      "version": "0.5.0",
+      "checksum": "aa4ba14364c5f4abc4a53308eb79ed036fa5be137c81250b6d83bbfc392fc4ba",
+      "path": "artifacts/rag-core/0.5.0",
+      "status": "published"
+    },
+    "rag-facade": {
+      "name": "rag_facade",
+      "version": "0.1.0",
+      "checksum": "432fbd33e2eb9129eeb8cc6e3a82e0bc60249a6bbe9d32445618da4f7361fb35",
+      "path": "artifacts/rag-facade/0.1.0",
       "status": "published"
     },
     "rag-tools": {
       "name": "rag_tools",
-      "version": "0.3.0",
-      "checksum": "746b1fd4b9e9cb9d8138ec7dd1960365fdf157066c35ebe6c507435f876c8c17",
-      "path": "artifacts\\rag-tools\\0.3.0",
+      "version": "0.3.1",
+      "checksum": "d91d96507a481520df9c4e471e8ca63882aa1ef687cbb597060bc6d98d8a5d33",
+      "path": "artifacts/rag-tools/0.3.1",
       "status": "published"
     },
     "skill-runtime": {
       "name": "skill_runtime",
+      "version": "0.2.1",
+      "checksum": "2041a5aff8dede670163a70ebab7d11825a01e9490eb3b9d541aff27e57b19ce",
+      "path": "artifacts/skill-runtime/0.2.1",
+      "status": "published"
+    },
+    "storage": {
+      "name": "storage",
       "version": "0.2.0",
-      "checksum": "c5ce810bc95b5617cc28285b71771176bca857ec9ef6976f3fe56dc35ff373fa",
-      "path": "artifacts\\skill-runtime\\0.2.0",
+      "checksum": "674931efc3ecd2f993fed57047bf1f03b675337207e11400cc999fb92179f04c",
+      "path": "artifacts/storage/0.2.0",
       "status": "published"
     },
     "tool-runtime": {
       "name": "tool_runtime",
-      "version": "0.2.0",
-      "checksum": "0969a5fd985ec6f182e544db032c43bc9c6dbd4888448bb45b71e796dfaaa9ef",
-      "path": "artifacts\\tool-runtime\\0.2.0",
+      "version": "0.2.1",
+      "checksum": "b39f39f08c93f089ba5e292341931fda0ebdb5806563c1e76f6a3bc27a85bb03",
+      "path": "artifacts/tool-runtime/0.2.1",
       "status": "published"
     }
   }

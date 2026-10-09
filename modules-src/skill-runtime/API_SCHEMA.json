@@ -1,0 +1,38 @@
+{
+  "package": "skill_runtime",
+  "delivery": "Cython extension (.pyd/.so)",
+  "version": "0.2.1",
+  "facade": {
+    "SkillRegistry": {
+      "kind": "class",
+      "methods": {
+        "list": {
+          "params": {
+            "ctx": "RequestContext|null"
+          },
+          "returns": "list[SkillDef]"
+        },
+        "load": {
+          "params": {
+            "ctx": "RequestContext",
+            "name": "str"
+          },
+          "returns": "SkillDef"
+        },
+        "load_dir": {
+          "params": {
+            "path": "str"
+          },
+          "returns": "None"
+        },
+        "render": {
+          "params": {
+            "ctx": "RequestContext",
+            "query": "str"
+          },
+          "returns": "str"
+        }
+      }
+    }
+  }
+}

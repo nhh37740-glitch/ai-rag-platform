@@ -10,4 +10,4 @@ Public facade:
 - `ASpan(ctx, name, store=None)` is its asynchronous counterpart.
 - `make_trace_store() -> TraceStore` creates the default in-memory store.
 
-The canonical parameter and return contracts are maintained in [`contracts/API_SCHEMA.json`](../../contracts/API_SCHEMA.json); this module directory is a Python package inside the root repository, not a separate Git repository. Jenkins compiles its process module with Cython for the Linux `.so` release.
+The canonical parameter and return specifications are maintained in [`specifications/API_SCHEMA.json`](../../specifications/API_SCHEMA.json); this module directory is a Python package inside the root repository, not a separate Git repository. Jenkins compiles its process module with Cython for the Linux `.so` release.

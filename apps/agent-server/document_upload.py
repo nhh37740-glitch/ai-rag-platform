@@ -6,7 +6,10 @@ import tempfile
 import uuid
 
 from fastapi import UploadFile
-from ingestion import SUPPORTED_EXTENSIONS, to_markdown
+from core_specifications import RequestContext
+from rag_facade import RagService
+
+SUPPORTED_EXTENSIONS = frozenset({".md", ".txt", ".docx", ".pdf"})
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
@@ -17,8 +20,11 @@ class UploadValidationError(ValueError):
         self.status_code = status_code
 
 
-async def convert_uploaded_documents(files: list[UploadFile]) -> list[tuple[str, str]]:
+async def convert_uploaded_documents(files: list[UploadFile], parser=None) -> list[tuple[str, str]]:
     """Validate uploads and return (original filename, Markdown) pairs."""
+    if parser is None:
+        from server import rag_service
+        parser = lambda path, title: rag_service.parse_document(RequestContext("upload", "upload"), path, title)
     if not files:
         raise UploadValidationError(400, "至少选择一个文件")
 
@@ -41,7 +47,7 @@ async def convert_uploaded_documents(files: list[UploadFile]) -> list[tuple[str,
             temporary_source.write_bytes(content)
             try:
                 markdown = await asyncio.to_thread(
-                    to_markdown,
+                    parser,
                     str(temporary_source),
                     Path(original_name).stem,
                 )

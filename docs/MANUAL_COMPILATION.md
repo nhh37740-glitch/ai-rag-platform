@@ -1,6 +1,6 @@
 # 手动编译与二进制交付
 
-本页保留编译脚本的维护参考，不记录某次机器上的测试结果。日常发布由服务器 Jenkins 在 Docker builder 中完成；Codex 本机不执行编译。手动命令仅供维护构建流程时在匹配目标平台的隔离构建机使用。目标是把 `modules-src/` 中的实现发布为 `artifacts/<module-id>/<version>/` 下的二进制与契约。
+本页保留编译脚本的维护参考，不记录某次机器上的测试结果。日常发布由服务器 Jenkins 在 Docker builder 中完成；Codex 本机不执行编译。手动命令仅供维护构建流程时在匹配目标平台的隔离构建机使用。目标是把 `modules-src/` 中的实现发布为 `artifacts/<module-id>/<version>/` 下的二进制与接口规范。
 
 ## 1. 准备环境
 
@@ -52,7 +52,7 @@ uv pip install cython nuitka build
 - `API_SCHEMA.json`：机器可读接口。
 - `VERSION`：模块版本。
 - `CHANGELOG.md`：版本变化。
-- `test_contract.py`：交付契约测试。
+- `test_specification.py`：交付接口规范测试。
 - `checksum.sha256`：源码快照校验和。
 - `.pyd`、`.so` 或 `.exe`：实际二进制交付物。
 
@@ -62,7 +62,7 @@ uv pip install cython nuitka build
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\verify_compiled_runtime.py
-.\.venv\Scripts\python.exe -m pytest contracts\test_contract.py
+.\.venv\Scripts\python.exe -m pytest specifications\test_specification.py
 .\.venv\Scripts\python.exe scripts\build_release_bundle.py
 ```
 

@@ -1,0 +1,1389 @@
+{
+  "format": 2,
+  "specification_version": "0.5.0",
+  "context": {
+    "type": "RequestContext",
+    "package": "specifications.core_specifications",
+    "fields": {
+      "trace_id": "str",
+      "request_id": "str",
+      "user_id": "str",
+      "session_id": "str"
+    },
+    "note": "Every public facade method MUST accept this as its first argument, named 'ctx'."
+  },
+  "shared_types": {
+    "ChatMessage": {
+      "role": "str",
+      "content": "str",
+      "tool_call_id": "str",
+      "name": "str"
+    },
+    "ToolCall": {
+      "id": "str",
+      "name": "str",
+      "arguments": "dict"
+    },
+    "ToolDef": {
+      "name": "str",
+      "description": "str",
+      "parameters": "dict(json schema)"
+    },
+    "Citation": {
+      "source_id": "str",
+      "title": "str",
+      "text": "str",
+      "score": "float",
+      "metadata": "dict"
+    },
+    "RetrievalResult": {
+      "query": "str",
+      "contexts": "list[str]",
+      "citations": "list[Citation]"
+    },
+    "MemoryEntry": {
+      "id": "str",
+      "namespace": "session|user",
+      "key": "str",
+      "content": "str",
+      "created": "str",
+      "importance": "float"
+    },
+    "SkillDef": {
+      "name": "str",
+      "description": "str",
+      "version": "str",
+      "load": "callable|null"
+    },
+    "SpanEvent": {
+      "trace_id": "str",
+      "span": "str",
+      "start_ns": "int",
+      "end_ns": "int",
+      "status": "ok|error",
+      "error": "str",
+      "meta": "dict"
+    },
+    "IngestResult": {
+      "source_id": "str",
+      "knowledge_base_id": "str",
+      "chunk_count": "int"
+    }
+  },
+  "trace_conventions": {
+    "rag": {
+      "span": "rag",
+      "meta": {
+        "query": "str",
+        "knowledge_base_ids": "list[str]|null",
+        "hit_count": "int",
+        "hits": "list[{rank:int,source_id:str,title:str,score:float,text_preview:str}]",
+        "tool": "str"
+      }
+    },
+    "retrieval_guard": {
+      "span": "retrieval_guard",
+      "note": "已选择知识库但没有执行任何检索，模型却想直接收尾时记录一次拦截。",
+      "meta": {
+        "attempt": "int",
+        "knowledge_base_ids": "list[str]"
+      }
+    }
+  },
+  "rules": {
+    "dependency_ceiling": [
+      "stdlib",
+      "httpx",
+      "numpy",
+      "sklearn",
+      "pypdf"
+    ],
+    "tests": "unittest tests collected by pytest; binary behavior replay is mandatory",
+    "ctx_first": true,
+    "compile_default": "Cython",
+    "compile_fallback": "none",
+    "concurrency": "sync methods that block IO are wrapped by caller via asyncio.to_thread"
+  },
+  "modules": {
+    "rag-core": {
+      "package": "rag_core",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.5.0",
+      "constants": {
+        "DEFAULT_READ_CHUNKS": 20,
+        "MAX_READ_CHUNKS": 100
+      },
+      "embedding": {
+        "default_backend": "fastembed",
+        "default_model": "BAAI/bge-small-zh-v1.5",
+        "fallback": "disabled; hash requires explicit RAG_EMBED=hash"
+      },
+      "facade": {
+        "RagClient": {
+          "kind": "class",
+          "init": {
+            "store": "VectorStore",
+            "embed_fn": "callable",
+            "top_k": "int=5"
+          },
+          "methods": {
+            "retrieve": {
+              "params": {
+                "ctx": "RequestContext",
+                "query": "str",
+                "scope": "str|list[str]|null",
+                "top_k": "int|null"
+              },
+              "returns": "RetrievalResult",
+              "blocking_io": true
+            }
+          }
+        },
+        "embed": {
+          "kind": "function",
+          "params": {
+            "texts": "list[str]"
+          },
+          "returns": "list[list[float]]",
+          "blocking_io": false
+        },
+        "VectorStore": {
+          "kind": "protocol",
+          "methods": {
+            "add": {
+              "params": {
+                "source_id": "str",
+                "chunks": "list[str]",
+                "embeddings": "obj"
+              },
+              "returns": "None"
+            },
+            "search": {
+              "params": {
+                "embedding": "obj",
+                "top_k": "int",
+                "scopes": "list[str]|null"
+              },
+              "returns": "list[tuple[str,str,float]]"
+            },
+            "list_documents": {
+              "params": {
+                "scopes": "list[str]|null"
+              },
+              "returns": "list[tuple[str,int]]"
+            },
+            "document_chunks": {
+              "params": {
+                "source_id": "str"
+              },
+              "returns": "list[str]"
+            }
+          }
+        },
+        "InMemoryVectorStore": {
+          "kind": "class"
+        },
+        "keyword_search": {
+          "kind": "function",
+          "params": {
+            "ctx": "RequestContext",
+            "query": "str",
+            "store": "VectorStore",
+            "scope": "str|list[str]|null",
+            "top_k": "int"
+          },
+          "returns": "RetrievalResult",
+          "notes": "纯词面打分，不调用向量模型"
+        },
+        "hybrid_search": {
+          "kind": "function",
+          "params": {
+            "ctx": "RequestContext",
+            "query": "str",
+            "store": "VectorStore",
+            "scope": "str|list[str]|null",
+            "top_k": "int",
+            "alpha": "float"
+          },
+          "returns": "RetrievalResult",
+          "notes": "向量与词面排序的 RRF 融合"
+        },
+        "list_documents": {
+          "kind": "function",
+          "params": {
+            "ctx": "RequestContext",
+            "store": "VectorStore",
+            "scope": "str|list[str]|null"
+          },
+          "returns": "list[dict]"
+        },
+        "read_document": {
+          "kind": "function",
+          "params": {
+            "ctx": "RequestContext",
+            "store": "VectorStore",
+            "source_id": "str",
+            "max_chunks": "int",
+            "offset": "int"
+          },
+          "returns": "RetrievalResult",
+          "notes": "分页读取；默认只返回 DEFAULT_READ_CHUNKS 块，每个 Citation.metadata 含 chunk_index 与 total_chunks"
+        },
+        "document_info": {
+          "kind": "function",
+          "params": {
+            "ctx": "RequestContext",
+            "store": "VectorStore",
+            "source_id": "str"
+          },
+          "returns": "dict",
+          "notes": "{source_id,title,knowledge_base_id,chunk_count}；未知 id 时 chunk_count 为 0"
+        }
+      }
+    },
+    "rag-tools": {
+      "package": "rag_tools",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.3.1",
+      "notes": "RAG 工具模块：向 LLM 公布知识库检索工具，执行时只访问当前会话选中的知识库。",
+      "tools": [
+        "search_knowledge_base",
+        "hybrid_search_knowledge_base",
+        "keyword_search_knowledge_base",
+        "list_knowledge_documents",
+        "read_knowledge_document"
+      ],
+      "facade": {
+        "RagTools": {
+          "kind": "class",
+          "init": {
+            "store": "VectorStore",
+            "tracing": "TraceStore",
+            "top_k": "int=5"
+          },
+          "methods": {
+            "tool_definitions": {
+              "params": {},
+              "returns": "list[ToolDef]"
+            },
+            "search": {
+              "params": {
+                "ctx": "RequestContext",
+                "query": "str",
+                "knowledge_base_ids": "list[str]",
+                "top_k": "int|null"
+              },
+              "returns": "str"
+            },
+            "keyword_search": {
+              "params": {
+                "ctx": "RequestContext",
+                "query": "str",
+                "knowledge_base_ids": "list[str]",
+                "top_k": "int|null"
+              },
+              "returns": "str"
+            },
+            "hybrid_search": {
+              "params": {
+                "ctx": "RequestContext",
+                "query": "str",
+                "knowledge_base_ids": "list[str]",
+                "top_k": "int|null"
+              },
+              "returns": "str"
+            },
+            "list_documents": {
+              "params": {
+                "ctx": "RequestContext",
+                "knowledge_base_ids": "list[str]"
+              },
+              "returns": "str"
+            },
+            "read_document": {
+              "params": {
+                "ctx": "RequestContext",
+                "source_id": "str",
+                "knowledge_base_ids": "list[str]",
+                "offset": "int",
+                "max_chunks": "int|null"
+              },
+              "returns": "str",
+              "notes": "source_id 必须属于所选知识库；分页读取，返回值含 total_chunks/truncated/next_offset"
+            }
+          }
+        }
+      }
+    },
+    "memory": {
+      "package": "memory",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.2.0",
+      "facade": {
+        "MemoryStore": {
+          "kind": "class",
+          "methods": {
+            "get": {
+              "params": {
+                "ctx": "RequestContext",
+                "namespace": "str",
+                "key": "str"
+              },
+              "returns": "MemoryEntry|null"
+            },
+            "write": {
+              "params": {
+                "ctx": "RequestContext",
+                "namespace": "str",
+                "key": "str",
+                "content": "str",
+                "importance": "float"
+              },
+              "returns": "MemoryEntry"
+            },
+            "search": {
+              "params": {
+                "ctx": "RequestContext",
+                "namespace": "str",
+                "query": "str",
+                "top_k": "int"
+              },
+              "returns": "list[MemoryEntry]"
+            },
+            "forget": {
+              "params": {
+                "ctx": "RequestContext",
+                "namespace": "str",
+                "key": "str"
+              },
+              "returns": "None"
+            },
+            "close": {
+              "params": {},
+              "returns": "None"
+            }
+          }
+        },
+        "make_memory": {
+          "kind": "function",
+          "params": {
+            "db_path": "str"
+          },
+          "returns": "MemoryStore"
+        }
+      }
+    },
+    "llm-gateway": {
+      "package": "llm_gateway",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.1.1",
+      "facade": {
+        "LLMProvider": {
+          "kind": "protocol",
+          "methods": {
+            "generate": {
+              "async": true,
+              "params": {
+                "ctx": "RequestContext",
+                "messages": "list[ChatMessage]",
+                "tools": "list[ToolDef]|null"
+              },
+              "returns": "tuple[str,list[ToolCall]]"
+            },
+            "stream": {
+              "async": true,
+              "params": {
+                "ctx": "RequestContext",
+                "messages": "list[ChatMessage]",
+                "tools": "list[ToolDef]|null"
+              },
+              "returns": "async iterator[str]"
+            }
+          }
+        },
+        "DeepSeekProvider": {
+          "kind": "class",
+          "init": {
+            "api_key": "str",
+            "base_url": "str=https://api.deepseek.com",
+            "model": "str=deepseek-chat",
+            "transport": "AsyncBaseTransport|null"
+          },
+          "env": [
+            "DEEPSEEK_API_KEY",
+            "DEEPSEEK_BASE_URL",
+            "DEEPSEEK_MODEL"
+          ]
+        },
+        "MockProvider": {
+          "kind": "class",
+          "init": {
+            "scenario": "str=qa"
+          }
+        }
+      }
+    },
+    "tool-runtime": {
+      "package": "tool_runtime",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.2.1",
+      "facade": {
+        "tool": {
+          "kind": "function",
+          "params": {
+            "name": "str",
+            "description": "str",
+            "parameters": "dict",
+            "context_aware": "bool=false"
+          },
+          "returns": "callable(decorator)"
+        },
+        "ToolRegistry": {
+          "kind": "class",
+          "methods": {
+            "register": {
+              "params": {
+                "t": "ToolDef",
+                "fn": "callable",
+                "context_aware": "bool=false"
+              },
+              "returns": "None"
+            },
+            "list": {
+              "params": {
+                "ctx": "RequestContext|null"
+              },
+              "returns": "list[ToolDef]"
+            },
+            "execute": {
+              "params": {
+                "ctx": "RequestContext",
+                "call": "ToolCall",
+                "runtime_context": "dict|null"
+              },
+              "returns": "str"
+            }
+          }
+        }
+      }
+    },
+    "mcp-gateway": {
+      "package": "mcp_gateway",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.1.1",
+      "facade": {
+        "McpServerClient": {
+          "kind": "protocol",
+          "methods": {
+            "connect": {
+              "async": true,
+              "params": {
+                "name": "str"
+              },
+              "returns": "None"
+            },
+            "list_tools": {
+              "async": true,
+              "params": {},
+              "returns": "list[ToolDef]"
+            },
+            "call_tool": {
+              "async": true,
+              "params": {
+                "name": "str",
+                "arguments": "dict"
+              },
+              "returns": "str"
+            }
+          }
+        },
+        "MockClient": {
+          "kind": "class",
+          "implements": "McpServerClient"
+        },
+        "normalize_to_tool": {
+          "kind": "function",
+          "params": {
+            "mcp_tool": "dict"
+          },
+          "returns": "ToolDef"
+        }
+      }
+    },
+    "skill-runtime": {
+      "package": "skill_runtime",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.2.1",
+      "facade": {
+        "SkillRegistry": {
+          "kind": "class",
+          "methods": {
+            "list": {
+              "params": {
+                "ctx": "RequestContext|null"
+              },
+              "returns": "list[SkillDef]"
+            },
+            "load": {
+              "params": {
+                "ctx": "RequestContext",
+                "name": "str"
+              },
+              "returns": "SkillDef"
+            },
+            "load_dir": {
+              "params": {
+                "path": "str"
+              },
+              "returns": "None"
+            },
+            "render": {
+              "params": {
+                "ctx": "RequestContext",
+                "query": "str"
+              },
+              "returns": "str"
+            }
+          }
+        }
+      }
+    },
+    "agent-runtime": {
+      "package": "agent_runtime",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.4.0",
+      "notes": "已选择知识库时每个问题至少检索一次：未检索就想收尾会被打回（最多 MAX_RETRIEVAL_REMINDERS 次）并记录 retrieval_guard span；工具循环每轮只执行一次知识库检索；系统提示词按 search → hybrid → keyword → list → read 的顺序引导回退。",
+      "facade": {
+        "AgentRuntime": {
+          "kind": "class",
+          "init": {
+            "provider": "LLMProviderPort",
+            "memory": "MemoryStorePort",
+            "tools": "ToolRegistry",
+            "skills": "SkillRegistry",
+            "tracing": "TraceStorePort",
+            "max_tool_rounds": "int=10"
+          },
+          "methods": {
+            "run": {
+              "async": true,
+              "params": {
+                "ctx": "RequestContext",
+                "user_input": "str",
+                "knowledge_base_ids": "list[str]|null"
+              },
+              "returns": "str"
+            },
+            "history": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "list[ChatMessage]"
+            }
+          }
+        }
+      }
+    },
+    "observability": {
+      "package": "observability",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.1.1",
+      "facade": {
+        "Span": {
+          "kind": "class",
+          "init": {
+            "ctx": "RequestContext",
+            "name": "str",
+            "store": "TraceStore|null"
+          },
+          "notes": "sync context manager"
+        },
+        "TraceStore": {
+          "kind": "class",
+          "methods": {
+            "record": {
+              "params": {
+                "span": "SpanEvent"
+              },
+              "returns": "None"
+            },
+            "get": {
+              "params": {
+                "trace_id": "str"
+              },
+              "returns": "list[SpanEvent]"
+            }
+          }
+        }
+      }
+    },
+    "evaluation": {
+      "package": "evaluation",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.1.1",
+      "facade": {
+        "evaluate_qa": {
+          "kind": "function",
+          "params": {
+            "ctx": "RequestContext",
+            "qa_set": "dict"
+          },
+          "returns": "dict"
+        },
+        "evaluate_agent": {
+          "kind": "function",
+          "params": {
+            "ctx": "RequestContext",
+            "trajectory": "list"
+          },
+          "returns": "dict"
+        }
+      }
+    },
+    "ingestion": {
+      "package": "ingestion",
+      "delivery": "Cython extension + standalone Nuitka worker (Windows)",
+      "version": "0.2.1",
+      "facade": {
+        "parse": {
+          "kind": "function",
+          "params": {
+            "path": "str"
+          },
+          "returns": "list[str]"
+        },
+        "to_markdown": {
+          "kind": "function",
+          "params": {
+            "path": "str",
+            "title": "str"
+          },
+          "returns": "str"
+        },
+        "chunk": {
+          "kind": "function",
+          "params": {
+            "texts": "list[str]",
+            "size": "int=500",
+            "overlap": "int=50"
+          },
+          "returns": "list[str]"
+        },
+        "build_index": {
+          "kind": "function",
+          "params": {
+            "ctx": "RequestContext",
+            "docs_dir": "str",
+            "store": "VectorStore",
+            "embed_fn": "callable"
+          },
+          "returns": "int",
+          "blocking_io": true
+        }
+      },
+      "standalone": {
+        "entrypoint": "ingestion-worker",
+        "delivery": "Nuitka exe",
+        "http": {
+          "POST /ingest": {
+            "body": {
+              "docs_dir": "str",
+              "scope": "str"
+            },
+            "returns": {
+              "indexed": "int"
+            }
+          }
+        }
+      }
+    },
+    "mcp-servers": {
+      "package": "mcp_servers",
+      "delivery": "Cython extension + standalone Nuitka executable (Windows)",
+      "version": "0.1.1",
+      "note": "Standalone connectors for Git / Issue / Ticket. JSON-RPC over stdio (MCP) plus optional HTTP.",
+      "facade": {
+        "MockMcpServer": {
+          "kind": "class"
+        },
+        "build_default_server": {
+          "kind": "function",
+          "params": {},
+          "returns": "MockMcpServer"
+        }
+      },
+      "standalone": {
+        "entrypoint": "mcp-servers",
+        "rpc": {
+          "tools/list": "list[ToolDef]",
+          "tools/call": {
+            "name": "str",
+            "arguments": "dict"
+          }
+        },
+        "mock": true
+      }
+    },
+    "rag-facade": {
+      "package": "rag_facade",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.1.0",
+      "facade": {
+        "RagService": {
+          "kind": "class",
+          "init": {
+            "store": "VectorStore",
+            "tracing": "TraceStorePort",
+            "top_k": "int=5"
+          },
+          "methods": {
+            "tool_definitions": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "List[ToolDef]"
+            },
+            "execute_tool": {
+              "params": {
+                "ctx": "RequestContext",
+                "call": "ToolCall",
+                "knowledge_base_ids": "List[str]"
+              },
+              "returns": "str"
+            },
+            "search": {
+              "params": {
+                "ctx": "RequestContext",
+                "query": "str",
+                "knowledge_base_ids": "List[str]",
+                "top_k": "Optional[int]",
+                "mode": "str"
+              },
+              "returns": "RetrievalResult"
+            },
+            "list_documents": {
+              "params": {
+                "ctx": "RequestContext",
+                "knowledge_base_ids": "List[str]"
+              },
+              "returns": "List[dict]"
+            },
+            "read_document": {
+              "params": {
+                "ctx": "RequestContext",
+                "source_id": "str",
+                "knowledge_base_ids": "List[str]",
+                "offset": "int",
+                "max_chunks": "Optional[int]"
+              },
+              "returns": "RetrievalResult"
+            },
+            "parse_document": {
+              "params": {
+                "ctx": "RequestContext",
+                "path": "str",
+                "title": "str"
+              },
+              "returns": "str"
+            },
+            "split_text": {
+              "params": {
+                "ctx": "RequestContext",
+                "text": "str"
+              },
+              "returns": "List[str]"
+            },
+            "embed_texts": {
+              "params": {
+                "ctx": "RequestContext",
+                "texts": "List[str]"
+              },
+              "returns": "List[List[float]]"
+            },
+            "ingest": {
+              "params": {
+                "ctx": "RequestContext",
+                "path": "str",
+                "knowledge_base_id": "str",
+                "source_id": "str"
+              },
+              "returns": "IngestResult"
+            },
+            "ingest_markdown": {
+              "params": {
+                "ctx": "RequestContext",
+                "markdown": "str",
+                "source_id": "str"
+              },
+              "returns": "IngestResult"
+            }
+          }
+        }
+      }
+    },
+    "data-facade": {
+      "package": "data_facade",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.1.0",
+      "facade": {
+        "DataService": {
+          "kind": "class",
+          "init": {
+            "state_dir": "str",
+            "memory_db_path": "str|null",
+            "vector_db_path": "str|null"
+          },
+          "methods": {
+            "initialize": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "None"
+            },
+            "memory_store": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "MemoryStorePort"
+            },
+            "vector_store": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "VectorStore"
+            },
+            "state_db": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "StateStorePort"
+            },
+            "close": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "None"
+            }
+          }
+        }
+      }
+    },
+    "agent-facade": {
+      "package": "agent_facade",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.1.0",
+      "facade": {
+        "make_provider": {
+          "kind": "function",
+          "params": {
+            "api_key": "str",
+            "base_url": "str",
+            "model": "str",
+            "scenario": "str"
+          },
+          "returns": "LLMProviderPort"
+        },
+        "AgentService": {
+          "kind": "class",
+          "init": {
+            "data": "DataServicePort",
+            "rag": "RagServicePort",
+            "tracing": "TraceStorePort",
+            "skill_dir": "str",
+            "provider": "LLMProviderPort|null",
+            "max_tool_rounds": "int=10"
+          },
+          "methods": {
+            "run": {
+              "params": {
+                "ctx": "RequestContext",
+                "user_input": "str",
+                "knowledge_base_ids": "list[str]|null"
+              },
+              "returns": "str",
+              "async": true
+            },
+            "register_tool": {
+              "params": {
+                "ctx": "RequestContext",
+                "definition": "ToolDef",
+                "handler": "callable",
+                "context_aware": "bool"
+              },
+              "returns": "None"
+            },
+            "tool_definitions": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "list[ToolDef]"
+            },
+            "history": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "list[ChatMessage]"
+            },
+            "aclose": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "None",
+              "async": true
+            }
+          }
+        }
+      }
+    },
+    "storage": {
+      "package": "storage",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.2.0",
+      "facade": {
+        "SqliteVectorStore": {
+          "kind": "class",
+          "init": {
+            "db_path": "str"
+          },
+          "methods": {
+            "add": {
+              "params": {
+                "source_id": "str",
+                "chunks": "List[str]",
+                "embeddings": "Any"
+              },
+              "returns": "None"
+            },
+            "search": {
+              "params": {
+                "embedding": "Any",
+                "top_k": "int",
+                "scopes": "Optional[List[str]]"
+              },
+              "returns": "List[tuple[str, str, float]]"
+            },
+            "list_documents": {
+              "params": {
+                "scopes": "Optional[List[str]]"
+              },
+              "returns": "List[tuple[str, int]]"
+            },
+            "document_chunks": {
+              "params": {
+                "source_id": "str"
+              },
+              "returns": "List[str]"
+            },
+            "close": {
+              "params": {},
+              "returns": "None"
+            }
+          }
+        },
+        "StateStore": {
+          "kind": "class",
+          "init": {
+            "db_path": "str"
+          },
+          "methods": {
+            "get": {
+              "params": {
+                "ctx": "RequestContext",
+                "key": "str"
+              },
+              "returns": "Any"
+            },
+            "set": {
+              "params": {
+                "ctx": "RequestContext",
+                "key": "str",
+                "value": "Any"
+              },
+              "returns": "None"
+            },
+            "delete": {
+              "params": {
+                "ctx": "RequestContext",
+                "key": "str"
+              },
+              "returns": "None"
+            },
+            "close": {
+              "params": {},
+              "returns": "None"
+            }
+          }
+        },
+        "Storage": {
+          "kind": "class",
+          "init": {
+            "memory_store": "MemoryStorePort",
+            "vector_store": "VectorStore",
+            "db_path": "str"
+          },
+          "methods": {
+            "memory_write": {
+              "params": {
+                "ctx": "RequestContext",
+                "namespace": "str",
+                "key": "str",
+                "content": "str",
+                "importance": "float"
+              },
+              "returns": "MemoryEntry"
+            },
+            "memory_get": {
+              "params": {
+                "ctx": "RequestContext",
+                "namespace": "str",
+                "key": "str"
+              },
+              "returns": "Optional[MemoryEntry]"
+            },
+            "memory_search": {
+              "params": {
+                "ctx": "RequestContext",
+                "namespace": "str",
+                "query": "str",
+                "top_k": "int"
+              },
+              "returns": "List[MemoryEntry]"
+            },
+            "memory_forget": {
+              "params": {
+                "ctx": "RequestContext",
+                "namespace": "str",
+                "key": "str"
+              },
+              "returns": "None"
+            },
+            "add_documents": {
+              "params": {
+                "source_id": "str",
+                "chunks": "List[str]",
+                "embeddings": "Any"
+              },
+              "returns": "None"
+            },
+            "search_documents": {
+              "params": {
+                "query_embedding": "Any",
+                "top_k": "int"
+              },
+              "returns": "List[Tuple[str, float]]"
+            },
+            "save_eval": {
+              "params": {
+                "run_id": "str",
+                "payload": "Dict[str, Any]"
+              },
+              "returns": "None"
+            },
+            "load_eval": {
+              "params": {
+                "run_id": "str"
+              },
+              "returns": "Optional[Dict[str, Any]]"
+            },
+            "close": {
+              "params": {},
+              "returns": "None"
+            }
+          }
+        },
+        "make_storage": {
+          "kind": "function",
+          "params": {
+            "db_path": "str",
+            "memory_store": "MemoryStorePort",
+            "vector_store": "VectorStore"
+          },
+          "returns": "Storage"
+        }
+      }
+    }
+  },
+  "shared_protocols": {
+    "VectorStore": {
+      "methods": {
+        "add": {
+          "params": {
+            "source_id": "str",
+            "chunks": "List[str]",
+            "embeddings": "Any"
+          },
+          "returns": "None"
+        },
+        "search": {
+          "params": {
+            "embedding": "Any",
+            "top_k": "int",
+            "scopes": "Optional[List[str]]"
+          },
+          "returns": "List[tuple[str, str, float]]"
+        },
+        "list_documents": {
+          "params": {
+            "scopes": "Optional[List[str]]"
+          },
+          "returns": "List[tuple[str, int]]"
+        },
+        "document_chunks": {
+          "params": {
+            "source_id": "str"
+          },
+          "returns": "List[str]"
+        }
+      }
+    },
+    "MemoryStorePort": {
+      "methods": {
+        "get": {
+          "params": {
+            "ctx": "RequestContext",
+            "namespace": "str",
+            "key": "str"
+          },
+          "returns": "Optional[MemoryEntry]"
+        },
+        "write": {
+          "params": {
+            "ctx": "RequestContext",
+            "namespace": "str",
+            "key": "str",
+            "content": "str",
+            "importance": "float"
+          },
+          "returns": "MemoryEntry"
+        },
+        "search": {
+          "params": {
+            "ctx": "RequestContext",
+            "namespace": "str",
+            "query": "str",
+            "top_k": "int"
+          },
+          "returns": "List[MemoryEntry]"
+        },
+        "forget": {
+          "params": {
+            "ctx": "RequestContext",
+            "namespace": "str",
+            "key": "str"
+          },
+          "returns": "None"
+        }
+      }
+    },
+    "LLMProviderPort": {
+      "methods": {
+        "generate": {
+          "params": {
+            "ctx": "RequestContext",
+            "messages": "List[ChatMessage]",
+            "tools": "Optional[List[ToolDef]]"
+          },
+          "returns": "tuple[str, List[ToolCall]]",
+          "async": true
+        },
+        "stream": {
+          "params": {
+            "ctx": "RequestContext",
+            "messages": "List[ChatMessage]",
+            "tools": "Optional[List[ToolDef]]"
+          },
+          "returns": "AsyncIterator[str]"
+        }
+      }
+    },
+    "TraceStorePort": {
+      "methods": {
+        "record": {
+          "params": {
+            "span": "SpanEvent"
+          },
+          "returns": "None"
+        },
+        "get": {
+          "params": {
+            "trace_id": "str"
+          },
+          "returns": "List[SpanEvent]"
+        }
+      }
+    },
+    "StateStorePort": {
+      "methods": {
+        "get": {
+          "params": {
+            "ctx": "RequestContext",
+            "key": "str"
+          },
+          "returns": "Any"
+        },
+        "set": {
+          "params": {
+            "ctx": "RequestContext",
+            "key": "str",
+            "value": "Any"
+          },
+          "returns": "None"
+        },
+        "delete": {
+          "params": {
+            "ctx": "RequestContext",
+            "key": "str"
+          },
+          "returns": "None"
+        }
+      }
+    },
+    "DataServicePort": {
+      "methods": {
+        "initialize": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "None"
+        },
+        "memory_store": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "MemoryStorePort"
+        },
+        "vector_store": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "VectorStore"
+        },
+        "state_db": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "StateStorePort"
+        },
+        "close": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "None"
+        }
+      }
+    },
+    "RagServicePort": {
+      "methods": {
+        "tool_definitions": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "List[ToolDef]"
+        },
+        "execute_tool": {
+          "params": {
+            "ctx": "RequestContext",
+            "call": "ToolCall",
+            "knowledge_base_ids": "List[str]"
+          },
+          "returns": "str"
+        },
+        "search": {
+          "params": {
+            "ctx": "RequestContext",
+            "query": "str",
+            "knowledge_base_ids": "List[str]",
+            "top_k": "Optional[int]",
+            "mode": "str"
+          },
+          "returns": "RetrievalResult"
+        },
+        "list_documents": {
+          "params": {
+            "ctx": "RequestContext",
+            "knowledge_base_ids": "List[str]"
+          },
+          "returns": "List[dict]"
+        },
+        "read_document": {
+          "params": {
+            "ctx": "RequestContext",
+            "source_id": "str",
+            "knowledge_base_ids": "List[str]",
+            "offset": "int",
+            "max_chunks": "Optional[int]"
+          },
+          "returns": "RetrievalResult"
+        },
+        "parse_document": {
+          "params": {
+            "ctx": "RequestContext",
+            "path": "str",
+            "title": "str"
+          },
+          "returns": "str"
+        },
+        "split_text": {
+          "params": {
+            "ctx": "RequestContext",
+            "text": "str"
+          },
+          "returns": "List[str]"
+        },
+        "embed_texts": {
+          "params": {
+            "ctx": "RequestContext",
+            "texts": "List[str]"
+          },
+          "returns": "List[List[float]]"
+        },
+        "ingest": {
+          "params": {
+            "ctx": "RequestContext",
+            "path": "str",
+            "knowledge_base_id": "str",
+            "source_id": "str"
+          },
+          "returns": "IngestResult"
+        },
+        "ingest_markdown": {
+          "params": {
+            "ctx": "RequestContext",
+            "markdown": "str",
+            "source_id": "str"
+          },
+          "returns": "IngestResult"
+        }
+      }
+    }
+  },
+  "domain_dependencies": {
+    "public": [
+      "core_specifications",
+      "observability"
+    ],
+    "agent": [
+      "agent_runtime",
+      "llm_gateway",
+      "skill_runtime",
+      "tool_runtime",
+      "mcp_gateway",
+      "mcp_servers",
+      "evaluation"
+    ],
+    "rag": [
+      "rag_core",
+      "rag_tools",
+      "ingestion"
+    ],
+    "data": [
+      "memory",
+      "storage"
+    ],
+    "app": [
+      "agent_facade",
+      "rag_facade",
+      "data_facade"
+    ]
+  }
+}

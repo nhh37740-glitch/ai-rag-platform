@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from core_contracts import RequestContext, ToolDef
+from core_specifications import RequestContext, ToolDef
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 def normalize_to_tool(mcp_tool: Dict) -> ToolDef:

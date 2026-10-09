@@ -1,99 +1,27 @@
-﻿{
-    "format":  2,
-    "context":  {
-                    "type":  "RequestContext",
-                    "package":  "contracts.core_contracts",
-                    "fields":  {
-                                   "trace_id":  "str",
-                                   "request_id":  "str",
-                                   "user_id":  "str",
-                                   "session_id":  "str"
-                               },
-                    "note":  "Every public facade method MUST accept this as its first argument, named \u0027ctx\u0027."
-                },
-    "shared_types":  {
-                         "ChatMessage":  {
-                                             "role":  "str",
-                                             "content":  "str",
-                                             "tool_call_id":  "str",
-                                             "name":  "str"
-                                         },
-                         "ToolCall":  {
-                                          "id":  "str",
-                                          "name":  "str",
-                                          "arguments":  "dict"
-                                      },
-                         "ToolDef":  {
-                                         "name":  "str",
-                                         "description":  "str",
-                                         "parameters":  "dict(json schema)"
-                                     },
-                         "Citation":  {
-                                          "source_id":  "str",
-                                          "title":  "str",
-                                          "text":  "str",
-                                          "score":  "float",
-                                          "metadata":  "dict"
-                                      },
-                         "RetrievalResult":  {
-                                                 "query":  "str",
-                                                 "contexts":  "list[str]",
-                                                 "citations":  "list[Citation]"
-                                             },
-                         "MemoryEntry":  {
-                                             "id":  "str",
-                                             "namespace":  "session|user",
-                                             "key":  "str",
-                                             "content":  "str",
-                                             "created":  "str",
-                                             "importance":  "float"
-                                         },
-                         "SkillDef":  {
-                                          "name":  "str",
-                                          "description":  "str",
-                                          "version":  "str",
-                                          "load":  "callable|null"
-                                      },
-                         "SpanEvent":  {
-                                           "trace_id":  "str",
-                                           "span":  "str",
-                                           "start_ns":  "int",
-                                           "end_ns":  "int",
-                                           "status":  "ok|error",
-                                           "error":  "str",
-                                           "meta":  "dict"
-                                       }
-                     },
-    "rules":  {
-                  "dependency_ceiling":  [
-                                             "stdlib",
-                                             "httpx",
-                                             "numpy",
-                                             "sklearn"
-                                         ],
-                  "tests":  "unittest (no pytest)",
-                  "ctx_first":  true,
-                  "compile_default":  "mypyc",
-                  "compile_fallback":  "Cython",
-                  "concurrency":  "sync methods that block IO are wrapped by caller via asyncio.to_thread"
-              },
-    "module":  {
-                   "package":  "mcp_servers",
-                   "delivery":  "Nuitka exe",
-                   "version":  "0.0.0",
-                   "facade":  {
-                                  "note":  "Standalone connectors for Git / Issue / Ticket. JSON-RPC over stdio (MCP) plus optional HTTP."
-                              },
-                   "standalone":  {
-                                      "entrypoint":  "mcp-servers",
-                                      "rpc":  {
-                                                  "tools/list":  "list[ToolDef]",
-                                                  "tools/call":  {
-                                                                     "name":  "str",
-                                                                     "arguments":  "dict"
-                                                                 }
-                                              },
-                                      "mock":  true
-                                  }
-               }
+{
+  "package": "mcp_servers",
+  "delivery": "Cython extension + standalone Nuitka executable (Windows)",
+  "version": "0.1.1",
+  "note": "Standalone connectors for Git / Issue / Ticket. JSON-RPC over stdio (MCP) plus optional HTTP.",
+  "facade": {
+    "MockMcpServer": {
+      "kind": "class"
+    },
+    "build_default_server": {
+      "kind": "function",
+      "params": {},
+      "returns": "MockMcpServer"
+    }
+  },
+  "standalone": {
+    "entrypoint": "mcp-servers",
+    "rpc": {
+      "tools/list": "list[ToolDef]",
+      "tools/call": {
+        "name": "str",
+        "arguments": "dict"
+      }
+    },
+    "mock": true
+  }
 }

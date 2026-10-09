@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 REGISTRY_PATH = ROOT / "registry.json"
 ARTIFACTS_DIR = ROOT / "artifacts"
 SOURCE_DIR = ROOT / "modules-src"
-CONTRACTS_DIR = ROOT / "contracts"
+SPECIFICATIONS_DIR = ROOT / "specifications"
 
 COMPILED_SUFFIXES = tuple(importlib.machinery.EXTENSION_SUFFIXES)
 
@@ -124,7 +124,7 @@ def _isolate(published: Dict[str, dict]) -> None:
         kept_paths.append(entry)
     sys.path[:] = kept_paths
 
-    prefix = [str(CONTRACTS_DIR)]
+    prefix = [str(SPECIFICATIONS_DIR)]
     prefix.extend(str(item["directory"]) for item in published.values())
     for entry in reversed(prefix):
         while entry in sys.path:

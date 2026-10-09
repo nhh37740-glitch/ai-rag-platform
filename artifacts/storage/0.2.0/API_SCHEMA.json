@@ -1,0 +1,10 @@
+{
+  "module": "storage",
+  "version": "0.2.0",
+  "public_api": [
+    "SqliteVectorStore",
+    "StateStore",
+    "Storage",
+    "make_storage"
+  ]
+}

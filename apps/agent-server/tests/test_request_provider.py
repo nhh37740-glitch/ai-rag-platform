@@ -27,7 +27,7 @@ class FakeProvider:
 class RequestScopedProviderTests(unittest.IsolatedAsyncioTestCase):
     async def test_override_is_isolated_across_concurrent_requests_and_restored(self) -> None:
         scoped = RequestScopedProvider(FakeProvider("server-default"), "https://example.invalid", "model")
-        with patch("request_provider.DeepSeekProvider", side_effect=lambda key, base, model: FakeProvider(key)):
+        with patch("request_provider.make_provider", side_effect=lambda key, base, model: FakeProvider(key)):
             async def run_with_key(key: str):
                 with scoped.use_key(key):
                     await asyncio.sleep(0)
@@ -40,7 +40,7 @@ class RequestScopedProviderTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_exception_restores_default(self) -> None:
         scoped = RequestScopedProvider(FakeProvider("server-default"), "https://example.invalid", "model")
-        with patch("request_provider.DeepSeekProvider", return_value=FakeProvider("browser")):
+        with patch("request_provider.make_provider", return_value=FakeProvider("browser")):
             with self.assertRaisesRegex(ValueError, "failure"):
                 with scoped.use_key("placeholder"):
                     raise ValueError("failure")

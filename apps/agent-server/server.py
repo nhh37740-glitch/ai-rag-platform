@@ -6,6 +6,7 @@ import runtime_boundary
 PUBLISHED_MODULES = runtime_boundary.enforce_binary_runtime()
 
 from datetime import datetime, timezone
+from contextlib import asynccontextmanager
 import asyncio
 import hashlib
 import ipaddress
@@ -20,23 +21,18 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from agent_runtime import AgentRuntime
-from core_contracts import ChatMessage, RequestContext, ToolDef
+from agent_facade import AgentService, make_provider
+from data_facade import DataService
+from rag_facade import RagService
+from core_specifications import ChatMessage, RequestContext, ToolCall, ToolDef, VectorStore
 from document_upload import (
     MAX_UPLOAD_BYTES,
     SUPPORTED_EXTENSIONS,
     UploadValidationError,
     convert_uploaded_documents,
 )
-from ingestion import chunk as chunk_text, parse as parse_doc
-from llm_gateway import DeepSeekProvider, MockProvider
-from memory import make_memory
 from observability import make_trace_store
-from rag_core import SqliteVectorStore, embed
-from rag_tools import RagTools
 from request_provider import RequestScopedProvider
-from skill_runtime import SkillRegistry
-from tool_runtime import ToolRegistry
 
 runtime_boundary.assert_binary_runtime(PUBLISHED_MODULES)
 
@@ -87,9 +83,11 @@ VECTOR_DB_PATH = os.environ.get(
 )
 
 trace_store = make_trace_store()
-memory = make_memory(":memory:" if PUBLIC_DEMO else DB_PATH)
-skills = SkillRegistry()
-skills.load_dir(str(SKILL_DIR))
+BOOT_CONTEXT = RequestContext("boot", "boot")
+data_service = DataService(str(STATE_DIR), memory_db_path=":memory:" if PUBLIC_DEMO else DB_PATH,
+                           vector_db_path=VECTOR_DB_PATH)
+vector_store = data_service.vector_store(BOOT_CONTEXT)
+rag_service = RagService(vector_store, trace_store)
 
 DEMO_PROVIDER = os.environ.get("DEMO_PROVIDER", "mock").strip().lower()
 if PUBLIC_DEMO:
@@ -97,11 +95,11 @@ if PUBLIC_DEMO:
         raise RuntimeError("DEMO_PROVIDER 必须为 mock 或 deepseek")
     if DEMO_PROVIDER == "deepseek" and not API_KEY.strip():
         raise RuntimeError("公开 DeepSeek 演示缺少服务器凭据")
-    provider = DeepSeekProvider(API_KEY, BASE_URL, MODEL) if DEMO_PROVIDER == "deepseek" else MockProvider("qa")
+    provider = make_provider(API_KEY if DEMO_PROVIDER == "deepseek" else "", BASE_URL, MODEL)
 else:
-    provider = DeepSeekProvider(API_KEY, BASE_URL, MODEL) if API_KEY else MockProvider("qa")
+    provider = make_provider(API_KEY, BASE_URL, MODEL)
 request_provider = RequestScopedProvider(provider, BASE_URL, MODEL)
-tools = ToolRegistry()
+runtime = AgentService(data_service, rag_service, trace_store, str(SKILL_DIR), request_provider)
 
 
 def _load_demo_knowledge_base() -> tuple[dict, list[tuple[Path, dict]]]:
@@ -187,7 +185,7 @@ def _embed_in_batches(chunks: list[str], on_progress=None) -> list:
     total = len(chunks)
     for start in range(0, total, EMBED_BATCH_SIZE):
         batch = chunks[start : start + EMBED_BATCH_SIZE]
-        embeddings.extend(embed(batch))
+        embeddings.extend(rag_service.embed_texts(BOOT_CONTEXT, batch))
         if on_progress is not None:
             on_progress(min(start + len(batch), total), total)
     return embeddings
@@ -222,7 +220,7 @@ def _add_markdown_document(
     markdown_path.write_text(markdown, encoding="utf-8")
     try:
         report("切分文本", 0, 0, original_name)
-        chunks = chunk_text(parse_doc(str(markdown_path)))
+        chunks = rag_service.split_text(BOOT_CONTEXT, markdown)
         if not chunks:
             raise ValueError("文档中没有可入库的文本")
         embeddings = _embed_in_batches(
@@ -299,8 +297,8 @@ def _selected_notebook_ids(raw_ids) -> list[str]:
     return selected
 
 
-def _load_kb() -> tuple[SqliteVectorStore, int]:
-    store = SqliteVectorStore(VECTOR_DB_PATH)
+def _load_kb() -> tuple[VectorStore, int]:
+    store = vector_store
     loaded_sources = {
         source_id for source_id, _ in store.list_documents([DEMO_KB_ID] if PUBLIC_DEMO else None)
     }
@@ -320,7 +318,7 @@ def _load_kb() -> tuple[SqliteVectorStore, int]:
         source_id = f"local-documents/{f.stem}"
         if source_id in loaded_sources:
             continue
-        chunks = chunk_text(parse_doc(str(f)))
+        chunks = rag_service.split_text(BOOT_CONTEXT, rag_service.parse_document(BOOT_CONTEXT, str(f)))
         store.add(source_id, chunks, _embed_in_batches(chunks))
         loaded_sources.add(source_id)
 
@@ -331,7 +329,7 @@ def _load_kb() -> tuple[SqliteVectorStore, int]:
         if source_id in loaded_sources:
             imported += 1
             continue
-        chunks = chunk_text(parse_doc(str(path)))
+        chunks = rag_service.split_text(BOOT_CONTEXT, rag_service.parse_document(BOOT_CONTEXT, str(path)))
         store.add(source_id, chunks, _embed_in_batches(chunks))
         loaded_sources.add(source_id)
         imported += 1
@@ -346,7 +344,7 @@ def _load_kb() -> tuple[SqliteVectorStore, int]:
             source_id = f"{metadata['id']}/{path.stem}"
             if source_id in loaded_sources:
                 continue
-            chunks = chunk_text(parse_doc(str(path)))
+            chunks = rag_service.split_text(BOOT_CONTEXT, rag_service.parse_document(BOOT_CONTEXT, str(path)))
             store.add(source_id, chunks, _embed_in_batches(chunks))
             loaded_sources.add(source_id)
     return store, imported
@@ -354,7 +352,7 @@ def _load_kb() -> tuple[SqliteVectorStore, int]:
 
 vector_store, demo_kb_imported = _load_kb()
 
-rag_tools = RagTools(vector_store, trace_store)
+
 
 
 def _knowledge_base_scope(runtime_context: dict | None) -> list[str]:
@@ -373,7 +371,7 @@ def _search_knowledge_base(
     ctx: RequestContext,
     runtime_context: dict | None,
 ) -> str:
-    return rag_tools.search(ctx, query, _knowledge_base_scope(runtime_context), top_k)
+    return rag_service.execute_tool(ctx, ToolCall("", "search_knowledge_base", {"query": query, "top_k": top_k}), _knowledge_base_scope(runtime_context))
 
 
 def _hybrid_search_knowledge_base(
@@ -383,7 +381,7 @@ def _hybrid_search_knowledge_base(
     ctx: RequestContext,
     runtime_context: dict | None,
 ) -> str:
-    return rag_tools.hybrid_search(ctx, query, _knowledge_base_scope(runtime_context), top_k)
+    return rag_service.execute_tool(ctx, ToolCall("", "hybrid_search_knowledge_base", {"query": query, "top_k": top_k}), _knowledge_base_scope(runtime_context))
 
 
 def _keyword_search_knowledge_base(
@@ -393,7 +391,7 @@ def _keyword_search_knowledge_base(
     ctx: RequestContext,
     runtime_context: dict | None,
 ) -> str:
-    return rag_tools.keyword_search(ctx, query, _knowledge_base_scope(runtime_context), top_k)
+    return rag_service.execute_tool(ctx, ToolCall("", "keyword_search_knowledge_base", {"query": query, "top_k": top_k}), _knowledge_base_scope(runtime_context))
 
 
 def _list_knowledge_documents(
@@ -401,7 +399,7 @@ def _list_knowledge_documents(
     ctx: RequestContext,
     runtime_context: dict | None,
 ) -> str:
-    return rag_tools.list_documents(ctx, _knowledge_base_scope(runtime_context))
+    return rag_service.execute_tool(ctx, ToolCall("", "list_knowledge_documents", {}), _knowledge_base_scope(runtime_context))
 
 
 def _read_knowledge_document(
@@ -412,7 +410,7 @@ def _read_knowledge_document(
     ctx: RequestContext,
     runtime_context: dict | None,
 ) -> str:
-    return rag_tools.read_document(ctx, source_id, _knowledge_base_scope(runtime_context), offset, max_chunks)
+    return rag_service.execute_tool(ctx, ToolCall("", "read_knowledge_document", {"source_id": source_id, "offset": offset, "max_chunks": max_chunks}), _knowledge_base_scope(runtime_context))
 
 
 def _create_agent_file(filename: str, content: str) -> str:
@@ -476,23 +474,9 @@ def _save_conversation_to_knowledge_base(
     )
 
 
-KNOWLEDGE_BASE_TOOL_HANDLERS = {
-    "search_knowledge_base": _search_knowledge_base,
-    "hybrid_search_knowledge_base": _hybrid_search_knowledge_base,
-    "keyword_search_knowledge_base": _keyword_search_knowledge_base,
-    "list_knowledge_documents": _list_knowledge_documents,
-    "read_knowledge_document": _read_knowledge_document,
-}
-
-for tool_definition in rag_tools.tool_definitions():
-    knowledge_base_handler = KNOWLEDGE_BASE_TOOL_HANDLERS.get(tool_definition.name)
-    if knowledge_base_handler is None:
-        raise RuntimeError(f"知识库工具缺少执行函数: {tool_definition.name}")
-    tools.register(tool_definition, knowledge_base_handler, context_aware=True)
-
 def _register_private_tool(*args, **kwargs) -> None:
     if not PUBLIC_DEMO:
-        tools.register(*args, **kwargs)
+        runtime.register_tool(BOOT_CONTEXT, *args, **kwargs)
 
 
 _register_private_tool(
@@ -529,22 +513,20 @@ _register_private_tool(
     context_aware=True,
 )
 
-runtime = AgentRuntime(
-    provider=request_provider,
-    memory=memory,
-    tools=tools,
-    skills=skills,
-    tracing=trace_store,
-    max_tool_rounds=10,
-)
+@asynccontextmanager
+async def lifespan(app):
+    yield
+    await runtime.aclose(BOOT_CONTEXT)
+    data_service.close(BOOT_CONTEXT)
 
-app = FastAPI(title="Dev Knowledge Agent")
+
+app = FastAPI(title="Dev Knowledge Agent", lifespan=lifespan)
 
 
 @app.get("/")
 def index() -> FileResponse:
     filename = "public_demo.html" if PUBLIC_DEMO else "index.html"
-    return FileResponse(str(BASE / "webui" / filename))
+    return FileResponse(str(ROOT / "apps" / "web" / filename))
 
 
 def _demo_suggested_questions() -> list[dict]:
@@ -927,16 +909,24 @@ def trace(trace_id: str) -> JSONResponse:
     return JSONResponse([e.__dict__ for e in events])
 
 
+class _PublicRequestRuntime:
+    async def run(self, ctx, user_input, knowledge_base_ids):
+        ephemeral = DataService(str(STATE_DIR / "public-sessions"), memory_db_path=":memory:", vector_db_path=":memory:")
+        agent = AgentService(ephemeral, rag_service, trace_store, str(SKILL_DIR), request_provider.for_request(provider))
+        try:
+            return await agent.run(ctx, user_input, knowledge_base_ids)
+        finally:
+            await agent.aclose(ctx)
+            ephemeral.close(ctx)
+
+
 if PUBLIC_DEMO:
     from public_demo import PublicDemo, PublicDemoBoundary
 
     # Each invocation owns its history and an ephemeral memory module. The five
     # registered tools still execute the actual published RAG module facades.
     public_demo = PublicDemo(
-        runtime_factory=lambda: AgentRuntime(
-            provider=provider, memory=make_memory(":memory:"), tools=tools,
-            skills=skills, tracing=trace_store, max_tool_rounds=10,
-        ),
+        runtime_factory=_PublicRequestRuntime,
         tracing=trace_store,
         questions=[item["question"] for item in _demo_suggested_questions()],
         provider=DEMO_PROVIDER,
@@ -950,7 +940,14 @@ if PUBLIC_DEMO:
 async def demo_chat(req: Request) -> JSONResponse:
     if not PUBLIC_DEMO:
         raise HTTPException(status_code=404, detail="公开演示未启用")
-    return await public_demo.chat(req)
+    api_key = req.headers.get("x-deepseek-api-key")
+    if api_key is not None:
+        if not _web_key_origin_allowed(req):
+            raise HTTPException(403, "个人 API Key 仅允许通过 HTTPS 或本机同源页面使用")
+        if not api_key.strip() or len(api_key) > 512:
+            raise HTTPException(422, "无效的 DeepSeek API Key")
+    with request_provider.use_key(api_key.strip() if api_key else None):
+        return await public_demo.chat(req, temporary_key=api_key is not None)
 
 
-app.mount("/static", StaticFiles(directory=str(BASE / "webui")), name="static")
+app.mount("/static", StaticFiles(directory=str(ROOT / "apps" / "web")), name="static")

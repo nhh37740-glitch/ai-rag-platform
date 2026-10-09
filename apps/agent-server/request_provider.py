@@ -3,7 +3,7 @@
 from contextlib import contextmanager
 from contextvars import ContextVar
 
-from llm_gateway import DeepSeekProvider
+from agent_facade import make_provider
 
 
 class RequestScopedProvider:
@@ -15,7 +15,7 @@ class RequestScopedProvider:
 
     @contextmanager
     def use_key(self, api_key: str | None):
-        provider = DeepSeekProvider(api_key, self._base_url, self._model) if api_key else None
+        provider = make_provider(api_key, self._base_url, self._model) if api_key else None
         token = self._current.set(provider)
         try:
             yield
@@ -25,9 +25,25 @@ class RequestScopedProvider:
     def _provider(self):
         return self._current.get() or self._default
 
+    def for_request(self, default_provider=None):
+        """Bind only this request's override to an ephemeral Agent."""
+        return self if self._current.get() is not None else (default_provider if default_provider is not None else self._default)
+
     async def generate(self, ctx, messages, tools=None):
-        return await self._provider().generate(ctx, messages, tools)
+        try:
+            return await self._provider().generate(ctx, messages, tools)
+        except Exception:
+            # Provider/network exceptions can contain request or credential data.
+            # Raise only a fixed message before the Agent records an error span.
+            if self._current.get() is not None:
+                raise RuntimeError("临时模型请求失败") from None
+            raise
 
     async def stream(self, ctx, messages, tools=None):
-        async for chunk in self._provider().stream(ctx, messages, tools):
-            yield chunk
+        try:
+            async for chunk in self._provider().stream(ctx, messages, tools):
+                yield chunk
+        except Exception:
+            if self._current.get() is not None:
+                raise RuntimeError("临时模型请求失败") from None
+            raise

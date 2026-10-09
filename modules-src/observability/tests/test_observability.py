@@ -1,6 +1,6 @@
 import unittest
 
-from core_contracts import RequestContext
+from core_specifications import RequestContext
 from observability import TraceStore, Span, make_trace_store
 
 

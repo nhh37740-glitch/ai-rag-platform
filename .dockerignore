@@ -25,3 +25,6 @@ data/kb/user-notebooks/*
 !data/kb/user-notebooks/README.md
 data/agent-files/*
 !data/agent-files/README.md
+
+# Generated Cython C sources are recreated on the target platform
+modules-src/**/__init__.c

@@ -35,7 +35,8 @@ def release_files(registry: dict) -> list[Path]:
     files: list[Path] = []
     for directory in (
         "apps/agent-server",
-        "contracts",
+        "apps/web",
+        "specifications",
         "skills",
         "data/kb/cmrc2018-demo",
     ):

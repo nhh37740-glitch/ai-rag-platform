@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent_facade"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["core_specifications", "agent_runtime", "llm_gateway", "tool_runtime", "skill_runtime", "observability"]
+
+[tool.setuptools]
+packages = ["agent_facade"]

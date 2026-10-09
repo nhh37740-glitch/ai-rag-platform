@@ -2,7 +2,19 @@
 
 ## 1. 一句话
 
-一个研发文档问答原型：文档入库 → 模型选择检索工具 → 在选定笔记本内查资料 → 返回来源与答案 → 查看 trace。部署保留契约先行与二进制边界。面试阅读顺序见 [`INTERVIEW.md`](INTERVIEW.md)，当前验收与未完成能力以 [`PLAN.md`](PLAN.md) 文末核对为准。
+一个研发文档问答原型：文档入库 → 模型选择检索工具 → 在选定笔记本内查资料 → 返回来源与答案 → 查看 trace。部署保留接口规范先行与二进制边界。面试阅读顺序见 [`INTERVIEW.md`](INTERVIEW.md)，当前验收与未完成能力以 [`PLAN.md`](PLAN.md) 文末核对为准。
+
+## 当前分层（2026-10-09）
+
+apps/web 只负责静态网页和 API 调用；apps/agent-server 只装配 AgentService、RagService、DataService。三个中间包各自构造本域一级模块；跨域只通过 core_specifications 中的 Protocol 注入。
+
+| 域 | 中间包 | 一级实现 |
+|---|---|---|
+| AGENT | agent-facade | agent-runtime、llm-gateway、skill-runtime、tool-runtime；其余 AGENT 叶子保留独立能力 |
+| RAG | rag-facade | rag-core、rag-tools、ingestion |
+| 数据库 | data-facade | memory、storage（SQLite 向量和 JSON 状态） |
+
+源码与二进制各跑一次行为测试；最终服务仍拒绝从源码加载业务模块。完整 API 和验收输入/断言见 specifications/DOMAIN_INTERFACES.md。其余章节描述各一级模块能力。
 
 ## 2. 设计模式
 
@@ -11,10 +23,10 @@
 | **端口与适配器（六边形）** | 核心只依赖"端口"接口，外部实现是"适配器"，可整体替换 | `LLMProvider`、`VectorStore`、`Storage`、`McpServerClient`；适配器见下 |
 | **策略（Strategy）** | 同一操作可有多个可切换实现 | 向量化 `embed`（`fastembed`/`hash`）、LLM（`DeepSeek`/`Mock`） |
 | **适配器（Adapter）** | 把异构接口转成统一类型 | `DeepSeekProvider`（OpenAI 兼容→`LLMProvider`）、`normalize_to_tool`（MCP→`ToolDef`） |
-| **抽象工厂 / 依赖注入（组合根）** | 主进程集中创建并注入依赖 | `apps/agent-server/server.py` 装配 runtime、vector store、memory 与工具 |
+| **抽象工厂 / 依赖注入（组合根）** | 主进程集中创建并注入依赖 | `apps/agent-server/server.py` 装配三个中间包，中间包构造域内一级实现 |
 | **门面（Facade）** | 一个薄入口封装复杂编排 | `AgentRuntime.run`（编排循环）、`Storage`（持久层门面） |
 | **注册表 / 插件（Registry）** | 动态注册、按名取用 | `ToolRegistry`（`@tool`）、`SkillRegistry`（`SKILL.md`）、`MockMcpServer` |
-| **契约 / 按合约设计** | 先定接口与类型，再实现 | `contracts/`（`core_contracts` + `INTERFACE.md` + `API_SCHEMA.json` + `test_contract.py`） |
+| **接口规范 / 按合约设计** | 先定接口与类型，再实现 | `specifications/`（`core_specifications` + `INTERFACE.md` + `API_SCHEMA.json` + `test_specification.py`） |
 | **仓储 / DAO** | 持久化访问封装 | `MemoryStore`、`Storage`（SQLite） |
 | **模板方法 / 流水线** | 固定步骤、可插拔环节 | RAG：embed→retrieve→context；Agent：记忆/完整 Skill→LLM→按需多次工具调用→写记忆 |
 | **职责链** | 依次尝试工具并回传结果 | `AgentRuntime.run` 内的 tool-call 循环 |
@@ -25,9 +37,9 @@
 
 ## 3. 模块与接口
 
-> 已发布接口以 `contracts/API_SCHEMA.json` 为准；请求级操作把 `RequestContext` 作为首参，构造器与纯工具函数按各自契约定义。
+> 已发布接口以 `specifications/API_SCHEMA.json` 为准；请求级操作把 `RequestContext` 作为首参，构造器与纯工具函数按各自接口规范定义。
 
-### 契约层 `contracts/core_contracts`
+### 接口规范层 `specifications/core_specifications`
 共享类型（无实现）：`RequestContext`、`ChatMessage`、`ToolCall`、`ToolDef`、`Citation`、`RetrievalResult`、`MemoryEntry`、`SkillDef`、`SpanEvent`。
 
 ### 可观测 `observability`
@@ -112,7 +124,7 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
 
 ## 5. 关键设计决策
 
-- **契约先行**：接口/类型先用 `contracts/` 定死，各模块按 `INTERFACE.md` 实现，减少联调返工。
+- **接口规范先行**：接口/类型先用 `specifications/` 定死，各模块按 `INTERFACE.md` 实现，减少联调返工。
 - **源码隔离 + 二进制交付**：实现源码在 `modules-src/`，源码用于阅读、模块单测和构建；应用只消费 `artifacts/` 下编译扩展。当前只有 `verify_compiled_runtime.py` 运行验收入口，不支持应用源码模式。
 - **接口为替换留出边界**：已经实现 DeepSeek/Mock 与 FastEmbed/hash 的选择；OpenAI provider、pgvector 和 Web MCP 接入仍需实现与测试，不能仅凭接口宣称已可切换。
 - **演示数据边界**：CMRC2018 子集位于 `data/kb/cmrc2018-demo/`，通过正式知识库链路加载；它仅用于展示中文知识导入、检索、回答与引用，不承担向量模型评测。

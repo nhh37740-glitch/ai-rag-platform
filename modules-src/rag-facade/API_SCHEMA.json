@@ -1,0 +1,97 @@
+{
+  "package": "rag_facade",
+  "delivery": "Cython extension (.pyd/.so)",
+  "version": "0.1.0",
+  "facade": {
+    "RagService": {
+      "kind": "class",
+      "init": {
+        "store": "VectorStore",
+        "tracing": "TraceStorePort",
+        "top_k": "int=5"
+      },
+      "methods": {
+        "tool_definitions": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "List[ToolDef]"
+        },
+        "execute_tool": {
+          "params": {
+            "ctx": "RequestContext",
+            "call": "ToolCall",
+            "knowledge_base_ids": "List[str]"
+          },
+          "returns": "str"
+        },
+        "search": {
+          "params": {
+            "ctx": "RequestContext",
+            "query": "str",
+            "knowledge_base_ids": "List[str]",
+            "top_k": "Optional[int]",
+            "mode": "str"
+          },
+          "returns": "RetrievalResult"
+        },
+        "list_documents": {
+          "params": {
+            "ctx": "RequestContext",
+            "knowledge_base_ids": "List[str]"
+          },
+          "returns": "List[dict]"
+        },
+        "read_document": {
+          "params": {
+            "ctx": "RequestContext",
+            "source_id": "str",
+            "knowledge_base_ids": "List[str]",
+            "offset": "int",
+            "max_chunks": "Optional[int]"
+          },
+          "returns": "RetrievalResult"
+        },
+        "parse_document": {
+          "params": {
+            "ctx": "RequestContext",
+            "path": "str",
+            "title": "str"
+          },
+          "returns": "str"
+        },
+        "split_text": {
+          "params": {
+            "ctx": "RequestContext",
+            "text": "str"
+          },
+          "returns": "List[str]"
+        },
+        "embed_texts": {
+          "params": {
+            "ctx": "RequestContext",
+            "texts": "List[str]"
+          },
+          "returns": "List[List[float]]"
+        },
+        "ingest": {
+          "params": {
+            "ctx": "RequestContext",
+            "path": "str",
+            "knowledge_base_id": "str",
+            "source_id": "str"
+          },
+          "returns": "IngestResult"
+        },
+        "ingest_markdown": {
+          "params": {
+            "ctx": "RequestContext",
+            "markdown": "str",
+            "source_id": "str"
+          },
+          "returns": "IngestResult"
+        }
+      }
+    }
+  }
+}
