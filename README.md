@@ -97,3 +97,5 @@ curl -f http://127.0.0.1:18080/api/demo
 `Jenkinsfile` 假设 Jenkins agent 运行在目标 Linux Docker 主机且有 Docker/Compose 权限。流水线执行模块单测、Linux 编译、严格契约测试、应用端到端测试和二进制运行边界验证；然后归档 `dist/ai-rag-platform-<version>-<platform>.zip`、SHA-256 与逐文件清单。`DeployDemo` 和 `DeployPublicDemo` 默认关闭，分别选择私有工作区与独立公开服务。候选健康检查或 smoke 失败时恢复旧镜像并重建容器；该流程不删除原服务命名卷。部署回滚测试在 Docker builder 阶段运行。ZIP 内不含 `modules-src/`。
 
 公开演示使用 `compose.public-demo.yaml`，只监听服务器回环地址 `18106`，由主页反代到 `/projects/apps/rag/`。`PUBLIC_DEMO=1` 限定 CMRC2018、八个精选问题和五个只读检索工具；响应必须带成功检索来源，每次实际计算使用独立上下文。页面展示真实 provider、hash 检索基线、原始 trace 和五分钟缓存，不接受浏览器密钥或私人文件。DeepSeek 凭据保存在仓库外的服务器环境文件中，缺少凭据时拒绝启动。接口见 [`contracts/WEB_DEMO.md`](contracts/WEB_DEMO.md)。
+
+[服务器公开入口](http://43.153.176.182:8088/projects/apps/rag/) 已于 2026-10-08 上线，当前模式为 **Mock + hash 的离线工具流程**，不代表真实模型回答质量。AI Jenkins #10、主页 #24 和八个问题的公网复验通过；记录见 PLAN 文末，三天学习与口述练习见 [`docs/INTERVIEW.md`](docs/INTERVIEW.md)。真实 DeepSeek 启用仍等待密钥目标授权。
