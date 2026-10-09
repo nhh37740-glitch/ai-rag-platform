@@ -130,7 +130,8 @@
     if (data.provider === "mock" && typeof data.answer === "string") {
       try {
         const parsed = JSON.parse(data.answer);
-        byId("answer-content").textContent = JSON.stringify(parsed, null, 2);
+        const hitCount = parsed && Number.isInteger(parsed.hit_count) && parsed.hit_count >= 0 ? parsed.hit_count : null;
+        byId("answer-content").textContent = `${hitCount === null ? "本次工具流程已完成。" : `本次检索返回 ${hitCount} 个片段。`}请在左侧核对原文，在右侧查看执行记录。当前离线演示尚未生成自然语言答案。`;
         byId("raw-answer").textContent = data.answer;
         byId("raw-answer-details").hidden = false;
       } catch { /* Plain Mock text is displayed verbatim. */ }
