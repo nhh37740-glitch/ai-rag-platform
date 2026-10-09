@@ -1,0 +1,167 @@
+{
+  "package": "storage",
+  "delivery": "Cython extension (.pyd/.so)",
+  "version": "0.2.0",
+  "facade": {
+    "SqliteVectorStore": {
+      "kind": "class",
+      "init": {
+        "db_path": "str"
+      },
+      "methods": {
+        "add": {
+          "params": {
+            "source_id": "str",
+            "chunks": "List[str]",
+            "embeddings": "Any"
+          },
+          "returns": "None"
+        },
+        "search": {
+          "params": {
+            "embedding": "Any",
+            "top_k": "int",
+            "scopes": "Optional[List[str]]"
+          },
+          "returns": "List[tuple[str, str, float]]"
+        },
+        "list_documents": {
+          "params": {
+            "scopes": "Optional[List[str]]"
+          },
+          "returns": "List[tuple[str, int]]"
+        },
+        "document_chunks": {
+          "params": {
+            "source_id": "str"
+          },
+          "returns": "List[str]"
+        },
+        "close": {
+          "params": {},
+          "returns": "None"
+        }
+      }
+    },
+    "StateStore": {
+      "kind": "class",
+      "init": {
+        "db_path": "str"
+      },
+      "methods": {
+        "get": {
+          "params": {
+            "ctx": "RequestContext",
+            "key": "str"
+          },
+          "returns": "Any"
+        },
+        "set": {
+          "params": {
+            "ctx": "RequestContext",
+            "key": "str",
+            "value": "Any"
+          },
+          "returns": "None"
+        },
+        "delete": {
+          "params": {
+            "ctx": "RequestContext",
+            "key": "str"
+          },
+          "returns": "None"
+        },
+        "close": {
+          "params": {},
+          "returns": "None"
+        }
+      }
+    },
+    "Storage": {
+      "kind": "class",
+      "init": {
+        "memory_store": "MemoryStorePort",
+        "vector_store": "VectorStore",
+        "db_path": "str"
+      },
+      "methods": {
+        "memory_write": {
+          "params": {
+            "ctx": "RequestContext",
+            "namespace": "str",
+            "key": "str",
+            "content": "str",
+            "importance": "float"
+          },
+          "returns": "MemoryEntry"
+        },
+        "memory_get": {
+          "params": {
+            "ctx": "RequestContext",
+            "namespace": "str",
+            "key": "str"
+          },
+          "returns": "Optional[MemoryEntry]"
+        },
+        "memory_search": {
+          "params": {
+            "ctx": "RequestContext",
+            "namespace": "str",
+            "query": "str",
+            "top_k": "int"
+          },
+          "returns": "List[MemoryEntry]"
+        },
+        "memory_forget": {
+          "params": {
+            "ctx": "RequestContext",
+            "namespace": "str",
+            "key": "str"
+          },
+          "returns": "None"
+        },
+        "add_documents": {
+          "params": {
+            "source_id": "str",
+            "chunks": "List[str]",
+            "embeddings": "Any"
+          },
+          "returns": "None"
+        },
+        "search_documents": {
+          "params": {
+            "query_embedding": "Any",
+            "top_k": "int"
+          },
+          "returns": "List[Tuple[str, float]]"
+        },
+        "save_eval": {
+          "params": {
+            "run_id": "str",
+            "payload": "Dict[str, Any]"
+          },
+          "returns": "None"
+        },
+        "load_eval": {
+          "params": {
+            "run_id": "str"
+          },
+          "returns": "Optional[Dict[str, Any]]"
+        },
+        "close": {
+          "params": {},
+          "returns": "None"
+        }
+      }
+    },
+    "make_storage": {
+      "kind": "function",
+      "params": {
+        "db_path": "str",
+        "memory_store": "MemoryStorePort",
+        "vector_store": "VectorStore"
+      },
+      "returns": "Storage"
+    }
+  }
+}

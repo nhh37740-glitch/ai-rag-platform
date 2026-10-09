@@ -7,15 +7,39 @@ from agent_runtime import (
     SKIPPED_RETRIEVAL_MESSAGE,
     AgentRuntime,
 )
-from core_contracts import RequestContext, ToolCall, ToolDef
-from memory import make_memory
+from core_specifications import MemoryEntry, RequestContext, ToolCall, ToolDef
 from observability import make_trace_store
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
+
+
+class FakeMemory:
+    def __init__(self):
+        self.entries = {}
+
+    def get(self, ctx, namespace, key):
+        return self.entries.get((ctx.user_id, ctx.session_id, namespace, key))
+
+    def write(self, ctx, namespace, key, content, importance=0.0):
+        entry = MemoryEntry(key, namespace, key, content, "test", importance)
+        self.entries[(ctx.user_id, ctx.session_id, namespace, key)] = entry
+        return entry
+
+    def search(self, ctx, namespace, query, top_k=5):
+        return [entry for key, entry in self.entries.items()
+                if key[:3] == (ctx.user_id, ctx.session_id, namespace)][:top_k]
+
+    def forget(self, ctx, namespace, key):
+        self.entries.pop((ctx.user_id, ctx.session_id, namespace, key), None)
+
+
+def make_memory(_path):
+    """Protocol fake: runtime tests create no persistent database files."""
+    return FakeMemory()
 
 
 def _recorder(name, executed):
@@ -63,6 +87,24 @@ class RewriteThenAnswerProvider:
 
 
 class TestAgentRuntime(unittest.TestCase):
+    def test_history_returns_deep_copied_user_session_snapshot(self):
+        runtime = AgentRuntime(
+            provider=NeverRetrievesProvider(), memory=FakeMemory(),
+            tools=ToolRegistry(), skills=SkillRegistry(), tracing=make_trace_store(),
+        )
+        ctx = RequestContext("trace", "request", "user", "session")
+        _run(runtime.run(ctx, "first"))
+        runtime._histories[(ctx.user_id, ctx.session_id)][0].tool_calls = [
+            ToolCall("id", "tool", {"nested": ["original"]})
+        ]
+        copied = runtime.history(ctx)
+        copied[0].content = "modified"
+        copied[0].tool_calls[0].arguments["nested"].append("modified")
+        self.assertEqual(runtime.history(ctx)[0].content, "first")
+        self.assertEqual(runtime.history(ctx)[0].tool_calls[0].arguments, {"nested": ["original"]})
+        self.assertEqual(runtime.history(RequestContext("t", "r", "user", "other")), [])
+        self.assertEqual(runtime.history(RequestContext("t", "r", "other", "session")), [])
+
     def test_agent_calls_context_aware_rag_tool(self):
         registry = ToolRegistry()
         observed = {}

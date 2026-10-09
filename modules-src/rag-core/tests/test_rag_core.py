@@ -3,13 +3,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from core_contracts import RequestContext
+from core_specifications import RequestContext
 from rag_core import (
     DEFAULT_READ_CHUNKS,
     InMemoryVectorStore,
     MAX_READ_CHUNKS,
     RagClient,
-    SqliteVectorStore,
     VectorStore,
     document_info,
     embed,
@@ -219,18 +218,6 @@ class TestDocumentPaging(unittest.TestCase):
             read_document(ctx, store, f"{KB}/long-doc", max_chunks=MAX_READ_CHUNKS + 1)
         with self.assertRaises(ValueError):
             read_document(ctx, store, f"{KB}/long-doc", offset=-1)
-
-
-class TestSqliteVectorStore(unittest.TestCase):
-    def test_implements_document_listing(self):
-        with tempfile.TemporaryDirectory() as temporary_dir:
-            store = SqliteVectorStore(str(Path(temporary_dir) / "vectors.db"))
-            store.add(f"{KB}/doc", ["甲", "乙"], [[0.0], [0.0]])
-            store.add("other-kb/doc", ["丙"], [[0.0]])
-            self.assertIsInstance(store, VectorStore)
-            self.assertEqual(store.list_documents([KB]), [(f"{KB}/doc", 2)])
-            self.assertEqual(store.document_chunks(f"{KB}/doc"), ["甲", "乙"])
-            self.assertEqual(store.document_chunks(f"{KB}/missing"), [])
 
 
 if __name__ == "__main__":

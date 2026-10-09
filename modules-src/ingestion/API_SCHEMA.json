@@ -1,137 +1,57 @@
-﻿{
-    "format":  2,
-    "context":  {
-                    "type":  "RequestContext",
-                    "package":  "contracts.core_contracts",
-                    "fields":  {
-                                   "trace_id":  "str",
-                                   "request_id":  "str",
-                                   "user_id":  "str",
-                                   "session_id":  "str"
-                               },
-                    "note":  "Every public facade method MUST accept this as its first argument, named \u0027ctx\u0027."
-                },
-    "shared_types":  {
-                         "ChatMessage":  {
-                                             "role":  "str",
-                                             "content":  "str",
-                                             "tool_call_id":  "str",
-                                             "name":  "str"
-                                         },
-                         "ToolCall":  {
-                                          "id":  "str",
-                                          "name":  "str",
-                                          "arguments":  "dict"
-                                      },
-                         "ToolDef":  {
-                                         "name":  "str",
-                                         "description":  "str",
-                                         "parameters":  "dict(json schema)"
-                                     },
-                         "Citation":  {
-                                          "source_id":  "str",
-                                          "title":  "str",
-                                          "text":  "str",
-                                          "score":  "float",
-                                          "metadata":  "dict"
-                                      },
-                         "RetrievalResult":  {
-                                                 "query":  "str",
-                                                 "contexts":  "list[str]",
-                                                 "citations":  "list[Citation]"
-                                             },
-                         "MemoryEntry":  {
-                                             "id":  "str",
-                                             "namespace":  "session|user",
-                                             "key":  "str",
-                                             "content":  "str",
-                                             "created":  "str",
-                                             "importance":  "float"
-                                         },
-                         "SkillDef":  {
-                                          "name":  "str",
-                                          "description":  "str",
-                                          "version":  "str",
-                                          "load":  "callable|null"
-                                      },
-                         "SpanEvent":  {
-                                           "trace_id":  "str",
-                                           "span":  "str",
-                                           "start_ns":  "int",
-                                           "end_ns":  "int",
-                                           "status":  "ok|error",
-                                           "error":  "str",
-                                           "meta":  "dict"
-                                       }
-                     },
-    "rules":  {
-                  "dependency_ceiling":  [
-                                             "stdlib",
-                                             "httpx",
-                                             "numpy",
-                                             "sklearn",
-                                             "pypdf"
-                                         ],
-                  "tests":  "unittest (no pytest)",
-                  "ctx_first":  true,
-                  "compile_default":  "mypyc",
-                  "compile_fallback":  "Cython",
-                  "concurrency":  "sync methods that block IO are wrapped by caller via asyncio.to_thread"
-              },
-    "module":  {
-                   "package":  "ingestion",
-                   "delivery":  "mypyc + standalone worker",
-                   "version":  "0.2.0",
-                   "facade":  {
-                                  "parse":  {
-                                                "kind":  "function",
-                                                "params":  {
-                                                               "path":  "str"
-                                                           },
-                                                "returns":  "list[str]"
-                                            },
-                                  "to_markdown":  {
-                                                "kind":  "function",
-                                                "params":  {
-                                                               "path":  "str",
-                                                               "title":  "str"
-                                                           },
-                                                "returns":  "str"
-                                            },
-                                  "chunk":  {
-                                                "kind":  "function",
-                                                "params":  {
-                                                               "texts":  "list[str]",
-                                                               "size":  "int=500",
-                                                               "overlap":  "int=50"
-                                                           },
-                                                "returns":  "list[str]"
-                                            },
-                                  "build_index":  {
-                                                      "kind":  "function",
-                                                      "params":  {
-                                                                     "ctx":  "RequestContext",
-                                                                     "docs_dir":  "str",
-                                                                     "store":  "VectorStore"
-                                                                 },
-                                                      "returns":  "int",
-                                                      "blocking_io":  true
-                                                  }
-                              },
-                   "standalone":  {
-                                      "entrypoint":  "ingestion-worker",
-                                      "delivery":  "Nuitka exe",
-                                      "http":  {
-                                                   "POST /ingest":  {
-                                                                        "body":  {
-                                                                                     "docs_dir":  "str",
-                                                                                     "scope":  "str"
-                                                                                 },
-                                                                        "returns":  {
-                                                                                        "indexed":  "int"
-                                                                                    }
-                                                                    }
-                                               }
-                                  }
-               }
+{
+  "package": "ingestion",
+  "delivery": "Cython extension + standalone Nuitka worker (Windows)",
+  "version": "0.2.1",
+  "facade": {
+    "parse": {
+      "kind": "function",
+      "params": {
+        "path": "str"
+      },
+      "returns": "list[str]"
+    },
+    "to_markdown": {
+      "kind": "function",
+      "params": {
+        "path": "str",
+        "title": "str"
+      },
+      "returns": "str"
+    },
+    "chunk": {
+      "kind": "function",
+      "params": {
+        "texts": "list[str]",
+        "size": "int=500",
+        "overlap": "int=50"
+      },
+      "returns": "list[str]"
+    },
+    "build_index": {
+      "kind": "function",
+      "params": {
+        "ctx": "RequestContext",
+        "docs_dir": "str",
+        "store": "VectorStore",
+        "embed_fn": "callable"
+      },
+      "returns": "int",
+      "blocking_io": true
+    }
+  },
+  "standalone": {
+    "entrypoint": "ingestion-worker",
+    "delivery": "Nuitka exe",
+    "http": {
+      "POST /ingest": {
+        "body": {
+          "docs_dir": "str",
+          "scope": "str"
+        },
+        "returns": {
+          "indexed": "int"
+        }
+      }
+    }
+  }
 }

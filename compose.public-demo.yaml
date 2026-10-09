@@ -1,0 +1,31 @@
+services:
+  agent:
+    image: ai-rag-public:local
+    labels:
+      dev-knowledge.public-provider: ${PUBLIC_DEMO_PROVIDER:-mock}
+      dev-knowledge.public-env-file: ${PUBLIC_DEMO_ENV_FILE:-/home/ubuntu/.config/ai-rag/public-demo-mock.env}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18106:8000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 384m
+    cpus: 0.50
+    # New deployments use a non-secret mock config; keys arrive per web request.
+    env_file:
+      - ${PUBLIC_DEMO_ENV_FILE:-/home/ubuntu/.config/ai-rag/public-demo-mock.env}
+    environment:
+      PUBLIC_DEMO: "1"
+      DEMO_PROVIDER: ${PUBLIC_DEMO_PROVIDER:-mock}
+      RAG_EMBED: hash
+      STATE_DIR: /opt/agent/state
+    volumes:
+      - public-demo-state:/opt/agent/state
+
+volumes:
+  public-demo-state:

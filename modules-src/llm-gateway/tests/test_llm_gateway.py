@@ -4,12 +4,12 @@ import unittest
 
 import httpx
 
-from core_contracts import ChatMessage, RequestContext, ToolDef
+from core_specifications import ChatMessage, RequestContext, ToolDef
 from llm_gateway import DeepSeekProvider, MockProvider
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 class TestMockProvider(unittest.TestCase):

@@ -1,0 +1,36 @@
+{
+  "package": "agent_runtime",
+  "delivery": "Cython extension (.pyd/.so)",
+  "version": "0.4.0",
+  "notes": "已选择知识库时每个问题至少检索一次：未检索就想收尾会被打回（最多 MAX_RETRIEVAL_REMINDERS 次）并记录 retrieval_guard span；工具循环每轮只执行一次知识库检索；系统提示词按 search → hybrid → keyword → list → read 的顺序引导回退。",
+  "facade": {
+    "AgentRuntime": {
+      "kind": "class",
+      "init": {
+        "provider": "LLMProviderPort",
+        "memory": "MemoryStorePort",
+        "tools": "ToolRegistry",
+        "skills": "SkillRegistry",
+        "tracing": "TraceStorePort",
+        "max_tool_rounds": "int=10"
+      },
+      "methods": {
+        "run": {
+          "async": true,
+          "params": {
+            "ctx": "RequestContext",
+            "user_input": "str",
+            "knowledge_base_ids": "list[str]|null"
+          },
+          "returns": "str"
+        },
+        "history": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "list[ChatMessage]"
+        }
+      }
+    }
+  }
+}

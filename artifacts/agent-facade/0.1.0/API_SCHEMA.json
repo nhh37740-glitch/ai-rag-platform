@@ -1,0 +1,8 @@
+{
+  "module": "agent_facade",
+  "version": "0.1.0",
+  "public_api": [
+    "AgentService",
+    "make_provider"
+  ]
+}

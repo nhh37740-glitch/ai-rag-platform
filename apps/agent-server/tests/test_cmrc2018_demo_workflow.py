@@ -7,6 +7,9 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
+from fastapi import Request
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -15,11 +18,39 @@ sys.path.insert(0, str(SERVER))
 os.environ["RAG_EMBED"] = "hash"
 
 import server as server_app  # noqa: E402
-from core_contracts import RequestContext  # noqa: E402
+from core_specifications import RequestContext  # noqa: E402
 from rag_core import retrieve  # noqa: E402
 
 
 class DemoKnowledgeBaseTests(unittest.TestCase):
+    def test_browser_key_origin_requires_https_or_loopback(self) -> None:
+        def allowed(origin: str) -> bool:
+            host = origin.split("://", 1)[-1]
+            scope = {
+                "type": "http",
+                "headers": [(b"host", host.encode()), (b"origin", origin.encode())],
+            }
+            return server_app._web_key_origin_allowed(Request(scope))
+
+        self.assertTrue(allowed("https://example.test"))
+        self.assertTrue(allowed("http://localhost:8000"))
+        self.assertTrue(allowed("http://127.0.0.1:8000"))
+        self.assertTrue(allowed("http://[::1]:8000"))
+        self.assertFalse(allowed("http://example.test"))
+        self.assertFalse(allowed("http://localhost.example.test"))
+        self.assertFalse(allowed("null"))
+        self.assertFalse(server_app._web_key_origin_allowed(Request({
+            "type": "http", "headers": [(b"host", b"example.test")],
+        })))
+
+    def test_llm_config_reports_only_masked_server_status(self) -> None:
+        with patch.object(server_app, "API_KEY", "secret-sentinel"):
+            response = server_app.llm_config()
+        payload = json.loads(response.body)
+        self.assertEqual(payload, {"server_key_configured": True, "model": server_app.MODEL})
+        self.assertNotIn("secret-sentinel", response.body.decode("utf-8"))
+        self.assertEqual(response.headers["cache-control"], "no-store")
+
     def test_manifest_and_documents_are_complete(self) -> None:
         knowledge_base = ROOT / "data" / "kb" / "cmrc2018-demo"
         manifest = json.loads((knowledge_base / "knowledge-base-manifest.json").read_text(encoding="utf-8"))
@@ -51,7 +82,7 @@ class DemoKnowledgeBaseTests(unittest.TestCase):
         self.assertTrue(any("静电感应" in item.source_id for item in result.citations))
 
     def test_agent_receives_all_real_project_tools(self) -> None:
-        names = [tool.name for tool in server_app.tools.list(RequestContext("t", "r"))]
+        names = [tool.name for tool in server_app.runtime.tool_definitions(RequestContext("t", "r"))]
         self.assertEqual(
             names,
             [

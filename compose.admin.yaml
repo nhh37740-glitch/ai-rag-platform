@@ -1,0 +1,54 @@
+services:
+  agent:
+    image: ai-rag-admin:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18108:8000"
+    env_file:
+      - ${RAG_ADMIN_ENV_FILE:?A private owner configuration file is required}
+    environment:
+      PUBLIC_DEMO: "0"
+      RAG_ADMIN_AUTH: proxy
+      STATE_DIR: /opt/agent/state
+      RAG_EMBED: hash
+      DEEPSEEK_API_KEY: ""
+    labels:
+      dev-knowledge.admin-env-file: ${RAG_ADMIN_ENV_FILE}
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    cpus: 0.50
+    volumes:
+      - admin-state:/opt/agent/state
+      - admin-notebooks:/opt/agent/data/kb/user-notebooks
+      - admin-files:/opt/agent/data/agent-files
+  login:
+    image: ai-rag-admin:local
+    command: ["python", "-m", "uvicorn", "--app-dir", "apps/agent-server", "admin_login:app_factory", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18107:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - ${RAG_ADMIN_ENV_FILE:?A private owner configuration file is required}
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).read()"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+volumes:
+  admin-state:
+  admin-notebooks:
+  admin-files:

@@ -5,9 +5,9 @@ from typing import AsyncIterator, List, Optional, Protocol
 
 import httpx
 
-from core_contracts import ChatMessage, RequestContext, ToolCall, ToolDef
+from core_specifications import ChatMessage, RequestContext, ToolCall, ToolDef
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 class LLMProvider(Protocol):

@@ -1,0 +1,67 @@
+{
+  "package": "agent_facade",
+  "delivery": "Cython extension (.pyd/.so)",
+  "version": "0.1.0",
+  "facade": {
+    "make_provider": {
+      "kind": "function",
+      "params": {
+        "api_key": "str",
+        "base_url": "str",
+        "model": "str",
+        "scenario": "str"
+      },
+      "returns": "LLMProviderPort"
+    },
+    "AgentService": {
+      "kind": "class",
+      "init": {
+        "data": "DataServicePort",
+        "rag": "RagServicePort",
+        "tracing": "TraceStorePort",
+        "skill_dir": "str",
+        "provider": "LLMProviderPort|null",
+        "max_tool_rounds": "int=10"
+      },
+      "methods": {
+        "run": {
+          "params": {
+            "ctx": "RequestContext",
+            "user_input": "str",
+            "knowledge_base_ids": "list[str]|null"
+          },
+          "returns": "str",
+          "async": true
+        },
+        "register_tool": {
+          "params": {
+            "ctx": "RequestContext",
+            "definition": "ToolDef",
+            "handler": "callable",
+            "context_aware": "bool"
+          },
+          "returns": "None"
+        },
+        "tool_definitions": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "list[ToolDef]"
+        },
+        "history": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "list[ChatMessage]"
+        },
+        "aclose": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "None",
+          "async": true
+        }
+      }
+    }
+  }
+}

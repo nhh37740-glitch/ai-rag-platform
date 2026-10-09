@@ -1,4 +1,4 @@
-# observability - 接口契约
+# observability - 接口接口规范
 
 ## observability
 ```python

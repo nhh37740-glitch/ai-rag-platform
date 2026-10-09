@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from core_contracts import ChatMessage
-from core_contracts import RequestContext
+from core_specifications import ChatMessage
+from core_specifications import RequestContext
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 def _token_set(text: str) -> set:

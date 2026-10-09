@@ -4,9 +4,9 @@ import os
 import re
 from typing import Callable, Dict
 
-from core_contracts import RequestContext, SkillDef
+from core_specifications import RequestContext, SkillDef
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 
 class SkillRegistry:

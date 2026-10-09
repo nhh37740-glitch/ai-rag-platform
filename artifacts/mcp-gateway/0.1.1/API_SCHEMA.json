@@ -1,0 +1,9 @@
+{
+  "module": "mcp_gateway",
+  "version": "0.1.1",
+  "public_api": [
+    "McpServerClient",
+    "MockClient",
+    "normalize_to_tool"
+  ]
+}

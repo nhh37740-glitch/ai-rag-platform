@@ -5,13 +5,14 @@ import importlib.machinery
 import json
 import shutil
 import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "modules-src"
 ART = ROOT / "artifacts"
-SCHEMA = ROOT / "contracts" / "API_SCHEMA.json"
+SCHEMA = ROOT / "specifications" / "API_SCHEMA.json"
 
 
 def compiled_init_files(package_dir: Path) -> list[Path]:
@@ -95,7 +96,7 @@ def main(argv: list[str] | None = None) -> None:
         if not init.exists():
             continue
         print(f"[cythonize] {pkg}@{version}")
-        subprocess.run(["cythonize", "-i", str(init)], cwd=ROOT, check=True)
+        subprocess.run([sys.executable, "-m", "Cython.Build.Cythonize", "-i", str(init)], cwd=ROOT, check=True)
         out = ART / module_id / version / pkg
         out.mkdir(parents=True, exist_ok=True)
         compiled = compiled_init_files(mod / pkg)

@@ -2,7 +2,7 @@ import json
 import unittest
 from unittest.mock import patch
 
-from core_contracts import Citation, RequestContext, RetrievalResult
+from core_specifications import Citation, RequestContext, RetrievalResult
 from rag_core import DEFAULT_READ_CHUNKS, MAX_READ_CHUNKS
 from rag_tools import MAX_TOP_K, RagTools
 

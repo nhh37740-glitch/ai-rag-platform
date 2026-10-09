@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -11,7 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "modules-src"
 ARTIFACTS = ROOT / "artifacts"
 REGISTRY = ROOT / "registry.json"
-SCHEMA = ROOT / "contracts" / "API_SCHEMA.json"
+SCHEMA = ROOT / "specifications" / "API_SCHEMA.json"
 
 
 def sha256_tree(d: Path) -> str:
@@ -20,10 +21,11 @@ def sha256_tree(d: Path) -> str:
         if (
             p.is_file()
             and "__pycache__" not in p.parts
-            and ".egg-info" not in p.parts
+            and not {".git", "build", "dist", ".test-tmp", ".pytest_cache"}.intersection(p.parts)
+            and not any(part.endswith(".egg-info") for part in p.parts)
             and p.suffix not in (".c", ".pyd", ".so", ".pyc")
         ):
-            h.update(str(p.relative_to(d)).encode("utf-8"))
+            h.update(p.relative_to(d).as_posix().encode("utf-8"))
             h.update(p.read_bytes())
     return h.hexdigest()
 
@@ -128,8 +130,8 @@ def main(argv: list[str] | None = None) -> None:
             json.dumps({"module": pkg, "version": version, "public_api": _exports(mod_dir, pkg)}, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        (out / "CHANGELOG.md").write_text(f"# {pkg}\n\n## {version}\n- 初版实现（离线标准库/httpx/numpy）。\n", encoding="utf-8")
-        (out / "test_contract.py").write_text(_contract_test(pkg), encoding="utf-8")
+        (out / "CHANGELOG.md").write_text(read_any(mod_dir / "CHANGELOG.md") if (mod_dir / "CHANGELOG.md").exists() else f"# {pkg}\n\n## {version}\n", encoding="utf-8")
+        (out / "test_specification.py").write_text(_contract_test(pkg), encoding="utf-8")
         checksum = sha256_tree(mod_dir)
         (out / "checksum.sha256").write_text(checksum + "  " + name + "\n", encoding="utf-8")
         has_binary = any(out.rglob("*.pyd")) or any(out.rglob("*.so")) or any(out.rglob("*.exe"))
@@ -153,14 +155,11 @@ def _exports(mod_dir: Path, pkg: str) -> list[str]:
     init = mod_dir / pkg / "__init__.py"
     if not init.exists():
         return []
-    txt = read_any(init)
-    if "__all__" in txt:
-        import re
-
-        m = re.search(r"__all__\s*=\s*\[(.*?)\]", txt, re.S)
-        if m:
-            return re.findall(r'"([^"]+)"|[^"]*?([A-Za-z_]\w*)', m.group(1))
-    return [l.split("(")[0].strip() for l in txt.splitlines() if l.startswith("def ") or l.startswith("class ")]
+    tree = ast.parse(read_any(init))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "__all__" for t in node.targets):
+            return ast.literal_eval(node.value)
+    return [node.name for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and not node.name.startswith("_")]
 
 
 def _contract_test(pkg: str) -> str:

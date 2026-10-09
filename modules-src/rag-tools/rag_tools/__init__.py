@@ -4,7 +4,7 @@ import json
 import time
 from typing import Any, Callable, Iterable, List, Optional, Protocol
 
-from core_contracts import Citation, RequestContext, SpanEvent, ToolDef
+from core_specifications import Citation, RequestContext, SpanEvent, ToolDef
 from rag_core import DEFAULT_READ_CHUNKS
 from rag_core import MAX_READ_CHUNKS
 from rag_core import document_info as run_document_info
@@ -14,7 +14,7 @@ from rag_core import list_documents as run_list_documents
 from rag_core import read_document as run_read_document
 from rag_core import retrieve
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 MIN_TOP_K = 1
 MAX_TOP_K = 20

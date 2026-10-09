@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "storage"
-version = "0.1.0"
+version = "0.2.0"
 requires-python = ">=3.11"
-dependencies = ["core_contracts", "memory", "rag_core"]
+dependencies = ["core_specifications", "numpy"]
 
 [tool.setuptools]
 packages = ["storage"]

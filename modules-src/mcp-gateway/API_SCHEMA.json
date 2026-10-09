@@ -1,125 +1,43 @@
-﻿{
-    "format":  2,
-    "context":  {
-                    "type":  "RequestContext",
-                    "package":  "contracts.core_contracts",
-                    "fields":  {
-                                   "trace_id":  "str",
-                                   "request_id":  "str",
-                                   "user_id":  "str",
-                                   "session_id":  "str"
-                               },
-                    "note":  "Every public facade method MUST accept this as its first argument, named \u0027ctx\u0027."
-                },
-    "shared_types":  {
-                         "ChatMessage":  {
-                                             "role":  "str",
-                                             "content":  "str",
-                                             "tool_call_id":  "str",
-                                             "name":  "str"
-                                         },
-                         "ToolCall":  {
-                                          "id":  "str",
-                                          "name":  "str",
-                                          "arguments":  "dict"
-                                      },
-                         "ToolDef":  {
-                                         "name":  "str",
-                                         "description":  "str",
-                                         "parameters":  "dict(json schema)"
-                                     },
-                         "Citation":  {
-                                          "source_id":  "str",
-                                          "title":  "str",
-                                          "text":  "str",
-                                          "score":  "float",
-                                          "metadata":  "dict"
-                                      },
-                         "RetrievalResult":  {
-                                                 "query":  "str",
-                                                 "contexts":  "list[str]",
-                                                 "citations":  "list[Citation]"
-                                             },
-                         "MemoryEntry":  {
-                                             "id":  "str",
-                                             "namespace":  "session|user",
-                                             "key":  "str",
-                                             "content":  "str",
-                                             "created":  "str",
-                                             "importance":  "float"
-                                         },
-                         "SkillDef":  {
-                                          "name":  "str",
-                                          "description":  "str",
-                                          "version":  "str",
-                                          "load":  "callable|null"
-                                      },
-                         "SpanEvent":  {
-                                           "trace_id":  "str",
-                                           "span":  "str",
-                                           "start_ns":  "int",
-                                           "end_ns":  "int",
-                                           "status":  "ok|error",
-                                           "error":  "str",
-                                           "meta":  "dict"
-                                       }
-                     },
-    "rules":  {
-                  "dependency_ceiling":  [
-                                             "stdlib",
-                                             "httpx",
-                                             "numpy",
-                                             "sklearn"
-                                         ],
-                  "tests":  "unittest (no pytest)",
-                  "ctx_first":  true,
-                  "compile_default":  "mypyc",
-                  "compile_fallback":  "Cython",
-                  "concurrency":  "sync methods that block IO are wrapped by caller via asyncio.to_thread"
-              },
-    "module":  {
-                   "package":  "mcp_gateway",
-                   "delivery":  "mypyc",
-                   "version":  "0.0.0",
-                   "facade":  {
-                                  "McpServerClient":  {
-                                                          "kind":  "protocol",
-                                                          "methods":  {
-                                                                          "connect":  {
-                                                                                          "async":  true,
-                                                                                          "params":  {
-                                                                                                         "name":  "str"
-                                                                                                     },
-                                                                                          "returns":  "None"
-                                                                                      },
-                                                                          "list_tools":  {
-                                                                                             "async":  true,
-                                                                                             "params":  {
-
-                                                                                                        },
-                                                                                             "returns":  "list[ToolDef]"
-                                                                                         },
-                                                                          "call_tool":  {
-                                                                                            "async":  true,
-                                                                                            "params":  {
-                                                                                                           "name":  "str",
-                                                                                                           "arguments":  "dict"
-                                                                                                       },
-                                                                                            "returns":  "str"
-                                                                                        }
-                                                                      }
-                                                      },
-                                  "MockClient":  {
-                                                     "kind":  "class",
-                                                     "implements":  "McpServerClient"
-                                                 },
-                                  "normalize_to_tool":  {
-                                                            "kind":  "function",
-                                                            "params":  {
-                                                                           "mcp_tool":  "dict"
-                                                                       },
-                                                            "returns":  "ToolDef"
-                                                        }
-                              }
-               }
+{
+  "package": "mcp_gateway",
+  "delivery": "Cython extension (.pyd/.so)",
+  "version": "0.1.1",
+  "facade": {
+    "McpServerClient": {
+      "kind": "protocol",
+      "methods": {
+        "connect": {
+          "async": true,
+          "params": {
+            "name": "str"
+          },
+          "returns": "None"
+        },
+        "list_tools": {
+          "async": true,
+          "params": {},
+          "returns": "list[ToolDef]"
+        },
+        "call_tool": {
+          "async": true,
+          "params": {
+            "name": "str",
+            "arguments": "dict"
+          },
+          "returns": "str"
+        }
+      }
+    },
+    "MockClient": {
+      "kind": "class",
+      "implements": "McpServerClient"
+    },
+    "normalize_to_tool": {
+      "kind": "function",
+      "params": {
+        "mcp_tool": "dict"
+      },
+      "returns": "ToolDef"
+    }
+  }
 }

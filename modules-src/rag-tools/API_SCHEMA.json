@@ -1,8 +1,15 @@
 {
-  "module": "rag-tools",
   "package": "rag_tools",
-  "version": "0.3.0",
-  "replaces": "rag-skill",
+  "delivery": "Cython extension (.pyd/.so)",
+  "version": "0.3.1",
+  "notes": "RAG 工具模块：向 LLM 公布知识库检索工具，执行时只访问当前会话选中的知识库。",
+  "tools": [
+    "search_knowledge_base",
+    "hybrid_search_knowledge_base",
+    "keyword_search_knowledge_base",
+    "list_knowledge_documents",
+    "read_knowledge_document"
+  ],
   "facade": {
     "RagTools": {
       "kind": "class",
@@ -25,7 +32,7 @@
           },
           "returns": "str"
         },
-        "hybrid_search": {
+        "keyword_search": {
           "params": {
             "ctx": "RequestContext",
             "query": "str",
@@ -34,7 +41,7 @@
           },
           "returns": "str"
         },
-        "keyword_search": {
+        "hybrid_search": {
           "params": {
             "ctx": "RequestContext",
             "query": "str",
@@ -55,98 +62,13 @@
             "ctx": "RequestContext",
             "source_id": "str",
             "knowledge_base_ids": "list[str]",
-            "offset": "int=0",
+            "offset": "int",
             "max_chunks": "int|null"
           },
           "returns": "str",
-          "payload_extra": ["offset", "max_chunks", "returned_chunks", "total_chunks", "truncated", "next_offset"]
+          "notes": "source_id 必须属于所选知识库；分页读取，返回值含 total_chunks/truncated/next_offset"
         }
       }
-    }
-  },
-  "tools": {
-    "search_knowledge_base": {
-      "backing_call": "rag_core.retrieve",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "query": { "type": "string", "minLength": 1 },
-          "top_k": { "type": "integer", "minimum": 1, "maximum": 20 }
-        },
-        "required": ["query"],
-        "additionalProperties": false
-      },
-      "runtime_injected": ["knowledge_base_ids"]
-    },
-    "hybrid_search_knowledge_base": {
-      "backing_call": "rag_core.hybrid_search",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "query": { "type": "string", "minLength": 1 },
-          "top_k": { "type": "integer", "minimum": 1, "maximum": 20 }
-        },
-        "required": ["query"],
-        "additionalProperties": false
-      },
-      "runtime_injected": ["knowledge_base_ids"]
-    },
-    "keyword_search_knowledge_base": {
-      "backing_call": "rag_core.keyword_search",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "query": { "type": "string", "minLength": 1 },
-          "top_k": { "type": "integer", "minimum": 1, "maximum": 20 }
-        },
-        "required": ["query"],
-        "additionalProperties": false
-      },
-      "runtime_injected": ["knowledge_base_ids"]
-    },
-    "list_knowledge_documents": {
-      "backing_call": "rag_core.list_documents",
-      "parameters": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      },
-      "runtime_injected": ["knowledge_base_ids"]
-    },
-    "read_knowledge_document": {
-      "backing_call": "rag_core.read_document",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "source_id": { "type": "string", "minLength": 1 },
-          "offset": { "type": "integer", "minimum": 0 },
-          "max_chunks": { "type": "integer", "minimum": 1, "maximum": 100 }
-        },
-        "required": ["source_id"],
-        "additionalProperties": false
-      },
-      "runtime_injected": ["knowledge_base_ids"],
-      "scope_check": "source_id.partition('/')[0] must be in knowledge_base_ids",
-      "pagination": {
-        "default_chunks": 20,
-        "max_chunks": 100,
-        "truncated_flag": "truncated",
-        "continue_with": "next_offset"
-      }
-    }
-  },
-  "trace": {
-    "span": "rag",
-    "meta": {
-      "tool": "str",
-      "query": "str",
-      "knowledge_base_ids": "list[str]",
-      "hit_count": "int",
-      "hits": "list[{rank:int,source_id:str,title:str,score:float,text_preview:str}]",
-      "offset": "int (read_document only)",
-      "max_chunks": "int (read_document only)",
-      "truncated": "bool (read_document only)"
     }
   }
 }

@@ -3,9 +3,9 @@ from __future__ import annotations
 import threading
 from typing import Any, Callable, Dict
 
-from core_contracts import RequestContext, ToolCall, ToolDef
+from core_specifications import RequestContext, ToolCall, ToolDef
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 
 class ToolRegistry:

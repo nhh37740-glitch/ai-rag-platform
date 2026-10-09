@@ -3,7 +3,7 @@ import pathlib
 import shutil
 import unittest
 
-from core_contracts import RequestContext
+from core_specifications import RequestContext
 from ingestion import build_index, chunk, parse, to_markdown
 
 
