@@ -66,7 +66,7 @@ def smoke(private_base, login_base, env_file, *, write=False):
         body = ("--" + boundary + '\r\nContent-Disposition: form-data; name="files"; filename="candidate.md"\r\nContent-Type: text/markdown\r\n\r\n' + content + "\r\n--" + boundary + "--\r\n").encode()
         status, imported, _ = request(private_base, "/api/notebooks/" + notebook_id + "/files", method="POST", body=body, headers={**headers, "Content-Type": "multipart/form-data; boundary=" + boundary})
         assert status == 201 and len(imported["imported"]) == 1
-        status, answer, _ = request(private_base, "/api/chat", method="POST", body=json.dumps({"message": "紫杉项目如何发布？", "knowledge_base_ids": [notebook_id], "session_id": "candidate-smoke"}).encode(), headers=json_headers)
+        status, answer, _ = request(private_base, "/api/chat", method="POST", body=json.dumps({"message": "请查询紫杉项目如何发布。", "knowledge_base_ids": [notebook_id], "session_id": "candidate-smoke"}).encode(), headers=json_headers)
         assert status == 200 and answer["knowledge_base_ids"] == [notebook_id]
         status, trace, _ = request(private_base, "/api/trace/" + answer["trace_id"], headers=headers)
         hits = [hit for span in trace if span["span"] == "rag" for hit in span["meta"].get("hits", [])]

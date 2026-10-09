@@ -143,7 +143,7 @@ async def main():
         assert progress.status_code == 200 and progress.json()["state"] == "done"
         docs = await client.get("/api/notebooks/" + notebook + "/documents", headers=headers)
         assert docs.status_code == 200 and len(docs.json()["documents"]) == 1
-        result = await client.post("/api/chat", headers=headers, json={"message": "紫杉项目的发布方式是什么？", "session_id": "owner-import", "user_id": "spoofed-body-user", "knowledge_base_ids": [notebook]})
+        result = await client.post("/api/chat", headers=headers, json={"message": "请查询紫杉项目的发布方式。", "session_id": "owner-import", "user_id": "spoofed-body-user", "knowledge_base_ids": [notebook]})
         assert result.status_code == 200, result.text
         assert contexts and all(ctx.user_id == owner for ctx in contexts)
         trace = (await client.get("/api/trace/" + result.json()["trace_id"], headers=headers)).json()
