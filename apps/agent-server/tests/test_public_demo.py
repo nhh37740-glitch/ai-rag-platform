@@ -70,6 +70,17 @@ async def main():
         assert len(info["suggested_questions"]) == 8
         questions = [item["question"] for item in info["suggested_questions"]]
         assert s.index().path.endswith("public_demo.html")
+        page = await client.get("/")
+        assert page.status_code == 200
+        assert 'class="workspace public-workspace"' in page.text
+        assert 'id="sources-panel"' in page.text and 'id="studio-panel"' in page.text
+        assert 'id="question-options"' in page.text and 'id="answer-content"' in page.text
+        for forbidden in ["knowledge_demo.js", 'id="upload-form"', 'id="key-config-input"', 'id="notebook-name"', 'id="m"']:
+            assert forbidden not in page.text
+        for asset in ["/static/knowledge_demo.css", "/static/public_demo.css", "/static/public_demo.js"]:
+            assert (await client.get(asset)).status_code == 200, asset
+        for asset in ["/static/index.html", "/static/knowledge_demo.js", "/static/public_demo.html", "/static/no-such-file"]:
+            assert (await client.get(asset)).status_code == 403, asset
         for method, path in [("POST", "/api/chat"), ("GET", "/api/chat/stream"), ("POST", "/api/notebooks"), ("POST", "/api/notebooks/anything/files"), ("GET", "/api/notebooks"), ("GET", "/api/llm/config"), ("GET", "/docs"), ("GET", "/openapi.json"), ("DELETE", "/api/demo"), ("HEAD", "/api/demo")]:
             assert (await client.request(method, path)).status_code == 403, (method, path)
         for header in ["authorization", "x-deepseek-api-key"]:
