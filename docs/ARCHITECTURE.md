@@ -6,7 +6,7 @@
 
 ## 当前分层（2026-10-09）
 
-apps/web 只负责静态网页和 API 调用；apps/agent-server 只装配 AgentService、RagService、DataService。三个中间包各自构造本域一级模块；跨域只通过 core_specifications 中的 Protocol 注入。
+apps/web 只负责静态网页和 API 调用；apps/agent-server 装配 AgentService、RagService、DataService，并通过公共 AuthService 校验身份、权限和知识库范围。三个中间包各自构造本域一级模块；跨域只通过 core_specifications 中的 Protocol 注入。
 
 | 域 | 中间包 | 一级实现 |
 |---|---|---|
@@ -94,9 +94,9 @@ apps/web 只负责静态网页和 API 调用；apps/agent-server 只装配 Agent
 - `parse(path)` / `chunk(texts, size, overlap)` / `build_index(ctx, docs_dir, store, embed_fn)`
 - CLI `python -m ingestion <dir> --out index.json`（独立进程产索引，主进程读索引）
 
-### 统一存储 `storage`（未接入 Web）
+### 统一存储 `storage`（已由 DataService 接入 Web）
 - `Storage.memory_*/add_documents/search_documents/save_eval/load_eval`
-- `make_storage(db_path, memory_store, vector_store)`（组合 memory + vector + SQLite 门面；没有 pgvector 适配器，也未进入当前发布注册表）
+- `make_storage(db_path, memory_store, vector_store)`（组合 memory + vector + SQLite 门面；没有 pgvector 适配器；SQLite 向量实现及状态门面已注册并由 DataService 消费）
 
 ### 主进程 `apps/agent-server/server.py`
 FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问题）、`GET/POST /api/notebooks`（列出/创建笔记本）、`POST /api/notebooks/{id}/files`（上传并转 Markdown）、`POST /api/chat`、`GET /api/chat/stream`（携带知识库选择的 SSE）、`GET /api/trace/{trace_id}`。
@@ -146,3 +146,7 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
 - retrieval_guard 最多提醒两次，之后可返回未检索答案。引用来源约束与回退顺序主要属于提示词策略，没有严格的输出验证闸门。
 - RAG scope 是所选笔记本的过滤范围。服务无用户认证，客户端可提交 user_id，因此不能声称多租户权限隔离。SQLite 记忆不按 session_id 过滤，进程内聊天历史才使用用户/会话联合键。
 - evaluate_qa 的词面重叠与长度分数属于启发式，不能证明回答正确率或真实性；当前没有真实模型的基准对比结论。
+
+## 管理员与游客
+
+公共横切模块 auth-runtime 只依赖 core_specifications 与标准库。游客能读公开 CMRC 文档及查询；管理员由登录网关实时核验现有 owner 会话，Nginx 注入内部证明，后端再次验证后允许创建笔记本与导入。运行交付含17个编译模块，Web仍为不编译静态资产。公开与私人数据卷隔离。

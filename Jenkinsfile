@@ -12,6 +12,7 @@ pipeline {
             steps {
                 sh 'mkdir -p reports'
                 sh 'find reports -maxdepth 1 -type f -name "*.xml" -delete'
+                sh 'mkdir -p dist && find dist -maxdepth 1 -type f \\( -name "ai-rag-platform-*.zip" -o -name "ai-rag-platform-*.zip.sha256" -o -name "ai-rag-platform-*.manifest.json" \\) -delete'
                 sh 'sudo docker build --target prepared --tag ai-rag-platform:prepared-${BUILD_NUMBER} .'
             }
         }

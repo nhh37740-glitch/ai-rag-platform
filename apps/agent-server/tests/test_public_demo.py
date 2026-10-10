@@ -75,22 +75,76 @@ async def main():
         assert 'class="workspace public-workspace"' in page.text
         assert 'id="sources-panel"' in page.text and 'id="studio-panel"' in page.text
         assert 'id="question-options"' in page.text and 'id="answer-content"' in page.text
+        for element in ["identity-badge", "admin-login-link", "document-list", "question-input", "document-dialog", "document-content", "next-document-page"]:
+            assert 'id="' + element + '"' in page.text, element
         for forbidden in ["knowledge_demo.js", 'id="upload-form"', 'id="key-config-input"', 'id="notebook-name"', 'id="m"']:
             assert forbidden not in page.text
         for asset in ["/static/knowledge_demo.css", "/static/public_demo.css", "/static/public_demo.js"]:
             assert (await client.get(asset)).status_code == 200, asset
         for asset in ["/static/index.html", "/static/knowledge_demo.js", "/static/public_demo.html", "/static/no-such-file"]:
             assert (await client.get(asset)).status_code == 403, asset
-        for method, path in [("POST", "/api/chat"), ("GET", "/api/chat/stream"), ("POST", "/api/notebooks"), ("POST", "/api/notebooks/anything/files"), ("GET", "/api/notebooks"), ("GET", "/api/llm/config"), ("GET", "/docs"), ("GET", "/openapi.json"), ("DELETE", "/api/demo"), ("HEAD", "/api/demo")]:
+        for method, path in [("POST", "/api/chat"), ("GET", "/api/chat/stream"), ("POST", "/api/notebooks"), ("POST", "/api/notebooks/anything/files"), ("GET", "/api/notebooks/private/documents"), ("GET", "/api/notebooks/private/suggestions"), ("GET", "/api/uploads/private"), ("GET", "/api/llm/config"), ("GET", "/docs"), ("GET", "/openapi.json"), ("DELETE", "/api/demo"), ("HEAD", "/api/demo")]:
             assert (await client.request(method, path)).status_code == 403, (method, path)
         for header in ["authorization", "x-deepseek-api-key"]:
             assert (await client.post("/api/demo/chat", json={"question": questions[0]}, headers={header: "placeholder"})).status_code == 403
         assert (await client.get("/api/admin/session")).status_code == 403
-        for payload in [{}, [], {"question": 4}, {"question": "unknown"}, {"question": questions[0] + " "}, {"question": questions[0], "knowledge_base_ids": []}, {"question": questions[0], "user_id": "private"}, {"question": questions[0], "key": "placeholder"}]:
+        for payload in [{}, [], {"question": 4}, {"question": ""}, {"question": " \n\t"}, {"question": "x" * 1025}, {"question": questions[0], "knowledge_base_ids": []}, {"question": questions[0], "user_id": "private"}, {"question": questions[0], "key": "placeholder"}]:
             assert (await client.post("/api/demo/chat", json=payload)).status_code == 422
-        for body, content_type in [("{}", "text/plain"), ("{", "application/json"), (" " * 4097, "application/json"), ('{"question":"x","question":"x"}', "application/json")]:
+        for body, content_type in [("{}", "text/plain"), ("{", "application/json"), (" " * 16385, "application/json"), ('{"question":"x","question":"x"}', "application/json")]:
             assert (await client.post("/api/demo/chat", content=body, headers={"content-type": content_type})).status_code == 422
         assert (await client.post("/api/demo/chat?scope=private", json={"question": questions[0]})).status_code == 422
+
+        identity = await client.get("/api/auth/session")
+        assert identity.status_code == 200 and identity.headers["cache-control"] == "no-store"
+        assert identity.json()["role"] == "guest" and not identity.json()["administrator"]
+        assert identity.json()["read_only"] and identity.json()["permissions"] == ["read", "query"]
+        assert identity.json()["allowed_notebook_ids"] == [s.DEMO_KB_ID]
+        assert "proof" not in identity.text and "token" not in identity.text
+        forged = await client.get("/api/auth/session", headers={"x-rag-user-id": "owner", "x-rag-role": "admin", "x-rag-proxy-token": "forged"})
+        assert forged.status_code == 200 and forged.json()["role"] == "guest"
+        notebooks = (await client.get("/api/notebooks")).json()["notebooks"]
+        assert [notebook["id"] for notebook in notebooks] == [s.DEMO_KB_ID]
+        documents = (await client.get("/api/notebooks/" + s.DEMO_KB_ID + "/documents")).json()["documents"]
+        assert len(documents) == 24 and all(doc["source_id"].startswith(s.DEMO_KB_ID + "/") for doc in documents)
+        assert (await client.get("/api/notebooks/" + s.DEMO_KB_ID + "/suggestions")).status_code == 200
+        source_id = documents[0]["source_id"]
+        document_id = source_id.partition("/")[2]
+        original_chunks = s.vector_store.document_chunks(source_id)
+        ctx = RequestContext("public-pagination", "public-pagination", "guest")
+        try:
+            chunks = ["公开文档第" + str(index) + "块" for index in range(45)]
+            s.vector_store.add(source_id, chunks, s.rag_service.embed_texts(ctx, chunks))
+            endpoint = "/api/demo/documents/" + document_id
+            for offset, expected_length, next_offset in [(0, 20, 20), (20, 20, 40), (40, 5, None), (100, 0, None)]:
+                response = await client.get(endpoint, params={"offset": offset})
+                assert response.status_code == 200, response.text
+                page = response.json()
+                assert page["source_id"] == source_id and page["document_id"] == document_id
+                assert page["contexts"] == chunks[offset:offset + 20] and len(page["contexts"]) == expected_length
+                assert page["offset"] == offset and page["total_chunks"] == 45
+                assert page["next_offset"] == next_offset and page["truncated"] == (next_offset is not None)
+                assert response.headers["cache-control"] == "no-store"
+            for params in [{"offset": -1}, {"offset": "true"}, {"offset": 0, "scope": "private"}, {"max_chunks": 100}]:
+                assert (await client.get(endpoint, params=params)).status_code == 422
+            assert (await client.get(endpoint + "?offset=0&offset=20")).status_code == 422
+            assert (await client.get("/api/demo/documents/private-doc")).status_code == 404
+            assert (await client.get("/api/demo/documents/private%2Fdoc")).status_code == 403
+        finally:
+            s.vector_store.add(source_id, original_chunks, s.rag_service.embed_texts(ctx, original_chunks))
+
+        for free_question in ["请概括静电感应的文档内容。", questions[0] + " ", "中文" * 512]:
+            first = await client.post("/api/demo/chat", json={"question": free_question})
+            second = await client.post("/api/demo/chat", json={"question": free_question})
+            assert first.status_code == second.status_code == 200, first.text + second.text
+            assert not first.json()["cache_hit"] and not second.json()["cache_hit"]
+            assert first.json()["trace_id"] != second.json()["trace_id"]
+            assert free_question not in s.public_demo._cache
+            assert first.json()["knowledge_base_ids"] == [s.DEMO_KB_ID]
+        escaped = await client.post(
+            "/api/demo/chat", content=json.dumps({"question": "文" * 1024}, ensure_ascii=True),
+            headers={"content-type": "application/json"},
+        )
+        assert escaped.status_code == 200 and not escaped.json()["cache_hit"], escaped.text
 
         response = await client.post("/api/demo/chat", json={"question": questions[0]})
         assert response.status_code == 200, response.text

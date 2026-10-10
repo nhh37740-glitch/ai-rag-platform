@@ -1,4 +1,15 @@
 /* Public-only additions to the existing Knowledge Studio layout. */
+.evidence-heading { margin: 22px 2px 10px; font-size: 13px; }
+.document-list-button { text-align: left; padding: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.public-document-dialog { width: min(760px, calc(100% - 32px)); max-height: 85vh; padding: 22px; border: 1px solid var(--line); border-radius: 16px; color: var(--ink); }
+.public-document-dialog::backdrop { background: #141a2a66; }
+.document-heading, .document-pagination { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.document-heading h2 { margin: 0; font-size: 18px; }
+.document-content { max-height: 58vh; overflow-y: auto; padding: 0 8px 8px 0; }
+.document-content p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.9; }
+#document-page-status { font-size: 12px; color: var(--ink-soft); }
+.public-secondary:disabled { opacity: .5; cursor: default; }
+.public-composer-shell textarea { width: 100%; min-width: 0; resize: vertical; border: 0; background: transparent; font: inherit; outline: none; }
 .key-settings { border: 1px solid var(--line, #d7e1de); border-radius: 10px; padding: 12px; margin: 12px 0; font-size: 12px; }
 .key-settings summary { cursor: pointer; font-weight: 600; }
 .key-settings p { color: var(--muted, #52686b); line-height: 1.7; }
@@ -69,6 +80,9 @@
   .public-notebook { flex: 1; }
 }
 @media (max-width: 640px) {
+  #identity-badge { display: inline-flex; padding: 4px 6px; font-size: 10px; }
+  #readonly-badge { display: none; }
+  .header-actions { gap: 5px; }
   .public-notebook { font-size: 11px; }
   .public-notebook strong { font-size: 11px; }
   #question-options { grid-template-columns: 1fr; max-height: 30vh; }

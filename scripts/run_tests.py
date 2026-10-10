@@ -72,6 +72,16 @@ def main(argv=None):
             os.environ.update(STATE_DIR=temporary, DB_PATH=str(Path(temporary) / "memory.sqlite"),
                               VECTOR_DB_PATH=str(Path(temporary) / "vectors.sqlite"),
                               INDEX_PATH=str(Path(temporary) / "no-index.json"), DEEPSEEK_API_KEY="")
+            # The server must establish the boundary before auth middleware tests
+            # import extensions. Boot only after allocating isolated test state.
+            sys.path.insert(0, str(ROOT / "apps/agent-server"))
+            server = importlib.import_module("server")
+            import runtime_boundary
+            published = runtime_boundary.load_published_modules()
+            for package in published:
+                importlib.import_module(package)
+            runtime_boundary.assert_binary_runtime(published)
+            print(f"Application tests use {len(published)} published extensions")
             result = pytest.main(options)
             server = sys.modules.get("server")
             if server is not None:

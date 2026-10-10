@@ -2,7 +2,7 @@
 
 (() => {
   const byId = (id) => document.getElementById(id);
-  const state = { questions: [], selected: "", busy: false, traceId: "", metadata: null, retry: "metadata", temporaryKey: "" };
+  const state = { questions: [], selected: "", busy: false, traceId: "", metadata: null, retry: "metadata", temporaryKey: "", principal: null, documents: [], documentId: "", documentOffset: 0, documentNext: null, documentHistory: [], documentBusy: false, documentVersion: 0 };
   const secureKeyPage = location.protocol === "https:" || (window.isSecureContext && ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname));
   // Relative URLs work at both / and /projects/apps/rag/; nginx need not rewrite HTML.
   const apiURL = (path) => new URL(path, document.baseURI);
@@ -25,7 +25,8 @@
   function setBusy(busy) {
     state.busy = busy;
     byId("question-options").disabled = busy || !state.questions.length;
-    byId("ask-button").disabled = busy || !state.selected;
+    byId("ask-button").disabled = busy || !state.metadata || !byId("question-input").value.trim();
+    byId("question-input").disabled = busy || !state.metadata;
     byId("retry-button").disabled = busy;
     byId("trace-retry-button").disabled = busy;
     byId("apply-key").disabled = busy || !secureKeyPage;
@@ -45,7 +46,7 @@
   }
   function errorMessage(response, payload) {
     const messages = {
-      422: "精选问题校验失败。请重新加载页面，选择服务器提供的问题后重试。",
+      422: "请检查问题或分页参数；问题须为 1 到 1024 字。",
       429: "服务器正在处理另一个请求，请稍后重试。",
       502: "本次模型或检索未能提供有效结果，请重试；失败结果不会缓存。",
       504: "本次执行超时，请稍后重试；此处没有生成可用答案。",
@@ -56,7 +57,7 @@
     return `${messages[response.status] || "服务器返回错误，请稍后重试。"}（HTTP ${response.status}）${detail ? ` ${detail}` : ""}`;
   }
   async function request(path, options = {}) {
-    const response = await fetch(apiURL(path), { credentials: "omit", cache: "no-store", ...options });
+    const response = await fetch(apiURL(path), { credentials: "same-origin", cache: "no-store", ...options });
     let payload;
     try { payload = await response.json(); } catch {
       throw new Error(response.ok ? "服务器响应无法读取，请重试。" : errorMessage(response));
@@ -69,16 +70,19 @@
     setBusy(true);
     status("正在读取服务器配置与精选问题…", "loading");
     try {
-      const data = await request("api/demo");
+      const [data, notebooks, documents] = await Promise.all([
+        request("api/demo"), request("api/notebooks"), request("api/notebooks/cmrc2018-demo/documents"),
+      ]);
       if (data.public_demo !== true || data.read_only !== true) throw new Error("服务器未启用公开只读演示，无法在此页面发起请求。");
       const questions = Array.isArray(data.suggested_questions) ? data.suggested_questions.filter((item) => item && typeof item.question === "string" && item.question.trim()) : [];
-      if (!questions.length) throw new Error("服务器没有提供精选问题，请稍后重新加载。");
       state.metadata = data;
       state.questions = questions;
-      state.selected = questions[0].question;
+      state.selected = byId("question-input").value.trim();
+      state.documents = Array.isArray(documents.documents) ? documents.documents : [];
+      renderDocuments();
       showModes(data);
-      byId("dataset").textContent = `${data.name || "CMRC2018 公开中文资料"} · 已导入 ${data.imported ?? "未知"}/${data.documents ?? "未知"} 篇 · ${questions.length} 个精选问题`;
-      byId("selection-note").textContent = questions[0].question;
+      const publicNotebook = (notebooks.notebooks || []).find((item) => item.id === "cmrc2018-demo");
+      byId("dataset").textContent = `${publicNotebook?.name || data.name || "CMRC2018 公开中文资料"} · ${state.documents.length} 篇 · ${questions.length} 个精选问题`;
       const fieldset = byId("question-options");
       fieldset.replaceChildren(node("legend", "选择精选问题", "visually-hidden"));
       questions.forEach((item, index) => {
@@ -87,19 +91,90 @@
         radio.type = "radio";
         radio.name = "question";
         radio.value = item.question;
-        radio.checked = index === 0;
-        radio.addEventListener("change", () => { state.selected = item.question; byId("selection-note").textContent = item.question; });
+        radio.checked = item.question === state.selected;
+        radio.addEventListener("change", () => { state.selected = item.question; byId("question-input").value = item.question; setBusy(state.busy); byId("question-input").focus(); });
         const text = node("span");
         text.append(node("span", item.topic || "公开资料", "topic"), node("span", item.question, "question-text"));
         label.append(radio, text);
         fieldset.append(label);
       });
-      status("已就绪。选择问题并点击「开始问答」。");
+      status("已就绪。输入问题或选择精选题，点击发送。");
     } catch (error) {
       status("演示配置加载失败。");
       byId("dataset").textContent = "服务器知识库状态暂不可用";
       showError(error.message || "连接失败，请重试。", "metadata");
     } finally { setBusy(false); }
+  }
+  async function loadIdentity() {
+    try {
+      const principal = await request("api/auth/session");
+      state.principal = principal;
+      byId("identity-badge").textContent = principal.role === "admin" && principal.administrator === true ? "管理员 · 公开浏览" : "游客 · 可阅读与提问";
+      if (principal.role === "admin" && principal.administrator === true) {
+        byId("admin-login-link").textContent = "管理员工作区";
+        byId("admin-login-link").href = "admin/";
+      }
+    } catch {
+      byId("identity-badge").textContent = "身份暂不可确认";
+    }
+  }
+  function documentId(sourceId) {
+    if (typeof sourceId !== "string" || !sourceId.startsWith("cmrc2018-demo/")) return "";
+    const id = sourceId.slice("cmrc2018-demo/".length);
+    return id && !/[\/\\]/.test(id) && id !== "." && id !== ".." ? id : "";
+  }
+  function documentButton(sourceId, text) {
+    const id = documentId(sourceId);
+    if (!id) return null;
+    const button = node("button", text, "public-secondary");
+    button.type = "button";
+    button.addEventListener("click", () => openDocument(id));
+    return button;
+  }
+  function renderDocuments() {
+    const list = byId("document-list");
+    list.replaceChildren();
+    for (const item of state.documents) {
+      const button = documentButton(item.source_id, `${item.title || "公开文档"} · ${item.chunks ?? item.chunk_count ?? 0} 块`);
+      if (button) { button.classList.add("document-list-button"); list.append(button); }
+    }
+    byId("source-count").textContent = String(list.children.length);
+    if (!list.children.length) list.append(node("p", "暂无可阅读的公开文档。", "source-empty"));
+  }
+  async function openDocument(id) {
+    state.documentId = id;
+    state.documentHistory = [];
+    byId("document-title").textContent = "文档原文";
+    if (!byId("document-dialog").open) byId("document-dialog").showModal();
+    await loadDocumentPage(0);
+  }
+  async function loadDocumentPage(offset) {
+    const version = ++state.documentVersion;
+    state.documentBusy = true;
+    byId("previous-document-page").disabled = true;
+    byId("next-document-page").disabled = true;
+    byId("document-page-status").textContent = "正在读取原文…";
+    byId("document-content").replaceChildren();
+    try {
+      const page = await request(`api/demo/documents/${encodeURIComponent(state.documentId)}?offset=${offset}`);
+      if (version !== state.documentVersion) return;
+      if (!Array.isArray(page.contexts) || !Number.isInteger(page.offset) || !Number.isInteger(page.total_chunks)) throw new Error("原文响应不完整，请重新打开文档。");
+      state.documentOffset = page.offset;
+      state.documentNext = page.truncated === true && Number.isInteger(page.next_offset) && page.next_offset > page.offset ? page.next_offset : null;
+      byId("document-title").textContent = page.title || state.documentId;
+      for (const text of page.contexts) byId("document-content").append(node("p", text));
+      byId("document-page-status").textContent = page.contexts.length ? `第 ${page.offset + 1}–${page.offset + page.contexts.length} 块，共 ${page.total_chunks} 块` : `暂无原文，共 ${page.total_chunks} 块`;
+    } catch (error) {
+      if (version !== state.documentVersion) return;
+      state.documentNext = null;
+      byId("document-page-status").textContent = error.message || "原文读取失败，请重新打开。";
+    } finally {
+      if (version === state.documentVersion) {
+        state.documentBusy = false;
+        byId("previous-document-page").disabled = !state.documentHistory.length;
+        byId("next-document-page").disabled = state.documentNext === null;
+      }
+    }
   }
   function resetResult(question) {
     state.traceId = "";
@@ -117,7 +192,7 @@
     byId("raw-answer").textContent = "";
     byId("source-list").replaceChildren(node("p", "等待本次实际检索记录。", "empty"));
     byId("execution-list").replaceChildren(node("p", "等待本次真实执行记录。", "empty"));
-    byId("source-count").textContent = "…";
+    byId("evidence-count").textContent = "…";
     byId("span-count").textContent = "等待执行";
     byId("trace-note").textContent = "";
     byId("trace-retry-button").hidden = true;
@@ -156,12 +231,14 @@
     }
     const list = byId("source-list");
     list.replaceChildren();
-    byId("source-count").textContent = String(sources.length);
+    byId("evidence-count").textContent = String(sources.length);
     sources.forEach(({ hit, span }, index) => {
       const article = node("article", undefined, "source-card");
       article.append(node("h3", `${index + 1}. ${hit.title || "未提供标题"}`), node("p", hit.source_id || "未提供 source_id", "source-id"), node("p", hit.text_preview || "此记录没有提供原文片段。", "source-preview"));
       const score = typeof hit.score === "number" && Number.isFinite(hit.score) ? hit.score.toFixed(4) : "未提供";
       article.append(node("p", `工具：${span.meta?.tool || "rag"} · 检索分数：${score} · 非置信度`, "source-meta"));
+      const open = documentButton(hit.source_id, "打开文档原文");
+      if (open) article.append(open);
       list.append(article);
     });
     if (!sources.length) list.append(node("p", "本次 trace 没有提供命中片段；此处不补填来源。", "empty"));
@@ -199,22 +276,24 @@
       return true;
     } catch (error) {
       byId("trace-note").textContent = `回答已返回，但执行记录读取失败：${error.message || "连接失败"}`;
-      byId("source-count").textContent = "—";
+      byId("evidence-count").textContent = "—";
       byId("span-count").textContent = "记录暂不可用";
       byId("trace-retry-button").hidden = false;
       return false;
     } finally { byId("trace-retry-button").disabled = false; }
   }
   async function ask() {
-    if (state.busy || !state.selected || !state.questions.some((item) => item.question === state.selected)) return;
-    const question = state.selected;
+    if (state.busy || !state.metadata) return;
+    const question = byId("question-input").value.trim();
+    if (!question || Array.from(question).length > 1024) { status("请输入 1 到 1024 字的问题。", "error"); return; }
+    state.selected = question;
     byId("error-box").hidden = true;
     setBusy(true);
     resetResult(question);
     status("请求已发送。正在等待服务器完成，真实模型调用可能需要一段时间。", "loading");
     try {
       const headers = { "Content-Type": "application/json" };
-      if (state.temporaryKey) headers["x-deepseek-api-key"] = state.temporaryKey;
+      if (secureKeyPage && state.temporaryKey) headers["x-deepseek-api-key"] = state.temporaryKey;
       const data = await request("api/demo/chat", { method: "POST", headers, body: JSON.stringify({ question }) });
       if (typeof data.answer !== "string" || typeof data.trace_id !== "string" || !data.trace_id || data.read_only !== true) throw new Error("服务器返回的演示结果不完整，请重试。");
       state.traceId = data.trace_id;
@@ -226,7 +305,7 @@
       byId("answer-content").textContent = "本次没有取得可用答案。";
       byId("answer-note").textContent = "请查看请求错误并重试。";
       byId("cache-badge").textContent = "请求失败";
-      byId("source-count").textContent = "0";
+      byId("evidence-count").textContent = "0";
       byId("span-count").textContent = "未取得记录";
       status("本次请求失败。");
       showError(error.message || "网络连接失败，请检查连接后重试。", "question");
@@ -248,6 +327,31 @@
     if (state.metadata) showModes(state.metadata);
   });
   byId("question-form").addEventListener("submit", (event) => { event.preventDefault(); ask(); });
+  byId("question-input").addEventListener("input", () => {
+    state.selected = byId("question-input").value.trim();
+    document.querySelectorAll('#question-options input[type="radio"]').forEach((radio) => { radio.checked = radio.value === state.selected; });
+    setBusy(state.busy);
+  });
+  byId("question-input").addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); ask(); }
+  });
+  byId("close-document").addEventListener("click", () => byId("document-dialog").close());
+  byId("document-dialog").addEventListener("close", () => { state.documentVersion++; state.documentBusy = false; });
+  byId("next-document-page").addEventListener("click", () => {
+    if (state.documentBusy || state.documentNext === null) return;
+    state.documentHistory.push(state.documentOffset);
+    loadDocumentPage(state.documentNext);
+  });
+  byId("previous-document-page").addEventListener("click", () => {
+    if (state.documentBusy || !state.documentHistory.length) return;
+    loadDocumentPage(state.documentHistory.pop());
+  });
+  window.addEventListener("pagehide", () => {
+    state.temporaryKey = "";
+    byId("temporary-key").value = "";
+    byId("key-status").textContent = secureKeyPage ? "未配置，使用 Mock 离线流程。" : "此 HTTP 页面无法使用临时 key，请从 HTTPS 主页进入。";
+    if (state.metadata) showModes(state.metadata);
+  });
   byId("retry-button").addEventListener("click", () => { state.retry === "metadata" ? loadMetadata() : ask(); });
   byId("trace-retry-button").addEventListener("click", async () => {
     if (!state.busy && state.traceId) {
@@ -275,4 +379,5 @@
     });
   }
   loadMetadata();
+  loadIdentity();
 })();

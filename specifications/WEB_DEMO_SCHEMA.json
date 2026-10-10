@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Public read-only RAG demo HTTP specification",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "endpoints": {
     "GET /api/demo": {
-      "description": "Existing corpus metadata plus public mode information; suggested_questions are the only permitted input questions.",
+      "description": "Corpus metadata and featured suggestions; guests may ask any nonempty question within the length limit.",
       "mode_fields": {
         "public_demo": {
           "type": "boolean"
@@ -42,12 +42,12 @@
         504
       ],
       "limits": {
-        "max_body_bytes": 4096,
+        "max_body_bytes": 16384,
         "max_inflight": 1,
         "timeout_seconds": 90,
         "success_cache_ttl_seconds": 300
       },
-      "description": "Featured questions only; optional request header x-deepseek-api-key requires secure same-origin Origin. Server fixes scope and identities; keyed requests bypass shared cache. Successful response requires in-scope retrieval.",
+      "description": "Any nonempty question up to 1024 characters. Optional request-scoped key requires secure same origin; server fixes public scope and identity. Keyed and non-featured questions bypass shared cache. Success requires in-scope retrieval.",
       "request_headers": {
         "x-deepseek-api-key": {
           "type": "string",
@@ -60,6 +60,21 @@
     },
     "GET /api/trace/{trace_id}": {
       "description": "Existing SpanEvent array for this isolated public process only; no synthetic spans or private-service data."
+    },
+    "GET /api/auth/session": {
+      "description": "Only user_id, role, permissions, allowed_notebook_ids and mode; never principal proof or proxy credential."
+    },
+    "GET /api/notebooks": {
+      "description": "Guest sees only the built-in cmrc2018-demo notebook; admin sees available private notebooks."
+    },
+    "GET /api/notebooks/cmrc2018-demo/documents": {
+      "description": "Actual public corpus document metadata."
+    },
+    "GET /api/notebooks/cmrc2018-demo/suggestions": {
+      "description": "Public featured suggestions."
+    },
+    "GET /api/demo/documents/{document_id}": {
+      "description": "Read actual CMRC chunks via RagService; no private scopes, offset>=0, max_chunks 1..20."
     }
   },
   "$defs": {
@@ -76,7 +91,7 @@
           "maxLength": 1024
         }
       },
-      "description": "question must exactly equal an item in GET /api/demo suggested_questions; allowlist is checked at runtime."
+      "description": "Trimmed question must be nonempty and at most 1024 characters; extra fields are denied."
     },
     "ChatResponse": {
       "type": "object",
