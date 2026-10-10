@@ -16,6 +16,7 @@ s = json.loads(p.read_text()); a = sys.argv[1:]
 s['calls'].append(a); out = ''; code = 0
 if a[0] == 'build': s['tags'][a[a.index('--tag') + 1]] = 'sha256:new-admin'
 elif a[:2] == ['image', 'tag']: s['tags'][a[3]] = s['tags'].get(a[2], a[2])
+elif a[:2] == ['image', 'inspect']: out = a[-1]
 elif a[0] == 'run':
  s['runs'] += 1; out = 'candidate-agent' if s['runs'] == 1 else 'candidate-login'
 elif a[0] == 'port': out = '127.0.0.1:19108' if a[1] == 'candidate-agent' else '127.0.0.1:19107'
@@ -50,7 +51,8 @@ os.execvpe(sys.argv[1], sys.argv[1:], env)
 
 
 @pytest.mark.parametrize("fail_smoke", [0, 1, 2])
-def test_admin_release_candidate_and_rollback_preserve_original_and_public_services(tmp_path, fail_smoke):
+@pytest.mark.parametrize("reuse_verified", [False, True])
+def test_admin_release_candidate_and_rollback_preserve_original_and_public_services(tmp_path, fail_smoke, reuse_verified):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     for name, code in {"docker": DOCKER, "python3": PYTHON, "sudo": SUDO}.items():
@@ -69,10 +71,15 @@ def test_admin_release_candidate_and_rollback_preserve_original_and_public_servi
         "smoke_writes": [], "fail_smoke": fail_smoke, "calls": [],
     }))
     env = {**os.environ, "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"], "BUILD_NUMBER": "14", "ADMIN_TEST_STATE": str(state_path), "RAG_ADMIN_ENV_FILE": str(env_file)}
+    verified = "sha256:" + "a" * 64
+    if reuse_verified:
+        env["RAG_ADMIN_VERIFIED_IMAGE"] = verified
     result = subprocess.run(["sh", str(SCRIPT)], env=env, capture_output=True, text=True)
     state = json.loads(state_path.read_text())
     assert (result.returncode == 0) == (fail_smoke == 0), result.stdout + result.stderr
-    assert state["active"] == ("sha256:new-admin" if fail_smoke == 0 else "sha256:old-admin")
+    expected = verified if reuse_verified else "sha256:new-admin"
+    assert state["active"] == (expected if fail_smoke == 0 else "sha256:old-admin")
+    assert any(call[0] == "build" for call in state["calls"]) == (not reuse_verified)
     assert state["active_env_file"] == (str(env_file) if fail_smoke == 0 else str(previous))
     assert state["tags"]["ai-rag-platform:local"] == "sha256:original-private"
     assert state["tags"]["ai-rag-public:local"] == "sha256:public"

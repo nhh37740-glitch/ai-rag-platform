@@ -43,7 +43,18 @@ if [ -n "$OLD_CONTAINER" ]; then
     [ -n "$OLD_ENV_FILE" ] && sudo test -s "$OLD_ENV_FILE"
     docker image tag "$OLD_IMAGE" "$BACKUP"
 fi
-docker build --target runtime --tag "$CANDIDATE" .
+VERIFIED_IMAGE=${RAG_ADMIN_VERIFIED_IMAGE:-}
+if [ -n "$VERIFIED_IMAGE" ]; then
+    case "$VERIFIED_IMAGE" in sha256:*) ;; *) echo 'Verified image must be an immutable SHA256 ID' >&2; exit 1 ;; esac
+    [ "${#VERIFIED_IMAGE}" -eq 71 ] || exit 1
+    case "${VERIFIED_IMAGE#sha256:}" in *[!0-9a-f]*) exit 1 ;; esac
+    [ "$(docker image inspect --format '{{.Id}}' "$VERIFIED_IMAGE")" = "$VERIFIED_IMAGE" ] || exit 1
+    # Caller must verify this exact image passed the complete Jenkins gates.
+    # Candidate write/retrieval and final smoke below still execute afresh.
+    docker image tag "$VERIFIED_IMAGE" "$CANDIDATE"
+else
+    docker build --target runtime --tag "$CANDIDATE" .
+fi
 SMOKE_AGENT=$(docker run -d --rm --read-only --tmpfs /tmp:size=32m \
     --tmpfs /opt/agent/data/kb/user-notebooks:uid=10001,gid=10001,mode=0700,size=8m \
     --tmpfs /opt/agent/data/agent-files:uid=10001,gid=10001,mode=0700,size=8m \

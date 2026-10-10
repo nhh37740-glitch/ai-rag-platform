@@ -36,8 +36,16 @@ def smoke(private_base, login_base, env_file, *, write=False):
     owner = config["RAG_ADMIN_OWNER_ID"]
     headers = {"X-Rag-Proxy-Token": proof, "X-Rag-User-Id": owner, "X-Rag-Role": "admin", "Origin": config["RAG_ADMIN_ORIGIN"]}
     assert request(private_base, "/api/demo")[0] == 200
-    for path in ["/", "/api/notebooks", "/api/admin/session", "/api/uploads/private", "/api/trace/private", "/static/knowledge_demo.js", "/docs"]:
+    status, guest, _ = request(private_base, "/api/auth/session")
+    assert status == 200 and guest["role"] == "guest" and guest["permissions"] == ["read", "query"]
+    assert guest["allowed_notebook_ids"] == ["cmrc2018-demo"] and "proof" not in guest
+    status, notebooks, _ = request(private_base, "/api/notebooks")
+    assert status == 200 and [item["id"] for item in notebooks["notebooks"]] == ["cmrc2018-demo"]
+    assert all(not item["writable"] for item in notebooks["notebooks"])
+    for path in ["/", "/api/admin/session", "/api/notebooks/private/documents", "/api/uploads/private", "/api/trace/private", "/static/knowledge_demo.js", "/docs"]:
         assert request(private_base, path)[0] == 403, path
+    assert request(private_base, "/api/notebooks", method="POST", body=b'{}')[0] == 403
+    assert request(private_base, "/api/notebooks/private/files", method="POST", body=b'')[0] == 403
     status, session, response_headers = request(private_base, "/api/admin/session", headers=headers)
     assert status == 200 and session["mode"] == "proxy" and session["administrator"] and session["user_id"] == owner
     assert response_headers["Cache-Control"] == "no-store" and proof not in json.dumps(session)
