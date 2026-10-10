@@ -4,6 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-server"
-version = "0.5.0"
+version = "0.6.0"
 requires-python = ">=3.11"
-dependencies = ["fastapi", "uvicorn", "python-multipart", "core_specifications", "agent_facade", "rag_facade", "data_facade", "auth_runtime", "observability"]
+dependencies = ["fastapi", "uvicorn", "python-multipart", "core_specifications>=0.4.0", "agent_facade", "rag_facade", "data_facade", "auth_facade>=0.2.0", "observability"]

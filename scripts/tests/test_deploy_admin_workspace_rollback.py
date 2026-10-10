@@ -18,11 +18,14 @@ if a[0] == 'build': s['tags'][a[a.index('--tag') + 1]] = 'sha256:new-admin'
 elif a[:2] == ['image', 'tag']: s['tags'][a[3]] = s['tags'].get(a[2], a[2])
 elif a[:2] == ['image', 'inspect']: out = a[-1]
 elif a[0] == 'run':
- s['runs'] += 1; out = 'candidate-agent' if s['runs'] == 1 else 'candidate-login'
+ if '--user' in a: out = 'quota-init'
+ else:
+  s['runs'] += 1; out = 'candidate-agent' if s['runs'] == 1 else 'candidate-login'
 elif a[0] == 'port': out = '127.0.0.1:19108' if a[1] == 'candidate-agent' else '127.0.0.1:19107'
 elif a[0] == 'inspect':
  if '{{.Image}}' in a: out = s['active']
  elif any('admin-env-file' in value for value in a): out = s['previous_env_file']
+ elif any('admin-model-env-file' in value for value in a): out = s['previous_model_file']
  else: out = 'healthy'
 elif a[0] == 'compose':
  assert a[a.index('--project-name') + 1] == 'ai-rag-admin'
@@ -31,6 +34,7 @@ elif a[0] == 'compose':
  elif action == 'up':
   s['active'] = s['tags']['ai-rag-admin:local']
   s['active_env_file'] = os.environ['RAG_ADMIN_ENV_FILE']
+  s['active_model_file'] = os.environ['RAG_MODEL_ENV_FILE']
 elif a[0] not in ('rm', 'volume'): code = 2
 p.write_text(json.dumps(s))
 if out: print(out)
@@ -45,7 +49,7 @@ p.write_text(json.dumps(s)); sys.exit(1 if s['smokes'] == s['fail_smoke'] else 0
 '''
 SUDO = r'''#!/usr/bin/env python3
 import os, sys
-env = {key: value for key, value in os.environ.items() if key != 'RAG_ADMIN_ENV_FILE'}
+env = {key: value for key, value in os.environ.items() if key not in ('RAG_ADMIN_ENV_FILE', 'RAG_MODEL_ENV_FILE')}
 os.execvpe(sys.argv[1], sys.argv[1:], env)
 '''
 
@@ -63,14 +67,19 @@ def test_admin_release_candidate_and_rollback_preserve_original_and_public_servi
     previous = tmp_path / "old-admin.env"
     env_file.write_text("TEST_ADMIN_CONFIG=new\n")
     previous.write_text("TEST_ADMIN_CONFIG=old\n")
+    model_file = tmp_path / "new-model.env"
+    previous_model = tmp_path / "old-model.env"
+    model_file.write_text("LLM_PROVIDER=openrouter\n")
+    previous_model.write_text("LLM_PROVIDER=mock\n")
     state_path = tmp_path / "state.json"
     state_path.write_text(json.dumps({
         "tags": {"ai-rag-admin:local": "sha256:old-admin", "ai-rag-platform:local": "sha256:original-private", "ai-rag-public:local": "sha256:public"},
         "active": "sha256:old-admin", "previous_env_file": str(previous),
-        "active_env_file": str(previous), "runs": 0, "smokes": 0,
+        "active_env_file": str(previous), "active_model_file": str(previous_model),
+        "previous_model_file": str(previous_model), "runs": 0, "smokes": 0,
         "smoke_writes": [], "fail_smoke": fail_smoke, "calls": [],
     }))
-    env = {**os.environ, "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"], "BUILD_NUMBER": "14", "ADMIN_TEST_STATE": str(state_path), "RAG_ADMIN_ENV_FILE": str(env_file)}
+    env = {**os.environ, "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"], "BUILD_NUMBER": "14", "ADMIN_TEST_STATE": str(state_path), "RAG_ADMIN_ENV_FILE": str(env_file), "RAG_MODEL_ENV_FILE": str(model_file)}
     verified = "sha256:" + "a" * 64
     if reuse_verified:
         env["RAG_ADMIN_VERIFIED_IMAGE"] = verified
@@ -81,6 +90,9 @@ def test_admin_release_candidate_and_rollback_preserve_original_and_public_servi
     assert state["active"] == (expected if fail_smoke == 0 else "sha256:old-admin")
     assert any(call[0] == "build" for call in state["calls"]) == (not reuse_verified)
     assert state["active_env_file"] == (str(env_file) if fail_smoke == 0 else str(previous))
+    assert state["active_model_file"] == (str(model_file) if fail_smoke == 0 else str(previous_model))
+    assert model_file.read_text() == "LLM_PROVIDER=openrouter\n"
+    assert previous_model.read_text() == "LLM_PROVIDER=mock\n"
     assert state["tags"]["ai-rag-platform:local"] == "sha256:original-private"
     assert state["tags"]["ai-rag-public:local"] == "sha256:public"
     assert all("ai-rag-platform" not in " ".join(call) and "ai-rag-public" not in " ".join(call) for call in state["calls"])
@@ -92,8 +104,9 @@ def test_admin_release_candidate_and_rollback_preserve_original_and_public_servi
     else:
         assert state["smoke_writes"] == ([True, False] if fail_smoke == 0 else [True, False, False])
     assert [call[-1] for call in state["calls"] if call[:2] == ["volume", "rm"]] == ["ai-rag-admin-smoke-14"]
-    runs = [call for call in state["calls"] if call[0] == "run"]
+    runs = [call for call in state["calls"] if call[0] == "run" and "--user" not in call]
     assert "RAG_ADMIN_AUTH=proxy" in runs[0]
     assert "--add-host" in runs[1] and "host.docker.internal:host-gateway" in runs[1]
     assert "admin_login:app_factory" in runs[1] and "--factory" in runs[1]
     assert all(call[call.index("--env-file") + 1] == str(env_file) for call in runs)
+    assert str(model_file) in runs[0] and 'ai-rag-web-quota:/opt/agent/web-quota' in runs[0]

@@ -17,7 +17,7 @@ from agent_facade import AgentService, make_provider
 from data_facade import DataService
 from rag_facade import RagService
 from observability import make_trace_store
-from auth_runtime import AuthService
+from auth_facade import AuthService
 runtime_boundary.assert_binary_runtime(PUBLISHED)
 EXPECTED_TOOLS = {"search_knowledge_base", "hybrid_search_knowledge_base", "keyword_search_knowledge_base", "list_knowledge_documents", "read_knowledge_document"}
 

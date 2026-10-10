@@ -205,6 +205,20 @@ Jenkins代码已改为分步测试、编译、每次真模型验收和归档报�
 
 用户追加无人值守要求：独立 auth-runtime 编译模块（公共横切层）统一角色与权限；管理员通过已有 Media owner 登录及内部代理证明验证身份，可创建笔记本/导入；游客仅读取公开知识库和查询，不能读取私人管理员笔记本或执行写工具。不得以浏览器角色字段授予权限。共享 AuthPrincipal/AuthServicePort 与测试矩阵先定义在 specifications/AUTH_INTERFACES.md，再实现。公开 UI 增加管理员入口、公开文档列表与自由查询，明确游客身份；所有写 API 后端强制检查。私有管理区仍独立状态/卷并需要真实登录，公开用户不会自动获得私有导入数据。部署包含公共服务与已配置的管理员/login 服务，服务器模型 key 保持空，Web临时 key实测由用户完成。
 
+### 鉴权业务从 agent-server 解耦（2026-10-10）
+
+实施结果：管理员／游客权限决策与笔记本可见范围由独立编译业务模块 `auth-facade/AuthService` 提供；`auth-runtime/AuthRuntime` 仅保留游客身份创建、代理身份认证和管理员证明验证。`agent-server` 通过 AuthService 消费鉴权接口，不再承载策略实现。auth-facade 仅依赖共享类型和 auth-runtime，不依赖 Agent、RAG、Data 业务模块。接口详见 `specifications/AUTH_INTERFACES.md`。此处记录代码架构变更；尚不代表部署或线上验收。
+
+### OpenRouter 默认模型与全站日额度（2026-10-10）
+
+用户授权：使用提供的 OpenRouter 密钥作为 RAG 默认服务端凭据，只使用免费模型，Web 全站每天共 20 次问答。默认模型 `openrouter/free`，仅允许此路由或严格以 `:free` 结尾的模型，不配置付费回退。密钥只进入忽略且排除构建上下文的 `.env.openrouter` 或部署环境，不进入源码、网页、接口响应和日志。`LLM_PROVIDER=mock/deepseek` 保留明确选择的兼容模式。
+
+额度策略放在 auth-facade 的 DailyQueryQuota，持久化通过共享 StateStorePort 注入，storage 提供事务原子递增；应用只适配 HTTP。按北京时间零点重置，固定服务端全站身份，客户端 user/session/IP 均不能扩大额度。验证合法请求、忙闲检查后，在模型执行前占用一次；缓存命中不消耗，模型执行失败或超时不退还。所有 Web 问答路径（含 SSE、临时密钥）使用同一额度；公开及私人容器需要共享独立 `WEB_QUOTA_STATE_DIR` 持久卷才能合并计数，不共享私人知识数据。
+
+验收：并发不超过 20、重启不重置、跨日期重置、HTTP 超额 429、免费模型校验、密钥不输出、OpenRouter 配置元数据和网页剩余次数。生产凭据注入与发布由构建发布职责执行，代码构建不代表线上已切换。
+
+实现与本机验收已完成，应用候选版本0.6.0，auth-facade0.2.0、storage0.3.0、共享包0.4.0。真实 OpenRouter 默认 RAG 问答200且有实际知识检索；免费调用费用0与源码/二进制/HTTP验收证据见 docs/OPENROUTER_RUNTIME.md。生产流水线模式、凭据环境文件和共享日额度卷仍待构建发布职责处理。
+
 ## 管理员部署验收修复（2026-10-10）
 
 Jenkins17全部编译、源码/二进制、HTTP与真实模型门禁通过，公开服务发布成功；管理员候选被旧smoke的匿名笔记本列表403断言拦截。修正为游客200但仅CMRC，仍断言写入/私有范围403。恢复部署允许明确指定已通过上述门禁的不可变镜像SHA，避免仅修改部署检查脚本时重复编译；候选创建/导入/命中和回滚检查保持执行。随后发布主页并验证HTTPS owner登录权限及运行无key。

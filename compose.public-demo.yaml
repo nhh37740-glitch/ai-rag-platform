@@ -2,8 +2,8 @@ services:
   agent:
     image: ai-rag-public:local
     labels:
-      dev-knowledge.public-provider: ${PUBLIC_DEMO_PROVIDER:-mock}
-      dev-knowledge.public-env-file: ${PUBLIC_DEMO_ENV_FILE:-/home/ubuntu/.config/ai-rag/public-demo-mock.env}
+      dev-knowledge.public-provider: ${PUBLIC_DEMO_PROVIDER:-openrouter}
+      dev-knowledge.public-env-file: ${PUBLIC_DEMO_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
     restart: unless-stopped
     ports:
       - "127.0.0.1:18106:8000"
@@ -16,16 +16,22 @@ services:
       - no-new-privileges:true
     mem_limit: 384m
     cpus: 0.50
-    # New deployments use a non-secret mock config; keys arrive per web request.
+    # Runtime credentials are separate from Jenkins build credentials.
     env_file:
-      - ${PUBLIC_DEMO_ENV_FILE:-/home/ubuntu/.config/ai-rag/public-demo-mock.env}
+      - ${PUBLIC_DEMO_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
     environment:
       PUBLIC_DEMO: "1"
-      DEMO_PROVIDER: ${PUBLIC_DEMO_PROVIDER:-mock}
+      DEMO_PROVIDER: ${PUBLIC_DEMO_PROVIDER:-openrouter}
+      LLM_PROVIDER: ${PUBLIC_DEMO_PROVIDER:-openrouter}
       RAG_EMBED: hash
       STATE_DIR: /opt/agent/state
+      WEB_QUOTA_STATE_DIR: /opt/agent/web-quota
     volumes:
       - public-demo-state:/opt/agent/state
+      - web-quota:/opt/agent/web-quota
 
 volumes:
   public-demo-state:
+  web-quota:
+    external: true
+    name: ai-rag-web-quota

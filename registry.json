@@ -101,9 +101,9 @@
     },
     "storage": {
       "name": "storage",
-      "version": "0.2.0",
-      "checksum": "aca54d86bbe5b7a380ba301e3bbbc3dfda697031ec5994c91f7d45bcb4c2079b",
-      "path": "artifacts/storage/0.2.0",
+      "version": "0.3.0",
+      "checksum": "23d892045fb4bd8e4966276ba28f426427c562b69ff6af1a746062aaa2e2665c",
+      "path": "artifacts/storage/0.3.0",
       "status": "published"
     },
     "tool-runtime": {
@@ -115,9 +115,16 @@
     },
     "auth-runtime": {
       "name": "auth_runtime",
-      "version": "0.1.0",
-      "checksum": "989ba93f3ab1cfdc4d6d1742ee7f75290085f6dd377a2daadc72bec69fca18aa",
-      "path": "artifacts/auth-runtime/0.1.0",
+      "version": "0.3.0",
+      "checksum": "91e4af11e98f769da4f3875f0d555bed0c24c9ad84c2163b8110256b6ae61a53",
+      "path": "artifacts/auth-runtime/0.3.0",
+      "status": "published"
+    },
+    "auth-facade": {
+      "name": "auth_facade",
+      "version": "0.2.0",
+      "checksum": "47596b84a7085d3d269cde5bfd929e7bddc037193a79b1723ab3fa36d016e3fc",
+      "path": "artifacts/auth-facade/0.2.0",
       "status": "published"
     }
   }

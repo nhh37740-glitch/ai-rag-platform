@@ -20,12 +20,18 @@ def request(base, path, method="GET", payload=None, headers=None):
         return error.code, None
 
 
-def smoke(base, expected_provider="deepseek"):
-    assert expected_provider in ("mock", "deepseek")
+def smoke(base, expected_provider="openrouter", *, metadata_only=False):
+    assert expected_provider in ("mock", "deepseek", "openrouter")
     status, demo = request(base, "api/demo")
     assert status == 200 and demo["public_demo"] and demo["read_only"]
     assert demo["provider"] == expected_provider, "provider must match the explicit release mode"
     assert demo["embedding"] == "hash", "hash baseline must be labeled honestly"
+    if expected_provider == "openrouter":
+        assert demo["model"] == "openrouter/free" and demo["free_models_only"] is True
+        quota = demo["quota"]
+        assert quota["scope"] == "site" and quota["limit"] == 20
+        assert 0 <= quota["used"] <= 20 and quota["remaining"] == 20 - quota["used"]
+        assert quota["reset_at"].endswith("+08:00")
     question = demo["suggested_questions"][0]["question"]
     for path in ("api/chat", "api/notebooks", "api/files", "api/evaluate"):
         assert request(base, path, "POST", {})[0] in (403, 405), path
@@ -46,6 +52,10 @@ def smoke(base, expected_provider="deepseek"):
     assert request(base, "api/demo/chat", "POST", {"question": question}, {"x-deepseek-api-key": "blocked-test-value"})[0] == 403
     status, unknown = request(base, "api/trace/private-unknown")
     assert status == 200 and unknown == []
+    if metadata_only:
+        print(json.dumps({"public_smoke": "passed", "provider": expected_provider,
+                          "metadata_only": True, "quota": demo.get("quota")}, ensure_ascii=False))
+        return
     status, result = request(base, "api/demo/chat", "POST", {"question": question})
     assert status == 200, f"curated model request failed with HTTP {status}"
     assert result["provider"] == expected_provider and result["read_only"] and result["answer"]
@@ -55,12 +65,17 @@ def smoke(base, expected_provider="deepseek"):
     retrievals = [event for event in trace if event["span"] == "rag" and event["status"] == "ok"]
     assert retrievals, "answer must include successful retrieval"
     assert any(event["meta"].get("hit_count", 0) > 0 and event["meta"].get("knowledge_base_ids") == ["cmrc2018-demo"] for event in retrievals)
-    status, free = request(base, "api/demo/chat", "POST", {"question": "请查询公开文档，什么是静电感应？"})
-    assert status == 200 and free["cache_hit"] is False and free["knowledge_base_ids"] == ["cmrc2018-demo"]
+    if expected_provider != "openrouter":
+        status, free = request(base, "api/demo/chat", "POST", {"question": "请查询公开文档，什么是静电感应？"})
+        assert status == 200 and free["cache_hit"] is False and free["knowledge_base_ids"] == ["cmrc2018-demo"]
+    else:
+        assert result["quota"]["scope"] == "site" and result["quota"]["limit"] == 20
     print(json.dumps({"public_smoke": "passed", "provider": result["provider"],
                       "embedding": result["embedding"], "trace_id": result["trace_id"],
-                      "spans": len(trace), "cache_hit": result.get("cache_hit", False)}, ensure_ascii=False))
+                      "spans": len(trace), "cache_hit": result.get("cache_hit", False),
+                      "quota": result.get("quota")}, ensure_ascii=False))
 
 
 if __name__ == "__main__":
-    smoke(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else "deepseek")
+    smoke(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else "openrouter",
+          metadata_only="--metadata-only" in sys.argv[3:])

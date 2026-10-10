@@ -38,7 +38,8 @@
 
     <div class="header-actions">
       <p id="demo-status" class="dataset-status" aria-live="polite"></p>
-      <button id="open-key-config" class="key-config-btn" type="button" aria-haspopup="dialog">DeepSeek 设置</button>
+      <button id="open-key-config" class="key-config-btn" type="button" aria-haspopup="dialog">模型设置</button>
+      <span id="web-quota" role="status" hidden></span>
       <button id="admin-logout" class="key-config-btn" type="button" hidden>退出登录</button>
       <a id="admin-login-link" class="key-config-btn" href="./login/" hidden>管理员登录</a>
       <span class="local-pill"><span class="online-dot"></span><span id="workspace-mode-label">正在验证身份</span></span>
@@ -48,7 +49,7 @@
 
   <dialog id="key-config-dialog" class="key-config-dialog" aria-labelledby="key-config-title">
     <form id="key-config-form">
-      <h2 id="key-config-title">DeepSeek API Key</h2>
+      <h2 id="key-config-title">模型 API Key</h2>
       <p id="key-config-status" role="status"></p>
       <label class="field"><span>本次页面使用的密钥</span><input id="key-config-input" type="password" autocomplete="off" spellcheck="false" placeholder="输入新密钥以设置或替换"></label>
       <p class="key-config-hint">密钥仅保留在当前页面内存中，刷新后清除。仅在 HTTPS 或本机页面允许输入，聊天请求会发送到此服务。</p>

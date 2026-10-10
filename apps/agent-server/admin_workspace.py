@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from urllib.parse import urlsplit
 
-from auth_runtime import AuthService
+from auth_facade import AuthService
 from core_specifications import RequestContext
 from fastapi.responses import JSONResponse
 

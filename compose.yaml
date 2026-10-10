@@ -16,8 +16,13 @@ services:
       - no-new-privileges:true
     mem_limit: 512m
     cpus: 0.50
+    env_file:
+      - ${RAG_MODEL_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
+    labels:
+      dev-knowledge.model-env-file: ${RAG_MODEL_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
     environment:
       STATE_DIR: /opt/agent/state
+      WEB_QUOTA_STATE_DIR: /opt/agent/web-quota
       RAG_EMBED: ${RAG_EMBED:-hash}
       BGE_MODEL: ${BGE_MODEL:-BAAI/bge-small-zh-v1.5}
       FASTEMBED_CACHE_PATH: /opt/agent/models/fastembed_cache
@@ -29,9 +34,13 @@ services:
       - user-notebooks:/opt/agent/data/kb/user-notebooks
       - agent-files:/opt/agent/data/agent-files
       - model-cache:/opt/agent/models/fastembed_cache
+      - web-quota:/opt/agent/web-quota
 
 volumes:
   agent-state:
   user-notebooks:
   agent-files:
   model-cache:
+  web-quota:
+    external: true
+    name: ai-rag-web-quota

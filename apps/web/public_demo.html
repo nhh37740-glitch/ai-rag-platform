@@ -84,13 +84,14 @@
       <div class="panel-body studio-body">
         <section class="studio-intro"><span class="eyebrow">本次请求</span><h3>核对执行记录</h3><p>展示 Agent、模型、工具与检索的实际 trace。阶段可能嵌套，耗时不相加。</p></section>
         <div class="public-modes"><span id="provider-badge" class="mode-chip">模型：读取中</span><span id="embedding-badge" class="mode-chip">检索：读取中</span></div>
+        <p id="web-quota" role="status" hidden></p>
         <details class="key-settings">
-          <summary>手动配置临时 DeepSeek key</summary>
-          <p>服务器不配置 key。留空使用 Mock；临时 key 只在当前页面内存使用，刷新后清除。</p>
+          <summary>可选：使用自己的临时 API key</summary>
+          <p>留空使用服务器默认模型。临时 key 只在当前页面内存使用，刷新后清除；不能更改免费模型限制或全站日额度。</p>
           <label for="temporary-key">临时 API key</label>
           <input id="temporary-key" type="password" autocomplete="off" spellcheck="false" maxlength="512" placeholder="输入后点击应用" aria-describedby="key-status">
           <div class="key-actions"><button id="apply-key" type="button" class="public-secondary">应用临时 key</button><button id="clear-key" type="button" class="public-secondary">清除</button></div>
-          <p id="key-status" role="status">未配置，使用 Mock 离线流程。</p>
+          <p id="key-status" role="status">使用服务器默认配置，正在读取模型信息。</p>
         </details>
         <section class="trace-card" aria-labelledby="trace-heading">
           <div class="trace-heading"><h3 id="trace-heading">执行阶段</h3><span id="span-count">尚未执行</span></div>
@@ -101,7 +102,7 @@
         </section>
         <details class="public-explainer"><summary>演示范围与技术链路</summary>
           <p>你的问题只检索 CMRC2018 公开资料。回答附带实际检索来源，可打开文档原文核对。</p>
-          <p>DeepSeek 表示真实模型调用；Mock 表示离线工具流程。hash 是离线向量方案，检索分数并非答案置信度。</p>
+          <p>OpenRouter 免费模型和 DeepSeek 表示真实模型调用；Mock 表示离线工具流程。hash 是离线向量方案，检索分数并非答案置信度。</p>
           <p>精选问题保留离线演示缓存；自由问题每次单独执行。可在 HTTPS 页面手动应用临时 key，真实模型调用不复用共享缓存。</p>
         </details>
       </div>

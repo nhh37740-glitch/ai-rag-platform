@@ -60,8 +60,16 @@ elif args[:1] == ["compose"]:
 elif args[:1] == ["inspect"]:
     if "{{.Image}}" in args:
         result = state["container_image"]
+    elif any('model-env-file' in value for value in args):
+        result = os.environ['RAG_MODEL_ENV_FILE']
     else:
         result = state["container_health"]
+elif args[:1] == ["run"]:
+    result = 'candidate-private'
+elif args[:1] == ["port"]:
+    result = '127.0.0.1:19180'
+elif args[:1] in (["rm"], ["volume"]):
+    pass
 else:
     code = 2
 
@@ -83,7 +91,7 @@ def deploy_env(tmp_path: Path) -> tuple[dict[str, str], Path]:
     docker = bin_dir / "docker"
     docker.write_text(DOCKER_STUB, encoding="utf-8")
     sudo = bin_dir / "sudo"
-    sudo.write_text(SUDO_STUB, encoding="utf-8")
+    sudo.write_text('#!/bin/sh\nif [ "$1" = python3 ]; then exit 0; fi\nexec "$@"\n', encoding="utf-8")
     docker.chmod(0o755)
     sudo.chmod(0o755)
 
@@ -102,7 +110,9 @@ def deploy_env(tmp_path: Path) -> tuple[dict[str, str], Path]:
         encoding="utf-8",
     )
     env = os.environ.copy()
-    env.update({"PATH": f"{bin_dir}{os.pathsep}{env['PATH']}", "DOCKER_STATE": str(state_path), "BUILD_NUMBER": "17"})
+    model_file = tmp_path / 'runtime.env'
+    model_file.write_text('LLM_PROVIDER=openrouter\n')
+    env.update({"PATH": f"{bin_dir}{os.pathsep}{env['PATH']}", "DOCKER_STATE": str(state_path), "BUILD_NUMBER": "17", "RAG_MODEL_ENV_FILE": str(model_file)})
     return env, state_path
 
 
@@ -122,7 +132,10 @@ def test_healthy_candidate_keeps_deployed_image_and_does_not_remove_volumes(depl
     assert result.returncode == 0, result.stderr
     assert state["tags"]["ai-rag-platform:local"] == "sha256:candidate"
     assert state["container_image"] == "sha256:candidate"
-    assert not any("down" in call or "-v" in call for call in state["calls"])
+    assert not any("down" in call for call in state["calls"])
+    assert [call[-1] for call in state["calls"] if call[:2] == ["volume", "rm"]] == ['ai-rag-private-smoke-17']
+    candidate = [call for call in state['calls'] if call[0] == 'run' and '--user' not in call][0]
+    assert 'ai-rag-web-quota:/opt/agent/web-quota' in candidate
 
 
 def test_unhealthy_candidate_restores_previous_image_without_touching_volumes(deploy_env):
@@ -139,4 +152,5 @@ def test_unhealthy_candidate_restores_previous_image_without_touching_volumes(de
     assert state["tags"]["ai-rag-platform:local"] == "sha256:old"
     assert state["container_image"] == "sha256:old"
     assert state["container_health"] == "healthy"
-    assert not any("down" in call or "-v" in call for call in state["calls"])
+    assert not any("down" in call for call in state["calls"])
+    assert [call[-1] for call in state["calls"] if call[:2] == ["volume", "rm"]] == ['ai-rag-private-smoke-17']

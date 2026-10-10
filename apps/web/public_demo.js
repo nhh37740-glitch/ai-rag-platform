@@ -25,7 +25,7 @@
   function setBusy(busy) {
     state.busy = busy;
     byId("question-options").disabled = busy || !state.questions.length;
-    byId("ask-button").disabled = busy || !state.metadata || !byId("question-input").value.trim();
+    byId("ask-button").disabled = busy || !state.metadata || !byId("question-input").value.trim() || state.quota?.remaining === 0;
     byId("question-input").disabled = busy || !state.metadata;
     byId("retry-button").disabled = busy;
     byId("trace-retry-button").disabled = busy;
@@ -35,11 +35,20 @@
     byId("ask-button").title = busy ? "正在等待服务器" : "开始问答";
     byId("answer").setAttribute("aria-busy", String(busy));
   }
+  function showQuota(quota) {
+    state.quota = quota;
+    byId("web-quota").hidden = !quota;
+    if (quota) byId("web-quota").textContent = `全站今日剩余 ${quota.remaining}/${quota.limit} 次问答 · 北京时间零点恢复${quota.remaining === 0 ? "，届时刷新页面" : ""}`;
+    setBusy(state.busy);
+  }
+  function keyMessage() {
+    return state.metadata?.provider === "openrouter" ? "默认使用服务器 OpenRouter 免费模型，无需输入密钥。" : "使用服务器默认模型；未配置服务器凭据时为 Mock。";
+  }
   function showModes(data) {
     const provider = byId("provider-badge");
     const embedding = byId("embedding-badge");
-    provider.textContent = data.provider === "deepseek" ? "模型：DeepSeek · 真实调用" : data.provider === "mock" ? "模型：Mock · 离线流程" : `模型：${data.provider || "未提供"}`;
-    provider.dataset.kind = data.provider === "deepseek" ? "" : "warning";
+    provider.textContent = data.provider === "openrouter" ? "模型：OpenRouter · 免费模型" : data.provider === "deepseek" ? "模型：DeepSeek · 真实调用" : data.provider === "mock" ? "模型：Mock · 离线流程" : `模型：${data.provider || "未提供"}`;
+    provider.dataset.kind = data.provider === "mock" ? "warning" : "";
     embedding.textContent = data.embedding === "hash" ? "检索：hash · 离线向量" : `检索：${data.embedding || "未提供"}`;
     embedding.dataset.kind = data.embedding === "hash" ? "warning" : "";
     byId("readonly-badge").textContent = data.read_only === true ? "公开只读" : "只读状态未确认";
@@ -53,6 +62,10 @@
       403: "请求被公开演示边界拒绝，请重新加载页面。",
       404: "演示接口暂不可用，请稍后重试。",
     };
+    if (payload?.detail?.quota) {
+      showQuota(payload.detail.quota);
+      return payload.detail.message;
+    }
     const detail = typeof payload?.detail === "string" ? payload.detail : "";
     return `${messages[response.status] || "服务器返回错误，请稍后重试。"}（HTTP ${response.status}）${detail ? ` ${detail}` : ""}`;
   }
@@ -63,6 +76,7 @@
       throw new Error(response.ok ? "服务器响应无法读取，请重试。" : errorMessage(response));
     }
     if (!response.ok) throw new Error(errorMessage(response, payload));
+    if (Object.prototype.hasOwnProperty.call(payload, "quota")) showQuota(payload.quota);
     return payload;
   }
   async function loadMetadata() {
@@ -81,6 +95,7 @@
       state.documents = Array.isArray(documents.documents) ? documents.documents : [];
       renderDocuments();
       showModes(data);
+      if (!state.temporaryKey && secureKeyPage) byId("key-status").textContent = keyMessage();
       const publicNotebook = (notebooks.notebooks || []).find((item) => item.id === "cmrc2018-demo");
       byId("dataset").textContent = `${publicNotebook?.name || data.name || "CMRC2018 公开中文资料"} · ${state.documents.length} 篇 · ${questions.length} 个精选问题`;
       const fieldset = byId("question-options");
@@ -202,7 +217,7 @@
   function renderAnswer(data) {
     showModes(data);
     byId("cache-badge").textContent = data.cache_hit === true ? "缓存命中 · 复用原结果" : data.cache_hit === false ? "本次新执行 · 未命中缓存" : "缓存状态未提供";
-    byId("answer-note").textContent = data.provider === "mock" ? "Mock 离线流程输出：可核对工具返回的检索数据，不代表真实模型回答质量。" : (data.cache_hit ? "复用原请求的 DeepSeek 输出；请结合下方原始来源核对内容。" : "DeepSeek 本次输出；请结合下方实际来源核对内容。");
+    byId("answer-note").textContent = data.provider === "mock" ? "Mock 离线流程输出：可核对工具返回的检索数据，不代表真实模型回答质量。" : `${data.provider === "openrouter" ? "OpenRouter 免费模型" : "DeepSeek"}${data.cache_hit ? "缓存输出" : "本次输出"}；请结合下方实际来源核对内容。`;
     byId("answer-content").className = "answer-content";
     byId("answer-content").textContent = typeof data.answer === "string" ? data.answer : JSON.stringify(data.answer, null, 2);
     if (data.provider === "mock" && typeof data.answer === "string") {
@@ -284,6 +299,7 @@
   }
   async function ask() {
     if (state.busy || !state.metadata) return;
+    if (state.quota?.remaining === 0) { status("全站今日额度已用完，北京时间零点恢复。", "error"); return; }
     const question = byId("question-input").value.trim();
     if (!question || Array.from(question).length > 1024) { status("请输入 1 到 1024 字的问题。", "error"); return; }
     state.selected = question;
@@ -309,6 +325,7 @@
       byId("span-count").textContent = "未取得记录";
       status("本次请求失败。");
       showError(error.message || "网络连接失败，请检查连接后重试。", "question");
+      request("api/demo").catch(() => {});
     } finally { setBusy(false); }
   }
   byId("temporary-key").disabled = !secureKeyPage;
@@ -317,13 +334,13 @@
     if (!secureKeyPage || state.busy) return;
     state.temporaryKey = byId("temporary-key").value.trim();
     byId("temporary-key").value = "";
-    byId("key-status").textContent = state.temporaryKey ? "临时 key 已应用；下次问答使用 DeepSeek，每次执行均不复用共享缓存。" : "未配置，使用 Mock 离线流程。";
-    if (state.metadata) showModes({ ...state.metadata, provider: state.temporaryKey ? "deepseek" : state.metadata.provider });
+    byId("key-status").textContent = state.temporaryKey ? `临时 key 已应用；使用 ${state.metadata?.provider === "openrouter" ? "OpenRouter 免费模型" : "DeepSeek"}，全站日额度仍有效。` : keyMessage();
+    if (state.metadata) showModes({ ...state.metadata, provider: state.temporaryKey && state.metadata.provider !== "openrouter" ? "deepseek" : state.metadata.provider });
   });
   byId("clear-key").addEventListener("click", () => {
     state.temporaryKey = "";
     byId("temporary-key").value = "";
-    byId("key-status").textContent = secureKeyPage ? "已清除，使用 Mock 离线流程。" : "此 HTTP 页面无法使用临时 key，请从 HTTPS 主页进入。";
+    byId("key-status").textContent = secureKeyPage ? keyMessage() : "此 HTTP 页面无法使用临时 key，请从 HTTPS 主页进入。";
     if (state.metadata) showModes(state.metadata);
   });
   byId("question-form").addEventListener("submit", (event) => { event.preventDefault(); ask(); });
@@ -349,7 +366,7 @@
   window.addEventListener("pagehide", () => {
     state.temporaryKey = "";
     byId("temporary-key").value = "";
-    byId("key-status").textContent = secureKeyPage ? "未配置，使用 Mock 离线流程。" : "此 HTTP 页面无法使用临时 key，请从 HTTPS 主页进入。";
+    byId("key-status").textContent = secureKeyPage ? keyMessage() : "此 HTTP 页面无法使用临时 key，请从 HTTPS 主页进入。";
     if (state.metadata) showModes(state.metadata);
   });
   byId("retry-button").addEventListener("click", () => { state.retry === "metadata" ? loadMetadata() : ask(); });

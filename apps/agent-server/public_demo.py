@@ -7,7 +7,7 @@ import time
 import uuid
 from collections import OrderedDict, deque
 
-from auth_runtime import AuthService
+from auth_facade import AuthService
 from admin_workspace import public_read_path
 
 from core_specifications import RequestContext
@@ -34,7 +34,7 @@ class PublicDemoBoundary:
         # StaticFiles shares the private webui directory. Only the public page's
         # styles and script are needed; do not serve the private UI or its script.
         readable = path in {
-            "/", "/api/demo",
+            "/", "/api/demo", "/api/llm/config",
             "/static/knowledge_demo.css",
             "/static/public_demo.css",
             "/static/public_demo.js",
@@ -63,13 +63,16 @@ class PublicDemoBoundary:
 
 
 class PublicDemo:
-    def __init__(self, *, runtime_factory, tracing, questions, provider, embedding, kb_id):
+    def __init__(self, *, runtime_factory, tracing, questions, provider, embedding, kb_id,
+                 reserve_query=None, quota_status=None):
         self.runtime_factory = runtime_factory
         self.tracing = tracing
         self.questions = frozenset(questions)
         self.provider = provider
         self.embedding = embedding
         self.kb_id = kb_id
+        self.reserve_query = reserve_query
+        self.quota_status = quota_status
         self.timeout_seconds = 90
         self.cache_seconds = 300
         self._cache = OrderedDict()
@@ -140,7 +143,8 @@ class PublicDemo:
                     del self._cache[old_question]
         cached = self._cache.get(question) if cache_allowed else None
         if cached and self.trace(cached[1]["trace_id"]):
-            return JSONResponse({**cached[1], "cache_hit": True}, headers={"Cache-Control": "no-store"})
+            return JSONResponse({**cached[1], "cache_hit": True,
+                                 "quota": self.quota_status() if self.quota_status else None}, headers={"Cache-Control": "no-store"})
         # No await between the busy check and assignment: atomic within one event loop.
         if self._active is not None and not self._active.done():
             raise HTTPException(429, "演示正在回答，请稍后重试")
@@ -150,6 +154,8 @@ class PublicDemo:
             trace_id=trace_id, request_id=uuid.uuid4().hex,
             user_id=uuid.uuid4().hex, session_id=uuid.uuid4().hex,
         )
+        if self.reserve_query:
+            self.reserve_query(ctx)
         # Keep the user's question unchanged. The internal prefix requests a
         # document lookup, including for MockProvider's keyword tool selection.
         grounded_request = "请查阅内置知识库资料，回答：" + question
@@ -179,8 +185,9 @@ class PublicDemo:
             raise HTTPException(502, "未获得成功的内置资料检索结果")
         result = {
             "answer": answer, "trace_id": trace_id, "knowledge_base_ids": [self.kb_id],
-            "provider": "deepseek" if temporary_key else self.provider, "embedding": self.embedding,
+            "provider": "openrouter" if self.provider == "openrouter" else "deepseek" if temporary_key else self.provider, "embedding": self.embedding,
             "read_only": True, "cache_hit": False,
+            "quota": self.quota_status() if self.quota_status else None,
         }
         if cache_allowed:
             self._cache[question] = (time.monotonic() + self.cache_seconds, result)

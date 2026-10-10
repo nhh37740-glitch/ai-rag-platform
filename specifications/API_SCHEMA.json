@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "specification_version": "0.6.0",
+  "specification_version": "0.8.0",
   "context": {
     "type": "RequestContext",
     "package": "specifications.core_specifications",
@@ -943,7 +943,7 @@
     "storage": {
       "package": "storage",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "facade": {
         "SqliteVectorStore": {
           "kind": "class",
@@ -1016,6 +1016,14 @@
             "close": {
               "params": {},
               "returns": "None"
+            },
+            "increment_if_below": {
+              "params": {
+                "ctx": "RequestContext",
+                "key": "str",
+                "limit": "int"
+              },
+              "returns": "Optional[int]"
             }
           }
         },
@@ -1110,7 +1118,45 @@
     "auth-runtime": {
       "package": "auth_runtime",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.1.0",
+      "version": "0.3.0",
+      "facade": {
+        "AuthRuntime": {
+          "kind": "class",
+          "init": {
+            "proxy_token": "str",
+            "owner_id": "str"
+          },
+          "methods": {
+            "guest": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "AuthPrincipal"
+            },
+            "authenticate_proxy": {
+              "params": {
+                "ctx": "RequestContext",
+                "proxy_token": "str",
+                "user_id": "str",
+                "role": "str"
+              },
+              "returns": "AuthPrincipal"
+            },
+            "is_administrator": {
+              "params": {
+                "ctx": "RequestContext",
+                "principal": "AuthPrincipal"
+              },
+              "returns": "bool"
+            }
+          }
+        }
+      }
+    },
+    "auth-facade": {
+      "package": "auth_facade",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.2.0",
       "facade": {
         "AuthService": {
           "kind": "class",
@@ -1150,6 +1196,27 @@
                 "public_ids": "list[str]"
               },
               "returns": "list[str]"
+            }
+          }
+        },
+        "DailyQueryQuota": {
+          "kind": "class",
+          "init": {
+            "store": "StateStorePort",
+            "limit": "int"
+          },
+          "methods": {
+            "status": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "dict"
+            },
+            "reserve": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "dict"
             }
           }
         }
@@ -1288,6 +1355,14 @@
             "key": "str"
           },
           "returns": "None"
+        },
+        "increment_if_below": {
+          "params": {
+            "ctx": "RequestContext",
+            "key": "str",
+            "limit": "int"
+          },
+          "returns": "Optional[int]"
         }
       }
     },
@@ -1437,7 +1512,8 @@
     "app": [
       "agent_facade",
       "rag_facade",
-      "data_facade"
+      "data_facade",
+      "auth_facade"
     ]
   }
 }

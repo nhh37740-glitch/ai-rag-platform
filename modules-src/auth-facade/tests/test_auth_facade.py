@@ -3,7 +3,7 @@ from dataclasses import FrozenInstanceError, replace
 from unittest.mock import patch
 
 import auth_runtime
-from auth_runtime import AuthService
+from auth_facade import AuthService
 from core_specifications import AuthPrincipal, AuthServicePort, RequestContext
 
 

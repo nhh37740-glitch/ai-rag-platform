@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from agent_facade import AgentService, make_provider
 from data_facade import DataService
 from rag_facade import RagService
-from auth_runtime import AuthService
+from auth_facade import AuthService, DailyQueryQuota
 from core_specifications import ChatMessage, RequestContext, ToolCall, ToolDef, VectorStore
 from admin_workspace import AdminWorkspaceBoundary
 from document_upload import (
@@ -36,6 +36,7 @@ from document_upload import (
 )
 from observability import make_trace_store
 from request_provider import RequestScopedProvider
+from model_config import ModelConfig
 
 runtime_boundary.assert_binary_runtime(PUBLISHED_MODULES)
 
@@ -50,7 +51,7 @@ SKILL_DIR = ROOT / "skills"
 def _load_dotenv(path: Path) -> None:
     if not path.exists():
         return
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -61,6 +62,9 @@ def _load_dotenv(path: Path) -> None:
 PUBLIC_DEMO = os.environ.get("PUBLIC_DEMO", "") == "1"
 if not PUBLIC_DEMO:
     _load_dotenv(ROOT / ".env")
+_llm_env_file = os.environ.get("RAG_LLM_ENV_FILE", str(ROOT / ".env.openrouter"))
+if _llm_env_file:
+    _load_dotenv(Path(_llm_env_file))
 
 ADMIN_AUTH = "public" if PUBLIC_DEMO else os.environ.get("RAG_ADMIN_AUTH", "local")
 if not PUBLIC_DEMO and ADMIN_AUTH not in {"local", "proxy"}:
@@ -124,9 +128,8 @@ DEMO_KB_ID = "cmrc2018-demo" if PUBLIC_DEMO else os.environ.get("DEMO_KB_ID", "c
 DEMO_KB_DIR = KB_DIR / DEMO_KB_ID
 STATE_DIR = Path(os.environ.get("STATE_DIR", str(ROOT / "data")))
 DB_PATH = os.environ.get("DB_PATH", str(STATE_DIR / "app.db"))
-API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
-BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
+MODEL_CONFIG = ModelConfig.from_env(os.environ, public=PUBLIC_DEMO)
+API_KEY, BASE_URL, MODEL = MODEL_CONFIG.api_key, MODEL_CONFIG.base_url, MODEL_CONFIG.model
 INDEX_PATH = os.environ.get("INDEX_PATH", str(STATE_DIR / "index.json"))
 
 # 向量索引按 embedding 配置隔离，避免切换后端或模型后误用维度不兼容的旧向量。
@@ -150,17 +153,32 @@ data_service = DataService(str(STATE_DIR), memory_db_path=":memory:" if PUBLIC_D
 vector_store = data_service.vector_store(BOOT_CONTEXT)
 rag_service = RagService(vector_store, trace_store)
 
-DEMO_PROVIDER = os.environ.get("DEMO_PROVIDER", "mock").strip().lower()
-if PUBLIC_DEMO:
-    if DEMO_PROVIDER not in {"mock", "deepseek"}:
-        raise RuntimeError("DEMO_PROVIDER 必须为 mock 或 deepseek")
-    if DEMO_PROVIDER == "deepseek" and not API_KEY.strip():
-        raise RuntimeError("公开 DeepSeek 演示缺少服务器凭据")
-    provider = make_provider(API_KEY if DEMO_PROVIDER == "deepseek" else "", BASE_URL, MODEL)
-else:
-    provider = make_provider(API_KEY, BASE_URL, MODEL)
+DEMO_PROVIDER = MODEL_CONFIG.provider
+provider = make_provider(API_KEY, BASE_URL, MODEL)
 request_provider = RequestScopedProvider(provider, BASE_URL, MODEL)
 runtime = AgentService(data_service, rag_service, trace_store, str(SKILL_DIR), request_provider)
+quota_data_service = None
+daily_query_quota = None
+if MODEL_CONFIG.provider == "openrouter":
+    quota_dir = os.environ.get("WEB_QUOTA_STATE_DIR", str(STATE_DIR / "web-quota"))
+    quota_data_service = DataService(quota_dir, memory_db_path=":memory:", vector_db_path=":memory:")
+    daily_query_quota = DailyQueryQuota(quota_data_service.state_db(BOOT_CONTEXT), limit=20)
+
+
+def _web_quota_status() -> dict | None:
+    return daily_query_quota.status(BOOT_CONTEXT) if daily_query_quota is not None else None
+
+
+def _reserve_web_query(ctx: RequestContext) -> dict | None:
+    if daily_query_quota is None:
+        return None
+    try:
+        return daily_query_quota.reserve(ctx)
+    except PermissionError:
+        quota = daily_query_quota.status(ctx)
+        seconds = max(1, int((datetime.fromisoformat(quota["reset_at"]) - datetime.now(timezone.utc)).total_seconds()) + 1)
+        raise HTTPException(429, {"message": "全站今日 20 次问答额度已用完，北京时间零点恢复", "quota": quota},
+                            headers={"Retry-After": str(seconds), "Cache-Control": "no-store"}) from None
 
 
 def _load_demo_knowledge_base() -> tuple[dict, list[tuple[Path, dict]]]:
@@ -581,6 +599,8 @@ async def lifespan(app):
     yield
     await runtime.aclose(BOOT_CONTEXT)
     data_service.close(BOOT_CONTEXT)
+    if quota_data_service is not None:
+        quota_data_service.close(BOOT_CONTEXT)
 
 
 app = FastAPI(title="Dev Knowledge Agent", lifespan=lifespan)
@@ -676,7 +696,10 @@ def demo() -> JSONResponse:
             "purpose": "project-demo-only",
             "public_demo": PUBLIC_DEMO,
             "read_only": PUBLIC_DEMO,
-            "provider": DEMO_PROVIDER if PUBLIC_DEMO else ("deepseek" if API_KEY else "mock"),
+            "provider": MODEL_CONFIG.provider,
+            "model": MODEL,
+            "free_models_only": MODEL_CONFIG.provider == "openrouter",
+            "quota": _web_quota_status(),
             "embedding": os.environ.get("RAG_EMBED", "fastembed").strip().lower(),
         }
     )
@@ -937,15 +960,18 @@ async def chat(req: Request) -> JSONResponse:
     user_id = principal.user_id
     session_id = body.get("session_id", "s1")
     message = body.get("message", "")
+    if not isinstance(message, str) or not message.strip():
+        raise HTTPException(422, "message 必须为非空文本")
     knowledge_base_ids = _selected_notebook_ids(body.get("knowledge_base_ids"), req)
     trace_id = uuid.uuid4().hex
     ctx = RequestContext(trace_id=trace_id, request_id=trace_id, user_id=user_id, session_id=session_id)
     if api_key is not None and (not api_key.strip() or len(api_key) > 512):
-        raise HTTPException(status_code=422, detail="无效的 DeepSeek API Key")
+        raise HTTPException(status_code=422, detail="无效的 API Key")
+    _reserve_web_query(ctx)
     with request_provider.use_key(api_key.strip() if api_key else None):
         answer = await runtime.run(ctx, message, knowledge_base_ids)
     return JSONResponse(
-        {"answer": answer, "trace_id": trace_id, "knowledge_base_ids": knowledge_base_ids},
+        {"answer": answer, "trace_id": trace_id, "knowledge_base_ids": knowledge_base_ids, "quota": _web_quota_status()},
         headers={"Cache-Control": "no-store"},
     )
 
@@ -953,7 +979,8 @@ async def chat(req: Request) -> JSONResponse:
 @app.get("/api/llm/config")
 def llm_config() -> JSONResponse:
     return JSONResponse(
-        {"server_key_configured": bool(API_KEY), "model": MODEL},
+        {"server_key_configured": bool(API_KEY), "provider": MODEL_CONFIG.provider, "model": MODEL,
+         "free_models_only": MODEL_CONFIG.provider == "openrouter", "quota": _web_quota_status()},
         headers={"Cache-Control": "no-store"},
     )
 
@@ -982,12 +1009,15 @@ async def chat_stream(
     _, principal = _authorize(req, "write")
     selected_ids = _selected_notebook_ids(knowledge_base_ids, req)
     user_id = principal.user_id
+    if not message.strip():
+        raise HTTPException(422, "message 必须为非空文本")
+    _reserve_web_query(_auth_identity(req)[0])
 
     async def gen():
         trace_id = uuid.uuid4().hex
         ctx = RequestContext(trace_id=trace_id, request_id=trace_id, user_id=user_id, session_id=session_id)
         answer = await runtime.run(ctx, message, selected_ids)
-        yield f"data: {json.dumps({'answer': answer, 'trace_id': trace_id, 'knowledge_base_ids': selected_ids}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'answer': answer, 'trace_id': trace_id, 'knowledge_base_ids': selected_ids, 'quota': _web_quota_status()}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")
 
@@ -1068,6 +1098,8 @@ if PUBLIC_DEMO:
         provider=DEMO_PROVIDER,
         embedding=os.environ.get("RAG_EMBED", "fastembed").strip().lower(),
         kb_id=DEMO_KB_ID,
+        reserve_query=_reserve_web_query,
+        quota_status=_web_quota_status,
     )
     app.add_middleware(PublicDemoBoundary, auth_service=auth_service)
 elif ADMIN_AUTH == "proxy":
@@ -1084,7 +1116,7 @@ async def demo_chat(req: Request) -> JSONResponse:
         if not _web_key_origin_allowed(req):
             raise HTTPException(403, "个人 API Key 仅允许通过 HTTPS 或本机同源页面使用")
         if not api_key.strip() or len(api_key) > 512:
-            raise HTTPException(422, "无效的 DeepSeek API Key")
+            raise HTTPException(422, "无效的 API Key")
     with request_provider.use_key(api_key.strip() if api_key else None):
         return await public_demo.chat(req, temporary_key=api_key is not None)
 

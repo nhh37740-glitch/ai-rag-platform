@@ -1,0 +1,7 @@
+{
+  "module": "auth_runtime",
+  "version": "0.3.0",
+  "public_api": [
+    "AuthRuntime"
+  ]
+}
