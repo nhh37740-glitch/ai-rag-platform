@@ -6,7 +6,7 @@
 
 - 只加载 data/kb/cmrc2018-demo 的内置公开资料，不读取用户笔记本或 agent-files；容器不挂载私有服务数据卷。
 - 只注册五个只读 RAG 工具，不能创建文件、保存对话、上传或创建笔记本。
-- 新部署 DEMO_PROVIDER=mock 且服务器运行环境无 key，明确使用 MockProvider。Web 可手动配置临时 key，仅保存在页面内存；刷新或清除后失效。单次 HTTPS/本机同源 POST 请求覆盖为 DeepSeek，不保存到服务器、日志或镜像。历史 DEMO_PROVIDER=deepseek 模式仍须服务器凭据，缺凭据拒绝启动；本次部署不启用该模式。
+- 默认服务端配置为 LLM_PROVIDER=openrouter、OPENROUTER_MODEL=openrouter/free，凭据由 OPENROUTER_API_KEY 注入。OpenRouter 模式仅允许 openrouter/free 或严格的 :free 模型 ID，不配置付费回退。LLM_PROVIDER=mock/deepseek 保留显式兼容模式。Web 临时密钥仍只在页面内存中使用，接入当前固定服务端模型与 API 地址，不能选择或覆盖模型。
 - GET /api/demo 在原字段外增加 public_demo、read_only、provider、embedding；公开固定问题列表由现有 suggested_questions 提供。
 - 公开进程的根页面返回独立演示页。静态资产、GET /api/demo、POST /api/demo/chat、GET /api/trace/{trace_id} 及 AUTH_INTERFACES.md 中公开身份/笔记本/原文读取接口为允许范围；其余 API 和非允许方法返回 403/405。私有模式下 POST /api/demo/chat 返回 404。
 
@@ -28,7 +28,11 @@
 }
 ```
 
-provider 只有 mock/deepseek；embedding 反映实际配置，不把 hash 命名为 BGE。仅真实输出/trace 可以展示，Mock 可原样返回检索工具 JSON。引用与检索结果取自实际 rag span，不能预填案例结果。
+provider 为 mock/deepseek/openrouter；embedding 反映实际配置，不把 hash 命名为 BGE。仅真实输出/trace 可以展示，Mock 可原样返回检索工具 JSON。引用与检索结果取自实际 rag span，不能预填案例结果。
+
+## 全站日额度
+
+OpenRouter 模式下所有 Web 问答入口共用 DailyQueryQuota，每天 20 次，按北京时间零点重置。合法且未命中缓存的请求在进入模型前原子占用一次；失败和超时也计数，忙时拒绝及非法输入不计数。临时 key、客户端 user_id/session_id、匿名访客均不能绕过；第 21 次返回 429，detail 包含 message 和 quota，Retry-After 为下次零点秒数。成功问答、GET /api/demo 和 GET /api/llm/config 返回 quota={scope, limit, used, remaining, reset_at}，不返回凭据。额度存入 DataService 管理的独立 WEB_QUOTA_STATE_DIR，多个服务容器共用此目录时全站统一计数。
 
 公开入口检查本次 trace 至少有一次成功 rag 检索并有内置范围的来源命中；否则返回 502，不把未检索答案列为成功。工具返回失败、无命中或模型异常如实错误；本接口规范不宣称自然语言引用已通过语义真实性验证。
 

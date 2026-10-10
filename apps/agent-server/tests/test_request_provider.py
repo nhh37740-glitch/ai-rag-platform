@@ -45,3 +45,14 @@ class RequestScopedProviderTests(unittest.IsolatedAsyncioTestCase):
                 with scoped.use_key("placeholder"):
                     raise ValueError("failure")
         self.assertEqual((await scoped.generate(None, []))[0], "server-default")
+
+    async def test_server_provider_errors_are_cleaned_before_trace_and_public_binding(self):
+        class Failure:
+            async def generate(self, ctx, messages, tools=None):
+                raise RuntimeError("private-credential-in-provider-error")
+        provider = Failure()
+        scoped = RequestScopedProvider(provider, "https://openrouter.ai/api/v1", "openrouter/free")
+        bound = scoped.for_request(provider)
+        with self.assertRaisesRegex(RuntimeError, "服务端模型请求失败") as error:
+            await bound.generate(None, [])
+        self.assertNotIn("private-credential", str(error.exception))

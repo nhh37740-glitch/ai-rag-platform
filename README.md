@@ -29,9 +29,9 @@ registry.json               模块版本、校验和与发布状态
 - `package_release_artifacts.py`：生成发布接口规范、校验和与注册表。
 - `verify_compiled_runtime.py`：验收二进制模式；业务模块必须全部来自 `artifacts/`，源码模式会被运行边界拒绝。
 
-## 三个中间模块（2026-10-09）
+## 四个业务模块（2026-10-10）
 
-服务通过 `AgentService`、`RagService`、`DataService` 装配；共享接口见 [specifications/DOMAIN_INTERFACES.md](specifications/DOMAIN_INTERFACES.md)。网页位于 `apps/web/`，仅调用 API。三个中间包和所有一级实现均编译交付，服务拒绝源码加载。
+服务通过 `AgentService`、`RagService`、`DataService`、`AuthService` 装配；前三个接口见 [specifications/DOMAIN_INTERFACES.md](specifications/DOMAIN_INTERFACES.md)，鉴权接口见 [specifications/AUTH_INTERFACES.md](specifications/AUTH_INTERFACES.md)。网页位于 `apps/web/`，仅调用 API。四个业务包和所有一级实现均编译交付，服务拒绝源码加载。
 
 ```powershell
 .venv/Scripts/python.exe scripts/run_tests.py --mode source --group leaf
@@ -112,8 +112,8 @@ curl -f http://127.0.0.1:18080/api/demo
 
 `Jenkinsfile` 假设 Jenkins agent 运行在目标 Linux Docker 主机且有 Docker/Compose 权限。流水线执行模块单测、Linux 编译、严格接口规范测试、应用端到端测试和二进制运行边界验证；然后归档 `dist/ai-rag-platform-<version>-<platform>.zip`、SHA-256 与逐文件清单。`DeployDemo` 和 `DeployPublicDemo` 默认关闭，分别选择私有工作区与独立公开服务。候选健康检查或 smoke 失败时恢复旧镜像并重建容器；该流程不删除原服务命名卷。部署回滚测试在 Docker builder 阶段运行。ZIP 内不含 `modules-src/`。
 
-公开演示使用 `compose.public-demo.yaml`，回环端口18106，由主页反代到 `/projects/apps/rag/`。应用0.5.0包含独立编译的 `auth-runtime`：游客只能查看内置CMRC文档和自由查询，管理员复用现有owner登录后可创建私人笔记本、导入文档并检索；管理员数据使用隔离持久卷，不自动公开。管理员工作区与登录适配分别为18108、18107，使用 `DeployAdminWorkspace` 部署参数。
+公开演示使用 `compose.public-demo.yaml`，回环端口18106，由主页反代到 `/projects/apps/rag/`。应用候选0.6.0通过独立编译的 `auth-facade` 实施管理员／游客操作权限及知识库可见范围，`auth-runtime` 提供身份和代理证明校验原语：游客只能查看内置CMRC文档和自由查询，管理员复用现有owner登录后可创建私人笔记本、导入文档并检索；管理员数据使用隔离持久卷，不自动公开。管理员工作区与登录适配分别为18108、18107，使用 `DeployAdminWorkspace` 部署参数。
 
-服务器运行环境模型 key 为空，默认 Mock + hash。公开页可手动应用临时 key，仅页面内存保存，通过同源HTTPS请求使用，刷新后清除；构建专用 Jenkins 凭据只用于每次真实模型门禁。自由问题与临时 key 请求不使用共享答案缓存。权限接口见 [`specifications/AUTH_INTERFACES.md`](specifications/AUTH_INTERFACES.md)，网页接口见 [`specifications/WEB_DEMO.md`](specifications/WEB_DEMO.md)。
+默认模型配置已支持 OpenRouter 服务端凭据与免费路由 `openrouter/free`，全站每天20次问答，按北京时间零点恢复；计数在后端持久化。显式 Mock / DeepSeek 模式保留。公开页可手动应用临时 key，仅页面内存保存，通过同源HTTPS请求使用，刷新后清除，不能绕过日额度或免费模型限制。凭据加载与发布依赖见 [`docs/OPENROUTER_RUNTIME.md`](docs/OPENROUTER_RUNTIME.md)；权限接口见 [`specifications/AUTH_INTERFACES.md`](specifications/AUTH_INTERFACES.md)，网页接口见 [`specifications/WEB_DEMO.md`](specifications/WEB_DEMO.md)。
 
 [公开演示](https://portfolio.72945645.xyz:8443/projects/apps/rag/) 与 [管理员登录](https://portfolio.72945645.xyz:8443/projects/apps/rag/admin/login) 沿用已开放8443端口。实际构建和部署记录见 [`docs/REFACTOR_VALIDATION.md`](docs/REFACTOR_VALIDATION.md)。

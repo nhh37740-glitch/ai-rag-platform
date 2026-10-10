@@ -11,7 +11,7 @@ import numpy as np
 
 from core_specifications import MemoryEntry, MemoryStorePort, RequestContext, VectorStore
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 class _SqliteStore:
@@ -177,6 +177,31 @@ class StateStore(_SqliteStore):
             self._require_open()
             with self._conn:
                 self._conn.execute("DELETE FROM state WHERE user_id = ? AND key = ?", (ctx.user_id, key))
+
+    def increment_if_below(self, ctx: RequestContext, key: str, limit: int) -> Optional[int]:
+        """Atomically reserve one unit across threads and SQLite connections."""
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError("counter key must be non-empty")
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise ValueError("counter limit must be a positive integer")
+        with self._lock:
+            self._require_open()
+            with self._conn:
+                self._conn.execute("BEGIN IMMEDIATE")
+                row = self._conn.execute(
+                    "SELECT payload FROM state WHERE user_id = ? AND key = ?", (ctx.user_id, key)
+                ).fetchone()
+                used = json.loads(row[0]) if row else 0
+                if type(used) is not int or used < 0:
+                    raise ValueError("counter must be a non-negative integer")
+                if used >= limit:
+                    return None
+                used += 1
+                self._conn.execute(
+                    "INSERT OR REPLACE INTO state (user_id, key, payload) VALUES (?, ?, ?)",
+                    (ctx.user_id, key, json.dumps(used)),
+                )
+                return used
 
 
 class Storage(_SqliteStore):

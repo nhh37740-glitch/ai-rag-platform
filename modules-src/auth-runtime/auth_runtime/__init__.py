@@ -4,17 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import re
 import secrets
 
 from core_specifications import AuthPrincipal, RequestContext
 
-__version__ = "0.1.0"
-
-_READ_PERMISSIONS = frozenset({"read", "query"})
-_WRITE_PERMISSIONS = frozenset({"create_notebook", "import_document", "write"})
-_NOTEBOOK_ID = re.compile(r"\w[\w.-]*", re.UNICODE)
-
+__version__ = "0.3.0"
 
 def _identity_valid(value: object) -> bool:
     return isinstance(value, str) and bool(_credential_bytes(value)) and value == value.strip() and not any(
@@ -31,8 +25,8 @@ def _credential_bytes(value: object) -> bytes:
         return b""
 
 
-class AuthService:
-    """Server-side permissions with administrator proofs scoped to this instance."""
+class AuthRuntime:
+    """Low-level guest identity and proxy-proof verification primitives."""
 
     def __init__(self, proxy_token: str = "", owner_id: str = "") -> None:
         if not isinstance(proxy_token, str) or not isinstance(owner_id, str):
@@ -50,7 +44,7 @@ class AuthService:
 
     def __repr__(self) -> str:
         mode = "proxy" if self._configured else "guest"
-        return f"AuthService(mode={mode!r})"
+        return f"AuthRuntime(mode={mode!r})"
 
     def _admin_proof(self) -> str:
         # Length-framed identity avoids ambiguous string concatenation. The
@@ -93,36 +87,9 @@ class AuthService:
                 return True
         raise PermissionError("Invalid authentication principal")
 
-    def authorize(self, ctx: RequestContext, principal: AuthPrincipal, permission: str) -> None:
-        if not isinstance(permission, str) or permission not in _READ_PERMISSIONS | _WRITE_PERMISSIONS:
-            raise ValueError("Unknown permission")
-        administrator = self._validate_principal(principal)
-        if permission in _WRITE_PERMISSIONS and not administrator:
-            raise PermissionError("Permission denied")
-
-    @staticmethod
-    def _validate_ids(values: object) -> None:
-        if not isinstance(values, list) or any(
-            not isinstance(value, str) or _NOTEBOOK_ID.fullmatch(value) is None
-            for value in values
-        ):
-            raise ValueError("Invalid notebook identifiers")
-
-    def allowed_notebooks(
-        self,
-        ctx: RequestContext,
-        principal: AuthPrincipal,
-        available_ids: list[str],
-        public_ids: list[str],
-    ) -> list[str]:
-        administrator = self._validate_principal(principal)
-        self._validate_ids(available_ids)
-        self._validate_ids(public_ids)
-        published = set(public_ids)
-        return list(dict.fromkeys(
-            notebook_id for notebook_id in available_ids
-            if administrator or notebook_id in published
-        ))
+    def is_administrator(self, ctx: RequestContext, principal: AuthPrincipal) -> bool:
+        """Validate a principal and return its cryptographically verified role."""
+        return self._validate_principal(principal)
 
 
-__all__ = ["AuthService"]
+__all__ = ["AuthRuntime"]

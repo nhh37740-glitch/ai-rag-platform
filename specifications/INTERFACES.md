@@ -183,6 +183,8 @@ def build_index(ctx, docs_dir: str, store: VectorStore, embed_fn: Callable) -> i
 4. 发布脚本生成版本化 `artifacts/<module>/<version>/` 元数据与包内接口规范测试；根仓库 `registry.json` pin 发布版本。Linux 交付 ZIP 的逐文件清单记录二进制 SHA-256，外层另有 ZIP SHA-256。
 5. 严格接口规范闸门从注册表路径导入实际扩展，校验公开 facade 的参数名与返回类型，并运行包内测试；只有该闸门与应用端到端检查通过后才允许部署。
 
-## 三个中间模块（0.1.0）
+## 业务模块与共享存储端口
 
 新增接口详见 [DOMAIN_INTERFACES.md](DOMAIN_INTERFACES.md)，机器可读签名以 API_SCHEMA.json 为准。VectorStore 移到 core_specifications；SQLite 向量实现移到 storage，rag-core 不再拥有数据库实现。
+
+鉴权业务接口见 [AUTH_INTERFACES.md](AUTH_INTERFACES.md)，auth-facade 提供 AuthService 与 DailyQueryQuota。共享 StateStorePort 增加 `increment_if_below(ctx: RequestContext, key: str, limit: int) -> Optional[int]`，原子占用一个计数单位，耗尽返回 None；用途和错误见 storage/INTERFACE.md。应用经 DataService 注入该端口，不直连数据库。

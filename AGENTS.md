@@ -49,4 +49,4 @@ python scripts/verify_compiled_runtime.py
 
 ## 三域依赖（2026-10-09）
 
-apps/agent-server 只导入 agent_facade、rag_facade、data_facade 和共享 core_specifications/observability/auth_runtime。跨域通过共享 Protocol 注入；每个中间包只构造本域一级模块。修改前先读 specifications/DOMAIN_INTERFACES.md，分层检查入口为 scripts/check_module_dependencies.py。apps/web 是不编译的静态页面，只调用 API。Jenkins 每次构建用 secret text 凭据 rag-deepseek-api-key 验证真实模型，不进入镜像/发布包。
+apps/agent-server 只导入 agent_facade、rag_facade、data_facade、auth_facade 和共享 core_specifications/observability。鉴权业务由 auth_facade 负责，证明校验由 auth_runtime 提供；跨域通过共享 Protocol 注入。修改前先读 specifications/DOMAIN_INTERFACES.md，分层检查入口为 scripts/check_module_dependencies.py。apps/web 是不编译的静态页面，只调用 API。Jenkins 每次构建用 secret text 凭据 rag-deepseek-api-key 验证真实模型，不进入镜像/发布包。

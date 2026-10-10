@@ -83,7 +83,9 @@ async def main():
             assert (await client.get(asset)).status_code == 200, asset
         for asset in ["/static/index.html", "/static/knowledge_demo.js", "/static/public_demo.html", "/static/no-such-file"]:
             assert (await client.get(asset)).status_code == 403, asset
-        for method, path in [("POST", "/api/chat"), ("GET", "/api/chat/stream"), ("POST", "/api/notebooks"), ("POST", "/api/notebooks/anything/files"), ("GET", "/api/notebooks/private/documents"), ("GET", "/api/notebooks/private/suggestions"), ("GET", "/api/uploads/private"), ("GET", "/api/llm/config"), ("GET", "/docs"), ("GET", "/openapi.json"), ("DELETE", "/api/demo"), ("HEAD", "/api/demo")]:
+        config = await client.get("/api/llm/config")
+        assert config.status_code == 200 and not config.json()["server_key_configured"]
+        for method, path in [("POST", "/api/chat"), ("GET", "/api/chat/stream"), ("POST", "/api/notebooks"), ("POST", "/api/notebooks/anything/files"), ("GET", "/api/notebooks/private/documents"), ("GET", "/api/notebooks/private/suggestions"), ("GET", "/api/uploads/private"), ("GET", "/docs"), ("GET", "/openapi.json"), ("DELETE", "/api/demo"), ("HEAD", "/api/demo")]:
             assert (await client.request(method, path)).status_code == 403, (method, path)
         for header in ["authorization", "x-deepseek-api-key"]:
             assert (await client.post("/api/demo/chat", json={"question": questions[0]}, headers={header: "placeholder"})).status_code == 403
@@ -179,7 +181,8 @@ async def main():
             assert keys == ["first-placeholder", "second-placeholder"]
             assert all(item["provider"] == "deepseek" and not item["cache_hit"] for item in keyed)
             assert len({item["trace_id"] for item in keyed} | {result["trace_id"]}) == 3
-        assert s.request_provider.for_request() is original
+        assert s.request_provider.for_request() is s.request_provider
+        assert s.request_provider._provider() is original
         assert s.public_demo._cache[questions[0]][1] == result
         assert (await client.post("/api/demo/chat", json={"question": questions[0]})).json() == {**result, "cache_hit": True}
         # Upstream exception data is sanitized before it reaches error spans.
@@ -188,7 +191,8 @@ async def main():
             assert response.status_code == 502 and "secret-sentinel" not in response.text
             latest_trace = s.public_demo._trace_ids[-1]
             assert "secret-sentinel" not in json.dumps(s.public_demo.trace(latest_trace))
-        assert s.request_provider.for_request() is original
+        assert s.request_provider.for_request() is s.request_provider
+        assert s.request_provider._provider() is original
         s.trace_store.record(SpanEvent("private-trace", "agent", 1, 2))
         assert (await client.get("/api/trace/private-trace")).json() == []
 
@@ -271,6 +275,7 @@ class PublicDemoIntegrationTests(unittest.TestCase):
             env.update({
                 "PYTHONPATH": str(SERVER), "PUBLIC_DEMO": "1" if public else "0",
                 "DEMO_PROVIDER": provider, "DEEPSEEK_API_KEY": key,
+                "LLM_PROVIDER": "", "OPENROUTER_API_KEY": "", "RAG_LLM_ENV_FILE": "",
                 "RAG_EMBED": "hash", "STATE_DIR": state,
                 "DB_PATH": str(Path(state) / "app.sqlite"),
                 "VECTOR_DB_PATH": str(Path(state) / "vector.sqlite"),
@@ -290,10 +295,10 @@ class PublicDemoIntegrationTests(unittest.TestCase):
         self.run_process(PUBLIC_CHECKS, key="placeholder-explicit-mock")
 
     def test_deepseek_without_server_key_fails_closed(self):
-        self.run_process('import server', provider="deepseek", expected=1, error="公开 DeepSeek 演示缺少服务器凭据")
+        self.run_process('import server', provider="deepseek", expected=1, error="DeepSeek 缺少服务端凭据")
 
     def test_invalid_public_provider_fails_closed(self):
-        self.run_process('import server', provider="invalid", expected=1, error="DEMO_PROVIDER 必须为 mock 或 deepseek")
+        self.run_process('import server', provider="invalid", expected=1, error="LLM_PROVIDER 必须为 mock、deepseek 或 openrouter")
 
     def test_private_routes_and_request_provider_remain_available(self):
         self.run_process(r'''

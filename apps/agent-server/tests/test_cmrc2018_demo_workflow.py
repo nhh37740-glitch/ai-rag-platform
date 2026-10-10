@@ -47,7 +47,12 @@ class DemoKnowledgeBaseTests(unittest.TestCase):
         with patch.object(server_app, "API_KEY", "secret-sentinel"):
             response = server_app.llm_config()
         payload = json.loads(response.body)
-        self.assertEqual(payload, {"server_key_configured": True, "model": server_app.MODEL})
+        self.assertEqual(payload["server_key_configured"], True)
+        self.assertEqual(payload["model"], server_app.MODEL)
+        self.assertEqual(payload["provider"], "mock")
+        self.assertFalse(payload["free_models_only"])
+        self.assertIsNone(payload["quota"])
+        self.assertNotIn("api_key", payload)
         self.assertNotIn("secret-sentinel", response.body.decode("utf-8"))
         self.assertEqual(response.headers["cache-control"], "no-store")
 

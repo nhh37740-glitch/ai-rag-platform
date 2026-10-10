@@ -122,7 +122,7 @@ function canEnterWebKey() {
 function updateKeyStatus() {
   if (!canEnterWebKey()) {
     dom.keyConfigStatus.textContent = "当前地址未使用 HTTPS；个人密钥输入已禁用。";
-    dom.openKeyConfig.textContent = "DeepSeek 设置 · 需 HTTPS";
+    dom.openKeyConfig.textContent = "模型设置 · 需 HTTPS";
     dom.openKeyConfig.disabled = true;
     return;
   }
@@ -132,8 +132,15 @@ function updateKeyStatus() {
     : state.serverKeyConfigured
       ? "本页未设置密钥；正在使用服务器配置"
       : "未配置密钥；使用离线演示模型";
-  dom.keyConfigStatus.textContent = status;
-  dom.openKeyConfig.textContent = state.deepseekKey ? "DeepSeek · 已配置" : "DeepSeek 设置";
+  dom.keyConfigStatus.textContent = status + (state.modelProvider === "openrouter" ? " · 仅使用 OpenRouter 免费模型" : "");
+  dom.openKeyConfig.textContent = state.modelProvider === "openrouter" ? "OpenRouter · 免费模型" : state.deepseekKey ? "模型 · 已配置" : "模型设置";
+}
+
+function updateWebQuota(quota) {
+  state.webQuota = quota;
+  const label = $("web-quota");
+  label.hidden = !quota;
+  if (quota) label.textContent = `全站今日剩余 ${quota.remaining}/${quota.limit} 次 · 北京时间零点恢复`;
 }
 
 // ---------------------------------------------------------------- 小工具
@@ -554,8 +561,9 @@ async function send(question) {
         knowledge_base_ids: [notebookId],
       } : { question: text }),
     });
-    if (!response.ok) throw new Error(`请求失败（${response.status}）`);
     const result = await response.json();
+    if (result.quota || result.detail?.quota) updateWebQuota(result.quota || result.detail.quota);
+    if (!response.ok) throw new Error(result.detail?.message || (typeof result.detail === "string" ? result.detail : `请求失败（${response.status}）`));
     pending.pending = false;
     pending.text = result.answer || "(空回答)";
     pending.traceId = result.trace_id || "";
@@ -606,6 +614,8 @@ apiFetch("/api/llm/config", { cache: "no-store" })
   .then((response) => response.ok ? response.json() : Promise.reject())
   .then((config) => {
     state.serverKeyConfigured = Boolean(config.server_key_configured);
+    state.modelProvider = config.provider;
+    updateWebQuota(config.quota);
     updateKeyStatus();
   })
   .catch(() => {});

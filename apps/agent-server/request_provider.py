@@ -27,7 +27,7 @@ class RequestScopedProvider:
 
     def for_request(self, default_provider=None):
         """Bind only this request's override to an ephemeral Agent."""
-        return self if self._current.get() is not None else (default_provider if default_provider is not None else self._default)
+        return self if self._current.get() is not None or default_provider is self._default or default_provider is None else default_provider
 
     async def generate(self, ctx, messages, tools=None):
         try:
@@ -37,7 +37,7 @@ class RequestScopedProvider:
             # Raise only a fixed message before the Agent records an error span.
             if self._current.get() is not None:
                 raise RuntimeError("临时模型请求失败") from None
-            raise
+            raise RuntimeError("服务端模型请求失败") from None
 
     async def stream(self, ctx, messages, tools=None):
         try:
@@ -46,4 +46,4 @@ class RequestScopedProvider:
         except Exception:
             if self._current.get() is not None:
                 raise RuntimeError("临时模型请求失败") from None
-            raise
+            raise RuntimeError("服务端模型请求失败") from None

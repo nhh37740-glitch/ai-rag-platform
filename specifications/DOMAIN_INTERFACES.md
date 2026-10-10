@@ -1,4 +1,4 @@
-# 三个中间模块接口规范（0.1.0）
+# 业务模块接口规范（0.2.0）
 
 唯一共享类型和 Protocol 位于 `core_specifications`。下列签名同时登记在 `API_SCHEMA.json`，实现不得自行增删必需参数。业务方法的第一个参数均为 `ctx: RequestContext`（不计 self）。
 
@@ -82,14 +82,16 @@ class AgentService:
 | A03 | AGENT | 加工具、撞保留名称、加载真实 SKILL.md | 工具执行与技能完整内容可用，保留工具不可替换 |
 | A04 | AGENT | 同 user 不同 session 及不同 user | history 隔离、返回副本 |
 | A05 | AGENT | aclose 两次后再 run/register | 幂等，不关闭注入依赖，拒绝调用 |
-| I01 | 协调 | 三个真中间包 + 临时持久库 + md | 入库→检索→Agent→引用→trace→重开 |
+| I01 | 协调 | Agent、RAG、Data facade + 临时持久库 + md | 入库→检索→Agent→引用→trace→重开 |
 | I02 | 协调 | 编译后回放模块/接口/最终服务测试 | 来自当前平台 .pyd/.so，不从源码加载 |
-| I03 | 协调 | AST 检查应用与域 import | 只准三个中间包/公共层；域间不碰具体叶子 |
+| I03 | 协调 | AST 检查应用与域 import | 只准四个业务 facade/公共层；域间不碰具体叶子 |
 | I04 | 协调 | CMRC 24 文档/99 问题 | 实际来源范围、回归下限、失败列出 question_id |
 | I05 | 协调 | 每次构建固定精选问题，真实 DeepSeek | 非 Mock、实际引用与 rag span；密钥缺失失败 |
 
 源码 tests 放各模块 tests/，使用 unittest，可由 pytest 收集；协调集成测试放 scripts/tests/，二进制与网页测试保留服务目录。所有临时数据用 tempfile，不写基线语料。
 
-## 鉴权横切模块
+## 鉴权业务与运行时边界
 
-auth-runtime/AuthService 的身份、权限和知识库范围接口见 [AUTH_INTERFACES.md](AUTH_INTERFACES.md)。它仅依赖共享类型与标准库，HTTP 集成必须调用该编译模块，管理员身份来自经验证的 owner 登录，游客只读公开资料。
+管理员／游客角色、操作权限和知识库可见范围由 auth-facade 的 AuthService 提供；管理员证明校验由 auth-runtime 的 AuthRuntime 提供。接口见 [AUTH_INTERFACES.md](AUTH_INTERFACES.md)。auth-facade 依赖共享类型和 auth-runtime，auth-runtime 依赖共享类型及标准库；两者不依赖 Agent、RAG、Data 业务实现。HTTP 集成调用 auth-facade；管理员身份来自经验证的 owner 登录，游客只读公开资料。
+
+DailyQueryQuota 通过注入的 StateStorePort 实施全站每日问答额度。DataService.state_db 返回的共享端口支持原子 increment_if_below，SQLite 事务位于 storage；额度业务不导入 data-facade 或 storage。

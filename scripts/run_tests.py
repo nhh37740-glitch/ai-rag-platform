@@ -71,7 +71,8 @@ def main(argv=None):
         with tempfile.TemporaryDirectory(prefix="agent-app-tests-") as temporary:
             os.environ.update(STATE_DIR=temporary, DB_PATH=str(Path(temporary) / "memory.sqlite"),
                               VECTOR_DB_PATH=str(Path(temporary) / "vectors.sqlite"),
-                              INDEX_PATH=str(Path(temporary) / "no-index.json"), DEEPSEEK_API_KEY="")
+                              INDEX_PATH=str(Path(temporary) / "no-index.json"), DEEPSEEK_API_KEY="",
+                              OPENROUTER_API_KEY="", LLM_PROVIDER="mock", RAG_LLM_ENV_FILE="")
             # The server must establish the boundary before auth middleware tests
             # import extensions. Boot only after allocating isolated test state.
             sys.path.insert(0, str(ROOT / "apps/agent-server"))
@@ -88,6 +89,8 @@ def main(argv=None):
                 import asyncio
                 asyncio.run(server.runtime.aclose(server.BOOT_CONTEXT))
                 server.data_service.close(server.BOOT_CONTEXT)
+                if server.quota_data_service is not None:
+                    server.quota_data_service.close(server.BOOT_CONTEXT)
             return result
     return pytest.main(options)
 

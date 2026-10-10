@@ -6,13 +6,14 @@
 
 ## 当前分层（2026-10-09）
 
-apps/web 只负责静态网页和 API 调用；apps/agent-server 装配 AgentService、RagService、DataService，并通过公共 AuthService 校验身份、权限和知识库范围。三个中间包各自构造本域一级模块；跨域只通过 core_specifications 中的 Protocol 注入。
+apps/web 只负责静态网页和 API 调用；apps/agent-server 装配 AgentService、RagService、DataService、AuthService。鉴权业务由独立 auth-facade 提供，底层身份与代理证明校验由 auth-runtime 提供；四个业务 facade 各自封装本域能力，跨域只通过 core_specifications 中的 Protocol 注入。
 
 | 域 | 中间包 | 一级实现 |
 |---|---|---|
 | AGENT | agent-facade | agent-runtime、llm-gateway、skill-runtime、tool-runtime；其余 AGENT 叶子保留独立能力 |
 | RAG | rag-facade | rag-core、rag-tools、ingestion |
 | 数据库 | data-facade | memory、storage（SQLite 向量和 JSON 状态） |
+| 鉴权 | auth-facade | auth-runtime（身份校验与管理员证明） |
 
 源码与二进制各跑一次行为测试；最终服务仍拒绝从源码加载业务模块。完整 API 和验收输入/断言见 specifications/DOMAIN_INTERFACES.md。其余章节描述各一级模块能力。
 
@@ -23,7 +24,7 @@ apps/web 只负责静态网页和 API 调用；apps/agent-server 装配 AgentSer
 | **端口与适配器（六边形）** | 核心只依赖"端口"接口，外部实现是"适配器"，可整体替换 | `LLMProvider`、`VectorStore`、`Storage`、`McpServerClient`；适配器见下 |
 | **策略（Strategy）** | 同一操作可有多个可切换实现 | 向量化 `embed`（`fastembed`/`hash`）、LLM（`DeepSeek`/`Mock`） |
 | **适配器（Adapter）** | 把异构接口转成统一类型 | `DeepSeekProvider`（OpenAI 兼容→`LLMProvider`）、`normalize_to_tool`（MCP→`ToolDef`） |
-| **抽象工厂 / 依赖注入（组合根）** | 主进程集中创建并注入依赖 | `apps/agent-server/server.py` 装配三个中间包，中间包构造域内一级实现 |
+| **抽象工厂 / 依赖注入（组合根）** | 主进程集中创建并注入依赖 | `apps/agent-server/server.py` 装配四个业务 facade，各 facade 构造或封装本域实现 |
 | **门面（Facade）** | 一个薄入口封装复杂编排 | `AgentRuntime.run`（编排循环）、`Storage`（持久层门面） |
 | **注册表 / 插件（Registry）** | 动态注册、按名取用 | `ToolRegistry`（`@tool`）、`SkillRegistry`（`SKILL.md`）、`MockMcpServer` |
 | **接口规范 / 按合约设计** | 先定接口与类型，再实现 | `specifications/`（`core_specifications` + `INTERFACE.md` + `API_SCHEMA.json` + `test_specification.py`） |
@@ -149,4 +150,4 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
 
 ## 管理员与游客
 
-公共横切模块 auth-runtime 只依赖 core_specifications 与标准库。游客能读公开 CMRC 文档及查询；管理员由登录网关实时核验现有 owner 会话，Nginx 注入内部证明，后端再次验证后允许创建笔记本与导入。运行交付含17个编译模块，Web仍为不编译静态资产。公开与私人数据卷隔离。
+鉴权业务模块 auth-facade 与 Agent、RAG、Data 实现解耦，只通过共享接口和 auth-runtime 调用身份原语。游客能读公开 CMRC 文档及查询；管理员由登录网关实时核验现有 owner 会话，Nginx 注入内部证明，后端再次验证后允许创建笔记本与导入。Web仍为不编译静态资产。公开与私人数据卷隔离。

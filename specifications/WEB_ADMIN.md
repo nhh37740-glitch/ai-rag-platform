@@ -1,6 +1,6 @@
 # 管理员知识工作区 HTTP 契约
 
-权限实现由独立编译模块 auth-runtime/AuthService 提供，apps 负责 HTTP 身份与展示适配，保留笔记本、文档转换和检索的现有模块 facade。公开 PUBLIC_DEMO 容器和私人数据卷保持隔离。
+管理员／游客业务权限与笔记本可见范围由独立编译模块 auth-facade/AuthService 提供；auth-runtime/AuthRuntime 负责身份及代理证明验证。apps 负责 HTTP 身份适配，笔记本、文档转换和检索由各自业务模块负责。公开 PUBLIC_DEMO 容器和私人数据卷保持隔离。
 
 ## 权限边界
 

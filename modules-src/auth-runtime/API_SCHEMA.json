@@ -1,9 +1,9 @@
 {
   "package": "auth_runtime",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "facade": {
-    "AuthService": {
+    "AuthRuntime": {
       "kind": "class",
       "init": {
         "proxy_token": "str",
@@ -25,22 +25,12 @@
           },
           "returns": "AuthPrincipal"
         },
-        "authorize": {
+        "is_administrator": {
           "params": {
             "ctx": "RequestContext",
-            "principal": "AuthPrincipal",
-            "permission": "str"
+            "principal": "AuthPrincipal"
           },
-          "returns": "None"
-        },
-        "allowed_notebooks": {
-          "params": {
-            "ctx": "RequestContext",
-            "principal": "AuthPrincipal",
-            "available_ids": "list[str]",
-            "public_ids": "list[str]"
-          },
-          "returns": "list[str]"
+          "returns": "bool"
         }
       }
     }
