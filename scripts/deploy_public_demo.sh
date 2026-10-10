@@ -6,8 +6,9 @@ IMAGE=ai-rag-public:local
 CANDIDATE=ai-rag-public:candidate-${BUILD_NUMBER}
 BACKUP=ai-rag-public:rollback-${BUILD_NUMBER}
 ENV_FILE=${PUBLIC_DEMO_ENV_FILE:-/home/ubuntu/.config/ai-rag/public-demo.env}
-PUBLIC_DEMO_PROVIDER=${PUBLIC_DEMO_PROVIDER:-mock}
+PUBLIC_DEMO_PROVIDER=${PUBLIC_DEMO_PROVIDER:-openrouter}
 case "$PUBLIC_DEMO_PROVIDER" in
+    openrouter) ENV_FILE=${PUBLIC_DEMO_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env} ;;
     deepseek) ;;
     mock)
         # Keep the mock configuration separate from every credential-bearing file.
@@ -16,7 +17,7 @@ case "$PUBLIC_DEMO_PROVIDER" in
         printf 'DEMO_PROVIDER=mock\n' | sudo tee "$ENV_FILE" >/dev/null
         sudo chmod 0600 "$ENV_FILE"
         ;;
-    *) echo 'PUBLIC_DEMO_PROVIDER must be explicitly mock or deepseek' >&2; exit 1 ;;
+    *) echo 'PUBLIC_DEMO_PROVIDER must be explicitly openrouter, mock or deepseek' >&2; exit 1 ;;
 esac
 export PUBLIC_DEMO_PROVIDER
 export PUBLIC_DEMO_ENV_FILE="$ENV_FILE"
@@ -60,10 +61,13 @@ if [ -n "$OLD_CONTAINER" ]; then
 fi
 sudo test -s "$ENV_FILE"
 docker build --target runtime --tag "$CANDIDATE" .
+sh scripts/prepare_web_quota.sh "$CANDIDATE"
 SMOKE_CONTAINER=$(docker run -d --rm --read-only --tmpfs /tmp:size=32m --cap-drop ALL \
     --security-opt no-new-privileges --memory 384m --cpus 0.50 \
-    --env-file "$ENV_FILE" -e PUBLIC_DEMO=1 -e "DEMO_PROVIDER=$PUBLIC_DEMO_PROVIDER" -e RAG_EMBED=hash \
+    --env-file "$ENV_FILE" -e PUBLIC_DEMO=1 -e "DEMO_PROVIDER=$PUBLIC_DEMO_PROVIDER" \
+    -e "LLM_PROVIDER=$PUBLIC_DEMO_PROVIDER" -e RAG_EMBED=hash \
     -e STATE_DIR=/opt/agent/state -v "$SMOKE_VOLUME:/opt/agent/state" \
+    -e WEB_QUOTA_STATE_DIR=/opt/agent/web-quota -v ai-rag-web-quota:/opt/agent/web-quota \
     -p 127.0.0.1::8000 "$CANDIDATE")
 wait_for_health "$SMOKE_CONTAINER"
 PORT=$(docker port "$SMOKE_CONTAINER" 8000/tcp | sed -n 's/.*://p')
@@ -74,7 +78,7 @@ docker image tag "$CANDIDATE" "$IMAGE"
 
 if compose up -d --no-build --force-recreate && \
     wait_for_health "$(compose ps -q agent)" && \
-    python3 scripts/smoke_public_demo.py http://127.0.0.1:18106 "$PUBLIC_DEMO_PROVIDER"; then
+    python3 scripts/smoke_public_demo.py http://127.0.0.1:18106 "$PUBLIC_DEMO_PROVIDER" --metadata-only; then
     docker image inspect "$IMAGE" --format 'Public demo image={{.Id}}'
     echo 'Public demo deployed; private service and private volumes preserved.'
     exit 0
@@ -82,7 +86,7 @@ fi
 
 echo 'Public demo deployment failed; restoring previous public image.' >&2
 if [ -n "$OLD_IMAGE" ]; then
-    case "$OLD_PROVIDER" in mock|deepseek) ;; *) echo 'Previous provider metadata is invalid; backup image preserved.' >&2; exit 1 ;; esac
+    case "$OLD_PROVIDER" in openrouter|mock|deepseek) ;; *) echo 'Previous provider metadata is invalid; backup image preserved.' >&2; exit 1 ;; esac
     export PUBLIC_DEMO_PROVIDER="$OLD_PROVIDER"
     export PUBLIC_DEMO_ENV_FILE="$OLD_ENV_FILE"
     docker image tag "$BACKUP" "$IMAGE"

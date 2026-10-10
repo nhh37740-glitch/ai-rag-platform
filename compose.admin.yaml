@@ -6,14 +6,17 @@ services:
       - "127.0.0.1:18108:8000"
     env_file:
       - ${RAG_ADMIN_ENV_FILE:?A private owner configuration file is required}
+      - ${RAG_MODEL_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
     environment:
       PUBLIC_DEMO: "0"
       RAG_ADMIN_AUTH: proxy
       STATE_DIR: /opt/agent/state
+      WEB_QUOTA_STATE_DIR: /opt/agent/web-quota
       RAG_EMBED: hash
       DEEPSEEK_API_KEY: ""
     labels:
       dev-knowledge.admin-env-file: ${RAG_ADMIN_ENV_FILE}
+      dev-knowledge.admin-model-env-file: ${RAG_MODEL_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
     read_only: true
     tmpfs:
       - /tmp:size=32m
@@ -25,6 +28,7 @@ services:
       - admin-state:/opt/agent/state
       - admin-notebooks:/opt/agent/data/kb/user-notebooks
       - admin-files:/opt/agent/data/agent-files
+      - web-quota:/opt/agent/web-quota
   login:
     image: ai-rag-admin:local
     command: ["python", "-m", "uvicorn", "--app-dir", "apps/agent-server", "admin_login:app_factory", "--factory", "--host", "0.0.0.0", "--port", "8000"]
@@ -52,3 +56,6 @@ volumes:
   admin-state:
   admin-notebooks:
   admin-files:
+  web-quota:
+    external: true
+    name: ai-rag-web-quota

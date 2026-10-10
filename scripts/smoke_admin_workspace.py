@@ -9,6 +9,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+from smoke_model_config import check as check_model_config
 
 
 def request(base, path, *, method="GET", body=None, headers=None):
@@ -26,7 +27,7 @@ def request(base, path, *, method="GET", body=None, headers=None):
         return response.code, result, response.headers
 
 
-def smoke(private_base, login_base, env_file, *, write=False):
+def smoke(private_base, login_base, env_file, *, write=False, model_env_file=None):
     config = {}
     for line in Path(env_file).read_text().splitlines():
         key, separator, value = line.partition("=")
@@ -49,6 +50,13 @@ def smoke(private_base, login_base, env_file, *, write=False):
     status, session, response_headers = request(private_base, "/api/admin/session", headers=headers)
     assert status == 200 and session["mode"] == "proxy" and session["administrator"] and session["user_id"] == owner
     assert response_headers["Cache-Control"] == "no-store" and proof not in json.dumps(session)
+    status, model, _ = request(private_base, "/api/llm/config", headers=headers)
+    assert status == 200
+    if model_env_file:
+        check_model_config(model, model_env_file)
+    if model["provider"] == "openrouter":
+        assert model["model"] == "openrouter/free" and model["free_models_only"] is True
+        assert model["quota"]["scope"] == "site" and model["quota"]["limit"] == 20
     assert request(private_base, "/api/notebooks", headers={**headers, "X-Rag-User-Id": "other-account"})[0] == 403
     assert request(private_base, "/api/notebooks", method="POST", body=b'{}', headers={**headers, "Origin": "https://attacker.invalid"})[0] == 403
     assert request(login_base, "/health")[0] == 200
@@ -79,8 +87,10 @@ def smoke(private_base, login_base, env_file, *, write=False):
         status, trace, _ = request(private_base, "/api/trace/" + answer["trace_id"], headers=headers)
         hits = [hit for span in trace if span["span"] == "rag" for hit in span["meta"].get("hits", [])]
         assert status == 200 and hits and all(hit["source_id"].startswith(notebook_id + "/") for hit in hits)
-    print(json.dumps({"admin_smoke": "passed", "candidate_import": write, "media_auth_reachable": True}))
+    print(json.dumps({"admin_smoke": "passed", "candidate_import": write, "media_auth_reachable": True,
+                      "provider": model["provider"], "model": model["model"], "quota": model.get("quota")}))
 
 
 if __name__ == "__main__":
-    smoke(sys.argv[1], sys.argv[2], sys.argv[3], write="--write" in sys.argv[4:])
+    model_file = sys.argv[sys.argv.index('--model-env-file') + 1] if '--model-env-file' in sys.argv else None
+    smoke(sys.argv[1], sys.argv[2], sys.argv[3], write="--write" in sys.argv[4:], model_env_file=model_file)

@@ -19,15 +19,17 @@ POST /api/demo/chat、POST /api/chat、GET /api/chat/stream 共用额度。合�
 
 ## 构建发布职责需要处理的资源
 
-代码和 Windows 产物由项目维护准备；以下现有发布文件仍只支持 Mock/DeepSeek，需要构建发布职责适配后发布：
+代码和 Windows 产物由项目维护准备；构建发布维护已补充以下配置，Linux 构建和线上阶段须以实际 Jenkins 证据确认：
 
 1. Jenkinsfile 的 PublicDemoProvider 选项及说明加入 openrouter；运行凭据由独立受控环境文件注入，不混用构建 DeepSeek 验收凭据。
 2. scripts/deploy_public_demo.sh 的模式分支、候选启动和回滚元数据接受 openrouter，不覆盖凭据文件。
 3. scripts/smoke_public_demo.py 接受 openrouter，检查免费模型和20次额度元数据；smoke 会占用问答额度，应计入发布当天预算。
-4. compose.public-demo.yaml 和私人工作区运行配置选择 OpenRouter 凭据文件，并为两者配置同一独立额度卷；更新现有默认 Mock 标签/说明。凭据文件权限限制为部署账号可读，不进入镜像/ZIP/Git/聊天或构建日志。
+4. compose.public-demo.yaml、compose.admin.yaml 与 compose.yaml 均挂载固定外部卷 `ai-rag-web-quota` 至 `/opt/agent/web-quota` 并设置同一 WEB_QUOTA_STATE_DIR。公开、管理员、原始私有服务的知识与对话卷仍独立。运行模型文件为 `/home/ubuntu/.config/ai-rag/openrouter-runtime.env`，管理员身份文件保留且单独加载；部署通过 `RAG_MODEL_ENV_FILE` 转交模型文件路径，旧管理员镜像回滚恢复对应文件路径。凭据文件权限限制为部署账号可读，不进入镜像/ZIP/Git/聊天或构建日志。
 5. Jenkins/Linux 构建全部 `.so` 并通过候选验收后再切换正式服务；记录部署版本、入口、额度及回滚证据。
 
 项目维护将提交并推送已验收实现，按用户授权交接构建发布维护。上述发布资源由发布职责适配；生产入口需在 Jenkins 发布后验证。
+
+`scripts/prepare_web_quota.sh` 只初始化计数卷的 UID 10001 权限，不挂私人知识，不删除或重置计数。候选 OpenRouter 实例也挂该卷，真实问答占用当天全站预算；公开候选仅执行一题真实检索，正式切换后的脚本先做不消费问答的配置／权限检查，再由发布验收记录线上真实问答。OpenRouter 公共回滚模式接受 mock/deepseek/openrouter；私人模型配置文件与身份配置分别恢复。源码和部署回滚检查不需要运行 OpenRouter 凭据；Jenkins 的真实 DeepSeek 校验继续使用独立构建凭据。
 
 ## 本机验收证据
 

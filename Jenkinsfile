@@ -4,7 +4,7 @@ pipeline {
         booleanParam(name: 'DeployDemo', defaultValue: false, description: '发布通过测试的私有服务')
         booleanParam(name: 'DeployAdminWorkspace', defaultValue: false, description: '发布已验证的隔离管理员工作区')
         booleanParam(name: 'DeployPublicDemo', defaultValue: false, description: '发布隔离的只读公开演示')
-        choice(name: 'PublicDemoProvider', choices: ['mock', 'deepseek'], description: '新部署选 mock：服务器无 key，Web 手动临时 key')
+        choice(name: 'PublicDemoProvider', choices: ['openrouter', 'mock', 'deepseek'], description: '默认 OpenRouter 免费模型；公开与私人问答共用每日20次额度')
     }
     options { timestamps(); disableConcurrentBuilds() }
     stages {
@@ -22,7 +22,7 @@ pipeline {
         stage('测试一级模块源码') {
             steps { sh 'sh scripts/run_ci_check.sh ai-rag-platform:prepared-${BUILD_NUMBER} scripts/run_tests.py --mode source --group leaf --junitxml=reports/source-leaf.xml' }
         }
-        stage('测试三个中间模块源码') {
+        stage('测试业务模块源码') {
             steps { sh 'sh scripts/run_ci_check.sh ai-rag-platform:prepared-${BUILD_NUMBER} scripts/run_tests.py --mode source --group facade --junitxml=reports/source-facade.xml' }
         }
         stage('测试模块装配和部署脚本') {
@@ -34,7 +34,7 @@ pipeline {
         stage('测试一级模块编译产物') {
             steps { sh 'sh scripts/run_ci_check.sh ai-rag-platform:compiled-${BUILD_NUMBER} scripts/run_tests.py --mode binary --group leaf --junitxml=reports/binary-leaf.xml' }
         }
-        stage('测试三个中间模块编译产物') {
+        stage('测试业务模块编译产物') {
             steps { sh 'sh scripts/run_ci_check.sh ai-rag-platform:compiled-${BUILD_NUMBER} scripts/run_tests.py --mode binary --group facade --junitxml=reports/binary-facade.xml' }
         }
         stage('核对接口并验证二进制来源') {
