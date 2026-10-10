@@ -1,6 +1,6 @@
 # 三个中间模块重构验收（2026-10-09）
 
-本次已定义接口规范和测试输入/断言，由三个 subagent 分别完成 AGENT、RAG、数据库域；协调侧完成接口目录迁移、服务装配、Web 拆分、构建入口、分层检查和统一验收。当前工作区改动未提交，也未部署服务器。
+本次已定义接口规范和测试输入/断言，由三个 subagent 分别完成 AGENT、RAG、数据库域；协调侧完成接口目录迁移、服务装配、Web 拆分、构建入口、分层检查和统一验收。以下保留各阶段验收记录；最新 0.5.0 已合入 GitHub 并完成服务器及主页发布，结果见末尾。
 
 ## 已交付
 
@@ -53,6 +53,15 @@ Windows包：`dist/ai-rag-platform-0.4.0-win-amd64.zip`，166个文件，16个�
 - Jenkins #15 已准确获取 master `6e84a8b`，Linux流水线最终SUCCESS：源码与二进制一级89/中间29、严格12、应用28、POSIX回滚及真实模型两题全部通过，公開Mock候选与正式发布通过。
 - 自动审批最初拒绝远端 Jenkins 保存 key；用户随后对明确授权问题回复“授权”。已通过 SSH 成功配置构建专用 Secret Text `rag-deepseek-api-key`，未写入运行镜像/容器。#15 已通过真实模型门禁并完成公开发布。
 
-### 追加鉴权0.5.0（验证中）
+### 追加鉴权0.5.0（2026-10-10 发布完成）
 
-新增 auth-runtime0.1.0 与共享AuthPrincipal/AuthServicePort，固定A01-A08验收。Windows17扩展严格契约12+143子测试、编译权限与RAG冒烟通过；源/二进制鉴权非法输入 parity 修复；应用29测试通过。Linux完整新构建、管理员候选导入、最终部署及主页更新仍在执行。
+新增 auth-runtime0.1.0 与共享AuthPrincipal/AuthServicePort，固定A01-A08验收。Windows17扩展严格契约12+143子测试、编译权限与RAG冒烟通过；源/二进制鉴权非法输入 parity 修复；应用29测试通过。
+
+- RAG PR #3 已合入 master，合并提交 `cb297cf21195751ff40fa2fa845b534ec1e49e04`。Jenkins #17 获取公开 smoke Unicode URL 修复提交 `9ba5b05ce1b4aa44715143965232a6c9d97266cb`，全部源码/二进制、依赖、严格规范、HTTP、编译运行来源及真实 DeepSeek 两题门禁通过，公开发布成功。该任务最终 FAILED 原因为管理员旧 smoke 错将游客公开笔记本读取 200 视为失败，不能将 #17 整体记为成功。
+- 修复提交 `851cf2c2caf058c83e9a5e6476d71dfecbb38392` 已推送 master，更新游客读取断言，继续检查写入与私有范围拒绝；部署支持显式复用已验证不可变镜像。Jenkins `rag-admin-recovery-17 #2` SUCCESS：核验 #17 全部门禁、修复范围及镜像身份，6项 Linux 回滚测试通过，候选创建笔记本→导入→真实来源检索通过，正式管理员/login 容器发布并健康。
+- 实际复用镜像 `sha256:d3adce6eda826c8beeedf21b04085708d6b0d51f52b53b62067f8ad3d4d0aa86`。公開与管理员 agent 实测应用 0.5.0、17个编译模块、模块源码不存在。公开 agent、管理员 agent、登录容器均未配置模型 key。
+- 主页 PR #1 合入 main `e07ab9b15934f80d136e57ec62ee298ecee57dff`，Jenkins `project-index #28` SUCCESS，0.5.0 卡片与管理反代已发布。管理入口 `https://portfolio.72945645.xyz:8443/projects/apps/rag/admin/login`；无需新增 443 监听。
+- 正式 HTTPS 8443 验证通过：游客公开资料读取及自由查询有实际 trace，游客创建/导入和私有访问被拒绝；owner 经现有 Media 服务实际登录，返回管理员创建/导入权限，读取管理笔记本成功，退出后再次访问被拒绝。正式环境验证只读取、登录/退出；写入与导入在候选环境验证。
+- 最新 Windows 包 `dist/ai-rag-platform-0.5.0-win-amd64.zip`，17个模块。SHA-256 `4004ad395a1ce0ae8a5f1ae27f010af5191976605a1d9d8812c3c3404ed9ef76`；包含静态 Web，不包含模块源码、环境文件或本地凭据。
+
+线上默认为 Mock/hash；构建专用凭据只用于 Jenkins 真实模型门禁。Web 手动临时 key 的线上真实调用由用户测试，未列为本轮已验证结果。
