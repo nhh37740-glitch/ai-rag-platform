@@ -214,3 +214,9 @@ Jenkins17全部编译、源码/二进制、HTTP与真实模型门禁通过，公
 修复提交 `851cf2c2caf058c83e9a5e6476d71dfecbb38392` 已合入 GitHub master。Jenkins `rag-admin-recovery-17 #2` 与 `project-index #28` 均 SUCCESS：恢复任务先验证 #17 全部门禁及不可变镜像，6项 Linux 部署回滚检查通过，候选环境完成创建笔记本、导入文档和真实来源检索，再发布正式管理员容器与主页反代。
 
 最终 HTTPS 8443 入口已验证游客读取/自由查询、拒绝游客写入与私有访问、owner 实际登录/管理员权限/退出后拒绝访问。公开与管理员 agent 均为 0.5.0，17个模块从编译工件加载，运行镜像不含模块源码；公开 agent、管理员 agent、登录容器均健康且模型 key 为空。管理入口为 `https://portfolio.72945645.xyz:8443/projects/apps/rag/admin/login`，主页 0.5.0 卡片已发布。Web 手动临时 key 的真实调用由用户测试，未列为本轮线上通过项。详见 `docs/REFACTOR_VALIDATION.md`。
+
+### 2 MB TXT 上传代理修复（2026-10-10）
+
+用户上传银河笔记本 TXT 时收到 HTML，前端 JSON 解析失败。服务器日志确认 multipart 请求 2065625 字节在 Nginx `/_rag_owner_verify` 被默认 1 MB 限制返回 413，`auth_request` 转为 500；请求未进入 RAG 导入 API。修复主页仓库鉴权子请求限制，使其与管理员上传入口 20 MB 一致；内部验证仍不发送上传正文，登录接口 4 KB、公开接口 16 KB 及 owner 会话验证保持原边界。超出上传请求上限返回 JSON 413，避免同类 HTML 解析错误。新增真实 Nginx 大请求/匿名拒绝/超限回归，部署后验证 HTTPS 大请求到达 API，并在独立候选环境验证同等大小 TXT 转换、入库和检索；不改用户银河笔记本内容。
+
+已完成：主页 PR #2 合入 main `5f7cc57`，Jenkins `project-index #29` SUCCESS。真实 Nginx 4项回归及其他项目路由 smoke 通过。正式 HTTPS owner 登录后 2065498字节请求到达上传 API，得到预期类型校验 JSON 415，无私有写入；独立候选 agent 对2065300字节 TXT 导入201、进度done、实际检索5个命中，用时1.7秒，随后销毁候选环境。修复属于共享 Nginx 中的 RAG 专用路由；三个二级模块未改动，不重复编译业务模块。

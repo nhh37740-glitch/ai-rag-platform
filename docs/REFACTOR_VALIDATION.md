@@ -65,3 +65,9 @@ Windows包：`dist/ai-rag-platform-0.4.0-win-amd64.zip`，166个文件，16个�
 - 最新 Windows 包 `dist/ai-rag-platform-0.5.0-win-amd64.zip`，17个模块。SHA-256 `4004ad395a1ce0ae8a5f1ae27f010af5191976605a1d9d8812c3c3404ed9ef76`；包含静态 Web，不包含模块源码、环境文件或本地凭据。
 
 线上默认为 Mock/hash；构建专用凭据只用于 Jenkins 真实模型门禁。Web 手动临时 key 的线上真实调用由用户测试，未列为本轮已验证结果。
+
+### 2 MB TXT 上传故障与修复验收
+
+用户银河笔记本 multipart 上传2065625字节时，Nginx内部 `/_rag_owner_verify` 仍使用默认1 MB正文上限；鉴权子请求413变为上传HTML500，前端JSON解析失败。请求未进入 `rag-facade` 或 ingestion。仅修主页仓库部署路由，使鉴权与上传入口均允许20 MB，鉴权仍不发送正文；超限上传返回JSON413。
+
+主页 PR #2 已合入 `5f7cc57`；Jenkins `project-index #29` 全阶段SUCCESS。真实Nginx 4项回归：约2 MB正文完整转发/验证身份覆盖客户端伪造字段、匿名大请求拒绝、超限JSON413、内部路径不可公网访问。正式HTTPS owner会话下2065498字节请求通过代理并到达上传API，预期不支持类型返回JSON415，未写用户笔记本。独立候选环境对2065300字节有效TXT转换入库201、进度done、实际来源检索5命中通过（1.7秒）；候选容器及临时状态已销毁。三个二级模块与已验证业务镜像均未更改，银河笔记本内容保持原状，用户可直接重试原文件。
