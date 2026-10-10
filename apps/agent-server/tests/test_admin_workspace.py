@@ -36,7 +36,7 @@ class AdminBoundaryTests(unittest.IsolatedAsyncioTestCase):
         await self.client.aclose()
 
     async def test_anonymous_and_forged_identity_never_reach_private_routes(self):
-        for path in ["/", "/static/knowledge_demo.js", "/api/notebooks", "/api/uploads/progress", "/api/trace/private", "/docs", "/openapi.json", "/unknown"]:
+        for path in ["/", "/static/knowledge_demo.js", "/api/notebooks/private/documents", "/api/uploads/progress", "/api/trace/private", "/docs", "/openapi.json", "/unknown"]:
             self.assertEqual((await self.client.get(path)).status_code, 403, path)
         for replacement in [
             {"x-rag-proxy-token": "forged"}, {"x-rag-user-id": "other-admin"},
@@ -47,6 +47,22 @@ class AdminBoundaryTests(unittest.IsolatedAsyncioTestCase):
         duplicates = list(HEADERS.items()) + [("X-Rag-User-Id", OWNER)]
         self.assertEqual((await self.client.get("/api/notebooks", headers=duplicates)).status_code, 403)
         self.assertFalse(self.calls)
+
+    async def test_guest_can_read_only_public_routes_and_session(self):
+        for path in [
+            "/api/auth/session", "/api/notebooks",
+            "/api/notebooks/cmrc2018-demo/documents",
+            "/api/notebooks/cmrc2018-demo/suggestions",
+            "/api/demo/documents/008-demo",
+        ]:
+            response = await self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertIsNone(response.json()["owner"])
+            principal = self.calls[-1]["state"]["auth_principal"]
+            self.assertEqual(principal.role, "guest")
+            self.assertEqual(principal.proof, "")
+        response = await self.client.post("/api/notebooks", json={"name": "guest cannot write"})
+        self.assertEqual(response.status_code, 403)
 
     async def test_writes_and_sse_require_same_origin_before_body_processing(self):
         for method, path in [("POST", "/api/notebooks"), ("POST", "/api/notebooks/private/files"), ("POST", "/api/chat"), ("GET", "/api/chat/stream"), ("DELETE", "/private")]:
@@ -119,7 +135,11 @@ s.request_provider._default = Capture()
 
 async def main():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=s.app), base_url=origin) as client:
-        assert (await client.get("/api/notebooks")).status_code == 403
+        visitor = await client.get("/api/auth/session")
+        assert visitor.status_code == 200 and visitor.json()["role"] == "guest"
+        assert visitor.json()["permissions"] == ["read", "query"]
+        assert visitor.json()["allowed_notebook_ids"] == [s.DEMO_KB_ID]
+        assert (await client.get("/api/notebooks")).status_code == 200
         denied = await client.post("/api/notebooks", json={"name": "blocked"})
         assert denied.status_code == 403 and not s.USER_NOTEBOOKS_DIR.exists()
         assert (await client.get("/static/knowledge_demo.js")).status_code == 403
@@ -127,9 +147,20 @@ async def main():
         assert session.status_code == 200 and session.json()["user_id"] == owner
         assert session.json()["administrator"] and session.headers["cache-control"] == "no-store"
         assert os.environ["RAG_ADMIN_PROXY_TOKEN"] not in session.text
+        identity = await client.get("/api/auth/session", headers=headers)
+        assert identity.json()["role"] == "admin" and identity.json()["administrator"]
+        assert identity.json()["user_id"] == owner and not identity.json()["read_only"]
+        assert "proof" not in identity.text and os.environ["RAG_ADMIN_PROXY_TOKEN"] not in identity.text
         response = await client.post("/api/notebooks", headers=headers, json={"name": "管理员导入验收", "description": "仅测试资料"})
         assert response.status_code == 201, response.text
         notebook = response.json()["id"]
+        public_list = (await client.get("/api/notebooks")).json()["notebooks"]
+        assert [item["id"] for item in public_list] == [s.DEMO_KB_ID]
+        private_list = (await client.get("/api/notebooks", headers=headers)).json()["notebooks"]
+        assert notebook in [item["id"] for item in private_list]
+        assert (await client.get("/api/notebooks/" + notebook + "/documents")).status_code == 403
+        assert (await client.get("/api/notebooks/" + notebook + "/suggestions")).status_code == 403
+        assert (await client.get("/api/demo/documents/" + notebook)).status_code == 404
         path = "/api/notebooks/" + notebook + "/files?upload_id=owner-import"
         files = [("files", ("项目说明.md", "# 紫杉项目\n紫杉项目的发布方式是 Jenkins 完成模块测试后交付 Docker 镜像。\n".encode(), "text/markdown"))]
         assert (await client.post(path, files=files)).status_code == 403

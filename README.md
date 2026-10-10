@@ -112,6 +112,8 @@ curl -f http://127.0.0.1:18080/api/demo
 
 `Jenkinsfile` 假设 Jenkins agent 运行在目标 Linux Docker 主机且有 Docker/Compose 权限。流水线执行模块单测、Linux 编译、严格接口规范测试、应用端到端测试和二进制运行边界验证；然后归档 `dist/ai-rag-platform-<version>-<platform>.zip`、SHA-256 与逐文件清单。`DeployDemo` 和 `DeployPublicDemo` 默认关闭，分别选择私有工作区与独立公开服务。候选健康检查或 smoke 失败时恢复旧镜像并重建容器；该流程不删除原服务命名卷。部署回滚测试在 Docker builder 阶段运行。ZIP 内不含 `modules-src/`。
 
-公开演示使用 `compose.public-demo.yaml`，只监听服务器回环地址 `18106`，由主页反代到 `/projects/apps/rag/`。`PUBLIC_DEMO=1` 限定 CMRC2018、八个精选问题和五个只读检索工具；响应必须带成功检索来源，每次实际计算使用独立上下文。页面展示真实 provider、hash 检索基线、原始 trace 和五分钟缓存，不接受浏览器密钥或私人文件。DeepSeek 凭据保存在仓库外的服务器环境文件中，缺少凭据时拒绝启动。接口见 [`specifications/WEB_DEMO.md`](specifications/WEB_DEMO.md)。
+公开演示使用 `compose.public-demo.yaml`，回环端口18106，由主页反代到 `/projects/apps/rag/`。应用0.5.0包含独立编译的 `auth-runtime`：游客只能查看内置CMRC文档和自由查询，管理员复用现有owner登录后可创建私人笔记本、导入文档并检索；管理员数据使用隔离持久卷，不自动公开。管理员工作区与登录适配分别为18108、18107，使用 `DeployAdminWorkspace` 部署参数。
 
-[服务器公开入口](http://43.153.176.182:8088/projects/apps/rag/) 已于 2026-10-08 上线，当前模式为 **Mock + hash 的离线工具流程**，不代表真实模型回答质量。AI Jenkins #10、主页 #24 和八个问题的公网复验通过；记录见 PLAN 文末，三天学习与口述练习见 [`docs/INTERVIEW.md`](docs/INTERVIEW.md)。真实 DeepSeek 启用仍等待密钥目标授权。
+服务器运行环境模型 key 为空，默认 Mock + hash。公开页可手动应用临时 key，仅页面内存保存，通过同源HTTPS请求使用，刷新后清除；构建专用 Jenkins 凭据只用于每次真实模型门禁。自由问题与临时 key 请求不使用共享答案缓存。权限接口见 [`specifications/AUTH_INTERFACES.md`](specifications/AUTH_INTERFACES.md)，网页接口见 [`specifications/WEB_DEMO.md`](specifications/WEB_DEMO.md)。
+
+[公开演示](https://portfolio.72945645.xyz:8443/projects/apps/rag/) 与 [管理员登录](https://portfolio.72945645.xyz:8443/projects/apps/rag/admin/login) 沿用已开放8443端口。实际构建和部署记录见 [`docs/REFACTOR_VALIDATION.md`](docs/REFACTOR_VALIDATION.md)。

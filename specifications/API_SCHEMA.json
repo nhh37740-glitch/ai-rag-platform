@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "specification_version": "0.5.0",
+  "specification_version": "0.6.0",
   "context": {
     "type": "RequestContext",
     "package": "specifications.core_specifications",
@@ -68,6 +68,11 @@
       "source_id": "str",
       "knowledge_base_id": "str",
       "chunk_count": "int"
+    },
+    "AuthPrincipal": {
+      "user_id": "str",
+      "role": "guest|admin",
+      "proof": "str (server-only)"
     }
   },
   "trace_conventions": {
@@ -1101,6 +1106,54 @@
           "returns": "Storage"
         }
       }
+    },
+    "auth-runtime": {
+      "package": "auth_runtime",
+      "delivery": "Cython extension (.pyd/.so)",
+      "version": "0.1.0",
+      "facade": {
+        "AuthService": {
+          "kind": "class",
+          "init": {
+            "proxy_token": "str",
+            "owner_id": "str"
+          },
+          "methods": {
+            "guest": {
+              "params": {
+                "ctx": "RequestContext"
+              },
+              "returns": "AuthPrincipal"
+            },
+            "authenticate_proxy": {
+              "params": {
+                "ctx": "RequestContext",
+                "proxy_token": "str",
+                "user_id": "str",
+                "role": "str"
+              },
+              "returns": "AuthPrincipal"
+            },
+            "authorize": {
+              "params": {
+                "ctx": "RequestContext",
+                "principal": "AuthPrincipal",
+                "permission": "str"
+              },
+              "returns": "None"
+            },
+            "allowed_notebooks": {
+              "params": {
+                "ctx": "RequestContext",
+                "principal": "AuthPrincipal",
+                "available_ids": "list[str]",
+                "public_ids": "list[str]"
+              },
+              "returns": "list[str]"
+            }
+          }
+        }
+      }
     }
   },
   "shared_protocols": {
@@ -1360,7 +1413,8 @@
   "domain_dependencies": {
     "public": [
       "core_specifications",
-      "observability"
+      "observability",
+      "auth_runtime"
     ],
     "agent": [
       "agent_runtime",

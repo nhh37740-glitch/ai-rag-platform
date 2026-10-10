@@ -89,3 +89,7 @@ class AgentService:
 | I05 | 协调 | 每次构建固定精选问题，真实 DeepSeek | 非 Mock、实际引用与 rag span；密钥缺失失败 |
 
 源码 tests 放各模块 tests/，使用 unittest，可由 pytest 收集；协调集成测试放 scripts/tests/，二进制与网页测试保留服务目录。所有临时数据用 tempfile，不写基线语料。
+
+## 鉴权横切模块
+
+auth-runtime/AuthService 的身份、权限和知识库范围接口见 [AUTH_INTERFACES.md](AUTH_INTERFACES.md)。它仅依赖共享类型与标准库，HTTP 集成必须调用该编译模块，管理员身份来自经验证的 owner 登录，游客只读公开资料。

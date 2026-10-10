@@ -2,6 +2,8 @@
 // 检索范围永远只包含当前笔记本，不再存在"上一次还勾着"的残留状态。
 
 const $ = (id) => document.getElementById(id);
+// Relative API paths preserve the /projects/apps/rag/admin/ proxy boundary.
+const apiURL = (path) => new URL(path.replace(/^\//, ""), window.location.href);
 
 const dom = {
   workspace: $("workspace"),
@@ -67,7 +69,48 @@ const state = {
   sourceDocuments: [],
   deepseekKey: "",
   serverKeyConfigured: false,
+  principal: null,
 };
+
+function permitted(permission) {
+  const principal = state.principal;
+  if (!principal || !["admin", "guest"].includes(principal.role) || !Array.isArray(principal.permissions)) return false;
+  if (["create_notebook", "import_document", "write"].includes(permission) &&
+      (principal.role !== "admin" || principal.administrator !== true)) return false;
+  return principal.permissions.includes(permission);
+}
+
+function applyPermissions() {
+  const principal = state.principal;
+  const administrator = principal?.role === "admin" && principal.administrator === true;
+  $("workspace-mode-label").textContent = administrator ? "管理员工作区" : principal ? "游客 · 公开资料" : "身份未确认";
+  $("admin-identity").textContent = administrator ? Array.from(principal.user_id || "管理员")[0] : principal ? "客" : "…";
+  $("admin-identity").title = administrator ? `管理员：${principal.user_id}` : "游客只能阅读公开文档和提问";
+  $("admin-logout").hidden = !administrator;
+  $("admin-login-link").hidden = administrator;
+  $("admin-login-link").href = new URL("admin/login/", new URL("../", window.location.href)).href;
+  dom.toggleCreate.hidden = !permitted("create_notebook");
+  dom.toggleCreate.disabled = !permitted("create_notebook");
+  if (!permitted("create_notebook")) dom.createForm.hidden = true;
+  dom.openUpload.hidden = !permitted("import_document");
+  dom.studioNotes.closest(".notes-card").hidden = !permitted("write");
+  dom.message.disabled = !permitted("query");
+  dom.form.querySelector('button[type="submit"]').disabled = !permitted("query");
+  updateUploadState();
+  updateKeyStatus();
+}
+
+async function apiFetch(path, options = {}) {
+  const response = await fetch(apiURL(path), { credentials: "same-origin", cache: "no-store", ...options });
+  if (response.status === 401 || response.status === 403) {
+    state.principal = null;
+    state.deepseekKey = "";
+    dom.keyConfigInput.value = "";
+    applyPermissions();
+    setStatus(dom.notebookStatus, "权限验证失败，请重新登录管理员工作区。", "error");
+  }
+  return response;
+}
 
 function canEnterWebKey() {
   const host = window.location.hostname.toLowerCase();
@@ -83,6 +126,7 @@ function updateKeyStatus() {
     dom.openKeyConfig.disabled = true;
     return;
   }
+  dom.openKeyConfig.disabled = !permitted("query");
   const status = state.deepseekKey
     ? "已配置本页密钥（内容隐藏，刷新后清除）"
     : state.serverKeyConfigured
@@ -145,7 +189,7 @@ function closeNotebookMenu() {
 
 function openUploadDialog() {
   const notebook = activeNotebook();
-  if (!notebook || !notebook.writable) return;
+  if (!permitted("import_document") || !notebook || !notebook.writable) return;
   dom.uploadDialog.hidden = false;
   document.body.classList.add("dialog-open");
   dom.uploadFiles.focus();
@@ -158,14 +202,14 @@ function closeUploadDialog() {
 }
 
 function notesKey(notebookId) {
-  return `knowledge-studio-notes:${notebookId || "none"}`;
+  return `knowledge-studio-notes:${state.principal?.user_id || "guest"}:${notebookId || "none"}`;
 }
 
 function loadStudioNotes() {
   dom.studioNotes.value = state.activeId
     ? localStorage.getItem(notesKey(state.activeId)) || ""
     : "";
-  dom.studioNotes.disabled = !state.activeId;
+  dom.studioNotes.disabled = !state.activeId || !permitted("write");
   dom.notesStatus.textContent = "自动保存";
 }
 
@@ -294,7 +338,7 @@ function messageNode(entry) {
   if (entry.traceId) {
     const trace = document.createElement("a");
     trace.className = "trace";
-    trace.href = `/api/trace/${entry.traceId}`;
+    trace.href = apiURL(`/api/trace/${encodeURIComponent(entry.traceId)}`).href;
     trace.target = "_blank";
     trace.rel = "noreferrer";
     trace.textContent = `trace ${entry.traceId}`;
@@ -348,9 +392,9 @@ function renderExamples(questions) {
 
 function updateUploadState() {
   const notebook = activeNotebook();
-  const writable = Boolean(notebook && notebook.writable);
+  const writable = Boolean(permitted("import_document") && notebook && notebook.writable);
   dom.openUpload.disabled = !writable;
-  dom.openUpload.title = writable ? `添加来源到「${notebook.name}」` : "内置知识库不能添加来源";
+  dom.openUpload.title = writable ? `添加来源到「${notebook.name}」` : permitted("import_document") ? "内置知识库不能添加来源" : "仅管理员可导入来源";
   dom.uploadLabel.textContent = writable ? `添加到「${notebook.name}」` : "选择本地文件";
   if (state.supported.length) dom.uploadFiles.accept = state.supported.join(",");
   if (!writable) closeUploadDialog();
@@ -392,7 +436,7 @@ function renderProgress(record) {
 // ---------------------------------------------------------------- 数据
 
 async function loadSources(notebookId) {
-  const response = await fetch(`/api/notebooks/${encodeURIComponent(notebookId)}/documents`);
+  const response = await apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/documents`);
   if (!response.ok) throw new Error("来源列表加载失败");
   const payload = await response.json();
   if (state.activeId !== notebookId) return; // 用户已经切走，丢弃过期响应
@@ -401,7 +445,7 @@ async function loadSources(notebookId) {
 
 async function loadSuggestions(notebookId) {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/notebooks/${encodeURIComponent(notebookId)}/suggestions`
     );
     if (!response.ok) throw new Error("示例问题加载失败");
@@ -444,7 +488,7 @@ async function setActiveNotebook(notebookId) {
 }
 
 async function loadNotebooks(preferredId = "") {
-  const response = await fetch("/api/notebooks");
+  const response = await apiFetch("/api/notebooks");
   if (!response.ok) throw new Error("笔记本列表加载失败");
   const payload = await response.json();
 
@@ -475,7 +519,11 @@ async function loadNotebooks(preferredId = "") {
 
 async function send(question) {
   const text = question.trim();
-  if (!text || !state.activeId || state.busy) return;
+  if (!text || !state.activeId || state.busy || !permitted("query")) return;
+  if (state.principal.role !== "admin" && Array.from(text).length > 1024) {
+    setStatus(dom.notebookStatus, "公开问题最多 1024 字。", "error");
+    return;
+  }
 
   const notebookId = state.activeId;
   const sessionId = sessionFor(notebookId);
@@ -495,16 +543,16 @@ async function send(question) {
   try {
     const headers = { "Content-Type": "application/json" };
     if (canEnterWebKey() && state.deepseekKey) headers["X-DeepSeek-Api-Key"] = state.deepseekKey;
-    const response = await fetch("/api/chat", {
+    const administrator = state.principal.role === "admin" && state.principal.administrator === true;
+    const response = await apiFetch(administrator ? "/api/chat" : "/api/demo/chat", {
       method: "POST",
       headers,
       cache: "no-store",
-      body: JSON.stringify({
+      body: JSON.stringify(administrator ? {
         message: text,
         session_id: sessionId,
-        user_id: "anon",
         knowledge_base_ids: [notebookId],
-      }),
+      } : { question: text }),
     });
     if (!response.ok) throw new Error(`请求失败（${response.status}）`);
     const result = await response.json();
@@ -531,14 +579,14 @@ dom.form.onsubmit = (event) => {
 };
 
 dom.openKeyConfig.onclick = () => {
-  if (!canEnterWebKey()) return;
+  if (!canEnterWebKey() || !permitted("query")) return;
   updateKeyStatus();
   dom.keyConfigDialog.showModal();
 };
 dom.closeKeyConfig.onclick = () => dom.keyConfigDialog.close();
 dom.keyConfigForm.onsubmit = (event) => {
   event.preventDefault();
-  if (!canEnterWebKey()) return;
+  if (!canEnterWebKey() || !permitted("query")) return;
   const key = dom.keyConfigInput.value.trim();
   if (!key || key.length > 512) {
     dom.keyConfigStatus.textContent = "请输入有效的密钥（最多 512 个字符）";
@@ -554,7 +602,7 @@ dom.removeKeyConfig.onclick = () => {
   dom.keyConfigInput.value = "";
   updateKeyStatus();
 };
-fetch("/api/llm/config", { cache: "no-store" })
+apiFetch("/api/llm/config", { cache: "no-store" })
   .then((response) => response.ok ? response.json() : Promise.reject())
   .then((config) => {
     state.serverKeyConfigured = Boolean(config.server_key_configured);
@@ -583,6 +631,7 @@ dom.notebookMenuToggle.onclick = () => {
 };
 
 dom.toggleCreate.onclick = () => {
+  if (!permitted("create_notebook")) return;
   const nextHidden = !dom.createForm.hidden;
   dom.createForm.hidden = nextHidden;
   dom.toggleCreate.setAttribute("aria-expanded", String(!nextHidden));
@@ -650,7 +699,7 @@ document.querySelectorAll("[data-studio-prompt]").forEach((button) => {
 
 let notesTimer;
 dom.studioNotes.addEventListener("input", () => {
-  if (!state.activeId) return;
+  if (!state.activeId || !permitted("write")) return;
   localStorage.setItem(notesKey(state.activeId), dom.studioNotes.value);
   dom.notesStatus.textContent = "已保存";
   clearTimeout(notesTimer);
@@ -675,12 +724,13 @@ document.addEventListener("keydown", (event) => {
 
 dom.createForm.onsubmit = async (event) => {
   event.preventDefault();
+  if (!permitted("create_notebook")) return;
   const name = dom.notebookName.value.trim();
   if (!name) return;
 
   setStatus(dom.notebookStatus, "正在创建笔记本…");
   try {
-    const response = await fetch("/api/notebooks", {
+    const response = await apiFetch("/api/notebooks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -704,7 +754,7 @@ dom.createForm.onsubmit = async (event) => {
 
 dom.uploadForm.onsubmit = async (event) => {
   event.preventDefault();
-  if (state.uploading) return;
+  if (state.uploading || !permitted("import_document") || !activeNotebook()?.writable) return;
 
   const files = [...dom.uploadFiles.files];
   const notebookId = state.activeId;
@@ -735,7 +785,7 @@ dom.uploadForm.onsubmit = async (event) => {
       await new Promise((resolve) => setTimeout(resolve, 700));
       if (settled) break;
       try {
-        const response = await fetch(`/api/uploads/${encodeURIComponent(uploadId)}`);
+        const response = await apiFetch(`/api/uploads/${encodeURIComponent(uploadId)}`);
         if (response.ok) renderProgress(await response.json());
       } catch (error) {
         // 单次轮询失败无所谓，下一次继续。
@@ -744,7 +794,7 @@ dom.uploadForm.onsubmit = async (event) => {
   })();
 
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/notebooks/${encodeURIComponent(notebookId)}/files?upload_id=${encodeURIComponent(uploadId)}`,
       { method: "POST", body: formData }
     );
@@ -772,18 +822,17 @@ dom.uploadForm.onsubmit = async (event) => {
 
 // ---------------------------------------------------------------- 启动
 
-fetch("/api/admin/session")
+apiFetch("/api/auth/session")
   .then(async (response) => {
     if (!response.ok) throw new Error("管理员会话已失效，请重新登录。");
     const session = await response.json();
-    $("workspace-mode-label").textContent = session.administrator ? "管理员工作区" : "本地工作区";
-    $("admin-identity").title = session.administrator ? "已通过拥有者管理员认证" : "本地工作区";
-    $("admin-logout").hidden = !session.administrator;
+    state.principal = session;
+    applyPermissions();
+    await loadNotebooks();
   })
   .catch((error) => {
-    $("workspace-mode-label").textContent = "会话已失效";
-    dom.toggleCreate.disabled = true;
-    dom.openUpload.disabled = true;
+    state.principal = null;
+    applyPermissions();
     setStatus(dom.notebookStatus, error.message, "error");
   });
 
@@ -800,14 +849,14 @@ $("admin-logout").onclick = async () => {
     });
     if (!response.ok) throw new Error("退出登录失败，请稍后重试。");
     state.deepseekKey = "";
-    window.location.assign(new URL("./login", window.location.href));
+    window.location.assign(new URL("./login/", window.location.href));
   } catch (error) {
     setStatus(dom.notebookStatus, error.message, "error");
     button.disabled = false;
   }
 };
 
-fetch("/api/demo")
+apiFetch("/api/demo")
   .then((response) => {
     if (!response.ok) throw new Error("demo unavailable");
     return response.json();
@@ -819,6 +868,9 @@ fetch("/api/demo")
     dom.demoStatus.textContent = "演示知识库状态不可用";
   });
 
-loadNotebooks().catch((error) =>
-  setStatus(dom.notebookStatus, error.message, "error")
-);
+window.addEventListener("pagehide", () => {
+  state.deepseekKey = "";
+  dom.keyConfigInput.value = "";
+  updateKeyStatus();
+});
+applyPermissions();

@@ -7,6 +7,9 @@ import time
 import uuid
 from collections import OrderedDict, deque
 
+from auth_runtime import AuthService
+from admin_workspace import public_read_path
+
 from core_specifications import RequestContext
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -15,8 +18,9 @@ from fastapi.responses import JSONResponse
 class PublicDemoBoundary:
     """Deny every route/method except the small public read-only surface."""
 
-    def __init__(self, app):
+    def __init__(self, app, *, auth_service=None):
         self.app = app
+        self.auth_service = auth_service if auth_service is not None else AuthService()
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -35,16 +39,26 @@ class PublicDemoBoundary:
             "/static/public_demo.css",
             "/static/public_demo.js",
         }
+        readable = readable or public_read_path(path)
         readable = readable or (
             path.startswith("/api/trace/") and len(path.split("/")) == 4
         )
         allowed = (method == "GET" and readable) or (
             method == "POST" and path == "/api/demo/chat"
         )
+        request_id = uuid.uuid4().hex
+        ctx = RequestContext(request_id, request_id, "guest")
+        principal = self.auth_service.guest(ctx)
+        try:
+            self.auth_service.authorize(ctx, principal, "query" if method == "POST" and path == "/api/demo/chat" else "read" if allowed else "write")
+        except PermissionError:
+            allowed = False
         if credential or not allowed:
-            response = JSONResponse({"detail": "公开演示仅允许固定问题和只读访问"}, status_code=403)
+            response = JSONResponse({"detail": "游客只允许公开知识库读取和查询"}, status_code=403, headers={"Cache-Control": "no-store"})
             await response(scope, receive, send)
             return
+        scope.setdefault("state", {})["auth_principal"] = principal
+        scope["state"]["auth_context"] = ctx
         await self.app(scope, receive, send)
 
 
@@ -93,8 +107,8 @@ class PublicDemo:
             raise HTTPException(422, "请求必须是 JSON")
         body = bytearray()
         async for chunk in request.stream():
-            if len(body) + len(chunk) > 4096:
-                raise HTTPException(422, "请求正文不能超过 4 KiB")
+            if len(body) + len(chunk) > 16384:
+                raise HTTPException(422, "请求正文不能超过 16 KiB")
             body.extend(chunk)
         try:
             # Duplicate fields are invalid too; do not silently select one question.
@@ -112,17 +126,19 @@ class PublicDemo:
         if not isinstance(payload, dict) or set(payload) != {"question"}:
             raise HTTPException(422, "请求只允许 question 字段")
         question = payload["question"]
-        if not isinstance(question, str) or len(question) > 1024 or question not in self.questions:
-            raise HTTPException(422, "请选择公开演示中的固定问题")
+        if not isinstance(question, str) or not question.strip() or len(question) > 1024:
+            raise HTTPException(422, "question 必须为非空且不超过 1024 字符的文本")
         return question
 
     async def chat(self, request: Request, *, temporary_key=False):
         question = await self._question(request)
-        now = time.monotonic()
-        for old_question, (expires, _) in list(self._cache.items()):
-            if expires <= now:
-                del self._cache[old_question]
-        cached = None if temporary_key else self._cache.get(question)
+        cache_allowed = not temporary_key and question in self.questions
+        if cache_allowed:
+            now = time.monotonic()
+            for old_question, (expires, _) in list(self._cache.items()):
+                if expires <= now:
+                    del self._cache[old_question]
+        cached = self._cache.get(question) if cache_allowed else None
         if cached and self.trace(cached[1]["trace_id"]):
             return JSONResponse({**cached[1], "cache_hit": True}, headers={"Cache-Control": "no-store"})
         # No await between the busy check and assignment: atomic within one event loop.
@@ -134,9 +150,8 @@ class PublicDemo:
             trace_id=trace_id, request_id=uuid.uuid4().hex,
             user_id=uuid.uuid4().hex, session_id=uuid.uuid4().hex,
         )
-        # Public input and cache keys stay the exact featured question. The
-        # internal instruction makes this explicitly a document lookup, including
-        # for the real MockProvider's keyword-based tool selection.
+        # Keep the user's question unchanged. The internal prefix requests a
+        # document lookup, including for MockProvider's keyword tool selection.
         grounded_request = "请查阅内置知识库资料，回答：" + question
         task = asyncio.create_task(self.runtime_factory().run(ctx, grounded_request, [self.kb_id]))
         self._active = task
@@ -167,7 +182,7 @@ class PublicDemo:
             "provider": "deepseek" if temporary_key else self.provider, "embedding": self.embedding,
             "read_only": True, "cache_hit": False,
         }
-        if not temporary_key:
+        if cache_allowed:
             self._cache[question] = (time.monotonic() + self.cache_seconds, result)
         return JSONResponse(result, headers={"Cache-Control": "no-store"})
 

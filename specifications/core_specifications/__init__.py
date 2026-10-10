@@ -161,3 +161,22 @@ class RagServicePort(Protocol):
 
 
 __all__ += ["IngestResult", "VectorStore", "MemoryStorePort", "LLMProviderPort", "TraceStorePort", "StateStorePort", "DataServicePort", "RagServicePort"]
+
+
+@dataclass(frozen=True)
+class AuthPrincipal:
+    """Server-issued identity; proof must never be serialized into HTTP or traces."""
+    user_id: str
+    role: str
+    proof: str = field(default="", repr=False)
+
+
+@runtime_checkable
+class AuthServicePort(Protocol):
+    def guest(self, ctx: RequestContext) -> AuthPrincipal: ...
+    def authenticate_proxy(self, ctx: RequestContext, proxy_token: str, user_id: str, role: str) -> AuthPrincipal: ...
+    def authorize(self, ctx: RequestContext, principal: AuthPrincipal, permission: str) -> None: ...
+    def allowed_notebooks(self, ctx: RequestContext, principal: AuthPrincipal, available_ids: List[str], public_ids: List[str]) -> List[str]: ...
+
+
+__all__ += ["AuthPrincipal", "AuthServicePort"]

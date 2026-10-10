@@ -17,12 +17,25 @@ from agent_facade import AgentService, make_provider
 from data_facade import DataService
 from rag_facade import RagService
 from observability import make_trace_store
+from auth_runtime import AuthService
 runtime_boundary.assert_binary_runtime(PUBLISHED)
 EXPECTED_TOOLS = {"search_knowledge_base", "hybrid_search_knowledge_base", "keyword_search_knowledge_base", "list_knowledge_documents", "read_knowledge_document"}
 
 
 def main():
     ctx = RequestContext("compiled-smoke", "request", "user", "session")
+    auth = AuthService("compiled-smoke-proxy-proof-32-bytes", "owner")
+    guest = auth.guest(ctx)
+    auth.authorize(ctx, guest, "query")
+    assert auth.allowed_notebooks(ctx, guest, ["private", "public"], ["public"]) == ["public"]
+    try:
+        auth.authorize(ctx, guest, "create_notebook")
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("guest write was authorized")
+    owner = auth.authenticate_proxy(ctx, "compiled-smoke-proxy-proof-32-bytes", "owner", "admin")
+    auth.authorize(ctx, owner, "import_document")
     with tempfile.TemporaryDirectory() as temporary:
         data = DataService(temporary)
         tracing = make_trace_store()

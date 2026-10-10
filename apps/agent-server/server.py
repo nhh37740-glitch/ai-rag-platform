@@ -13,17 +13,19 @@ import ipaddress
 import json
 import os
 import re
+import secrets
 import uuid
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from agent_facade import AgentService, make_provider
 from data_facade import DataService
 from rag_facade import RagService
+from auth_runtime import AuthService
 from core_specifications import ChatMessage, RequestContext, ToolCall, ToolDef, VectorStore
 from admin_workspace import AdminWorkspaceBoundary
 from document_upload import (
@@ -71,6 +73,52 @@ ADMIN_PROXY_CONFIG = {
 if ADMIN_AUTH == "proxy":
     # Reject bad ingress configuration before opening persistent private state.
     AdminWorkspaceBoundary(None, **ADMIN_PROXY_CONFIG)
+
+if PUBLIC_DEMO:
+    auth_service = AuthService()
+    _local_auth_token = ""
+elif ADMIN_AUTH == "proxy":
+    auth_service = AuthService(ADMIN_PROXY_CONFIG["proxy_token"], ADMIN_PROXY_CONFIG["owner_id"])
+    _local_auth_token = ""
+else:
+    # The historical local workspace is trusted by its deployment boundary.
+    # Its authority is generated on the server, never from browser JSON/headers.
+    _local_auth_token = secrets.token_hex(32)
+    auth_service = AuthService(_local_auth_token, "local")
+
+
+def _auth_identity(req: Request | None = None):
+    principal = getattr(req.state, "auth_principal", None) if req is not None else None
+    ctx = getattr(req.state, "auth_context", None) if req is not None else None
+    if ctx is None:
+        request_id = uuid.uuid4().hex
+        ctx = RequestContext(request_id, request_id, "guest")
+    if principal is None:
+        principal = (
+            auth_service.authenticate_proxy(ctx, _local_auth_token, "local", "admin")
+            if ADMIN_AUTH == "local" else auth_service.guest(ctx)
+        )
+    return RequestContext(ctx.trace_id, ctx.request_id, principal.user_id), principal
+
+
+def _authorize(req: Request | None, permission: str):
+    ctx, principal = _auth_identity(req)
+    try:
+        auth_service.authorize(ctx, principal, permission)
+    except PermissionError:
+        raise HTTPException(403, "当前身份无权执行此操作") from None
+    return ctx, principal
+
+
+def _allowed_notebooks(req: Request | None) -> list[str]:
+    ctx, principal = _authorize(req, "read")
+    available = sorted(_available_notebook_ids()) if principal.role == "admin" and not PUBLIC_DEMO else [DEMO_KB_ID]
+    return auth_service.allowed_notebooks(ctx, principal, available, [DEMO_KB_ID])
+
+
+def _authorize_notebook(req: Request | None, notebook_id: str) -> None:
+    if notebook_id not in _allowed_notebooks(req):
+        raise HTTPException(403, "当前身份无权访问该知识库")
 
 DEMO_KB_ID = "cmrc2018-demo" if PUBLIC_DEMO else os.environ.get("DEMO_KB_ID", "cmrc2018-demo")
 DEMO_KB_DIR = KB_DIR / DEMO_KB_ID
@@ -296,7 +344,7 @@ def _available_notebook_ids() -> set[str]:
     return {DEMO_KB_ID, *[metadata["id"] for _, metadata in _list_user_notebooks()]}
 
 
-def _selected_notebook_ids(raw_ids) -> list[str]:
+def _selected_notebook_ids(raw_ids, req: Request | None = None) -> list[str]:
     if raw_ids is None:
         return [DEMO_KB_ID]
     if isinstance(raw_ids, str):
@@ -307,6 +355,8 @@ def _selected_notebook_ids(raw_ids) -> list[str]:
     unknown = set(selected) - _available_notebook_ids()
     if unknown:
         raise HTTPException(status_code=400, detail=f"未知知识库: {', '.join(sorted(unknown))}")
+    if set(selected) - set(_allowed_notebooks(req)):
+        raise HTTPException(403, "当前身份无权访问该知识库")
     return selected
 
 
@@ -633,7 +683,8 @@ def demo() -> JSONResponse:
 
 
 @app.get("/api/notebooks")
-def list_notebooks() -> JSONResponse:
+def list_notebooks(req: Request = None) -> JSONResponse:
+    allowed = set(_allowed_notebooks(req))
     manifest, documents = _load_demo_knowledge_base()
     built_in = {
         "id": DEMO_KB_ID,
@@ -642,7 +693,10 @@ def list_notebooks() -> JSONResponse:
         "document_count": len(documents),
         "writable": False,
     }
-    user_notebooks = [_public_notebook(metadata, True) for _, metadata in _list_user_notebooks()]
+    user_notebooks = (
+        [_public_notebook(metadata, True) for _, metadata in _list_user_notebooks() if metadata["id"] in allowed]
+        if not PUBLIC_DEMO and allowed - {DEMO_KB_ID} else []
+    )
     return JSONResponse(
         {
             "notebooks": [built_in, *user_notebooks],
@@ -654,8 +708,9 @@ def list_notebooks() -> JSONResponse:
 
 
 @app.get("/api/notebooks/{notebook_id}/documents")
-def notebook_documents(notebook_id: str) -> JSONResponse:
+def notebook_documents(notebook_id: str, req: Request = None) -> JSONResponse:
     """列出某个笔记本收录的文档，供前端展示来源列表。"""
+    _authorize_notebook(req, notebook_id)
     counts = dict(vector_store.list_documents([notebook_id]))
 
     if notebook_id == DEMO_KB_ID:
@@ -712,8 +767,9 @@ def notebook_documents(notebook_id: str) -> JSONResponse:
 
 
 @app.get("/api/notebooks/{notebook_id}/suggestions")
-def notebook_suggestions(notebook_id: str) -> JSONResponse:
+def notebook_suggestions(notebook_id: str, req: Request = None) -> JSONResponse:
     """针对该笔记本的实际内容生成示例问题，而不是套用演示语料的问题。"""
+    _authorize_notebook(req, notebook_id)
     if notebook_id == DEMO_KB_ID:
         return JSONResponse(
             {
@@ -759,6 +815,7 @@ def notebook_suggestions(notebook_id: str) -> JSONResponse:
 
 @app.post("/api/notebooks")
 async def create_notebook(req: Request) -> JSONResponse:
+    _authorize(req, "create_notebook")
     body = await req.json()
     name = str(body.get("name", "")).strip()
     description = str(body.get("description", "")).strip()
@@ -772,9 +829,12 @@ async def create_notebook(req: Request) -> JSONResponse:
 @app.post("/api/notebooks/{notebook_id}/files")
 async def upload_notebook_files(
     notebook_id: str,
+    req: Request,
     files: list[UploadFile] = File(...),
     upload_id: str = "",
 ) -> JSONResponse:
+    _authorize(req, "import_document")
+    _authorize_notebook(req, notebook_id)
     try:
         notebook_dir = _user_notebook_path(notebook_id)
     except ValueError as exc:
@@ -835,7 +895,8 @@ async def upload_notebook_files(
 
 
 @app.get("/api/uploads/{upload_id}")
-def upload_status(upload_id: str) -> JSONResponse:
+def upload_status(upload_id: str, req: Request) -> JSONResponse:
+    _authorize(req, "write")
     record = UPLOAD_PROGRESS.get(upload_id)
     if record is None:
         raise HTTPException(status_code=404, detail="没有这个上传任务")
@@ -868,14 +929,15 @@ def _web_key_origin_allowed(req: Request) -> bool:
 
 @app.post("/api/chat")
 async def chat(req: Request) -> JSONResponse:
+    _, principal = _authorize(req, "write")
     api_key = req.headers.get("x-deepseek-api-key")
     if api_key is not None and not _web_key_origin_allowed(req):
         raise HTTPException(status_code=403, detail="个人 API Key 仅允许通过 HTTPS 或本机页面使用")
     body = await req.json()
-    user_id = getattr(req.state, "admin_owner_id", body.get("user_id", "anon"))
+    user_id = principal.user_id
     session_id = body.get("session_id", "s1")
     message = body.get("message", "")
-    knowledge_base_ids = _selected_notebook_ids(body.get("knowledge_base_ids"))
+    knowledge_base_ids = _selected_notebook_ids(body.get("knowledge_base_ids"), req)
     trace_id = uuid.uuid4().hex
     ctx = RequestContext(trace_id=trace_id, request_id=trace_id, user_id=user_id, session_id=session_id)
     if api_key is not None and (not api_key.strip() or len(api_key) > 512):
@@ -898,11 +960,12 @@ def llm_config() -> JSONResponse:
 
 @app.get("/api/admin/session")
 def admin_session(req: Request) -> JSONResponse:
+    _, principal = _authorize(req, "write")
     return JSONResponse(
         {
             "mode": ADMIN_AUTH,
-            "user_id": getattr(req.state, "admin_owner_id", "local"),
-            "administrator": ADMIN_AUTH == "proxy",
+            "user_id": principal.user_id,
+            "administrator": principal.role == "admin",
         },
         headers={"Cache-Control": "no-store"},
     )
@@ -916,8 +979,9 @@ async def chat_stream(
     user_id: str = "u",
     knowledge_base_ids: str = DEMO_KB_ID,
 ):
-    selected_ids = _selected_notebook_ids(knowledge_base_ids)
-    user_id = getattr(req.state, "admin_owner_id", user_id)
+    _, principal = _authorize(req, "write")
+    selected_ids = _selected_notebook_ids(knowledge_base_ids, req)
+    user_id = principal.user_id
 
     async def gen():
         trace_id = uuid.uuid4().hex
@@ -928,10 +992,55 @@ async def chat_stream(
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 
+@app.get("/api/auth/session")
+def auth_session(req: Request) -> JSONResponse:
+    _, principal = _authorize(req, "read")
+    administrator = principal.role == "admin"
+    return JSONResponse(
+        {
+            "role": principal.role, "user_id": principal.user_id,
+            "administrator": administrator, "read_only": not administrator,
+            "permissions": ["read", "query"] + (["create_notebook", "import_document", "write"] if administrator else []),
+            "allowed_notebook_ids": _allowed_notebooks(req),
+            "mode": ADMIN_AUTH, "public_demo": PUBLIC_DEMO,
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/demo/documents/{document_id}")
+def demo_document(document_id: str, req: Request, offset: int = Query(0, ge=0)) -> JSONResponse:
+    ctx, _ = _authorize(req, "read")
+    if set(req.query_params) - {"offset"} or len(req.query_params.getlist("offset")) > 1:
+        raise HTTPException(422, "公开原文只允许 offset 参数")
+    # The manifest, rather than arbitrary stored source IDs or caller scopes,
+    # determines which public documents may be read.
+    _, documents = _load_demo_knowledge_base()
+    matched = next(((path, item) for path, item in documents if path.stem == document_id), None)
+    if matched is None or document_id in {".", ".."} or "/" in document_id or "\\" in document_id:
+        raise HTTPException(404, "公开文档不存在")
+    source_id = f"{DEMO_KB_ID}/{document_id}"
+    _authorize_notebook(req, DEMO_KB_ID)
+    counts = {item["source_id"]: item["chunk_count"] for item in rag_service.list_documents(ctx, [DEMO_KB_ID])}
+    total = counts.get(source_id, 0)
+    result = rag_service.read_document(ctx, source_id, [DEMO_KB_ID], offset=offset, max_chunks=20)
+    truncated = offset + len(result.contexts) < total
+    return JSONResponse(
+        {
+            "document_id": document_id, "source_id": source_id,
+            "title": matched[1].get("title") or document_id,
+            "contexts": result.contexts, "offset": offset, "total_chunks": total,
+            "truncated": truncated, "next_offset": offset + len(result.contexts) if truncated else None,
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.get("/api/trace/{trace_id}")
-def trace(trace_id: str) -> JSONResponse:
+def trace(trace_id: str, req: Request = None) -> JSONResponse:
     if PUBLIC_DEMO:
         return JSONResponse(public_demo.trace(trace_id), headers={"Cache-Control": "no-store"})
+    _authorize(req, "write")
     events = trace_store.get(trace_id)
     return JSONResponse([e.__dict__ for e in events])
 
@@ -960,15 +1069,16 @@ if PUBLIC_DEMO:
         embedding=os.environ.get("RAG_EMBED", "fastembed").strip().lower(),
         kb_id=DEMO_KB_ID,
     )
-    app.add_middleware(PublicDemoBoundary)
+    app.add_middleware(PublicDemoBoundary, auth_service=auth_service)
 elif ADMIN_AUTH == "proxy":
-    app.add_middleware(AdminWorkspaceBoundary, **ADMIN_PROXY_CONFIG)
+    app.add_middleware(AdminWorkspaceBoundary, auth_service=auth_service, **ADMIN_PROXY_CONFIG)
 
 
 @app.post("/api/demo/chat")
 async def demo_chat(req: Request) -> JSONResponse:
     if not PUBLIC_DEMO:
         raise HTTPException(status_code=404, detail="公开演示未启用")
+    _authorize(req, "query")
     api_key = req.headers.get("x-deepseek-api-key")
     if api_key is not None:
         if not _web_key_origin_allowed(req):

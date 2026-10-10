@@ -1,0 +1,48 @@
+{
+  "package": "auth_runtime",
+  "delivery": "Cython extension (.pyd/.so)",
+  "version": "0.1.0",
+  "facade": {
+    "AuthService": {
+      "kind": "class",
+      "init": {
+        "proxy_token": "str",
+        "owner_id": "str"
+      },
+      "methods": {
+        "guest": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "AuthPrincipal"
+        },
+        "authenticate_proxy": {
+          "params": {
+            "ctx": "RequestContext",
+            "proxy_token": "str",
+            "user_id": "str",
+            "role": "str"
+          },
+          "returns": "AuthPrincipal"
+        },
+        "authorize": {
+          "params": {
+            "ctx": "RequestContext",
+            "principal": "AuthPrincipal",
+            "permission": "str"
+          },
+          "returns": "None"
+        },
+        "allowed_notebooks": {
+          "params": {
+            "ctx": "RequestContext",
+            "principal": "AuthPrincipal",
+            "available_ids": "list[str]",
+            "public_ids": "list[str]"
+          },
+          "returns": "list[str]"
+        }
+      }
+    }
+  }
+}

@@ -42,4 +42,17 @@ Windows原生运行POSIX fixture失败的诊断保存在 reports/diagnostics；�
 
 Windows包：`dist/ai-rag-platform-0.4.0-win-amd64.zip`，166个文件，16个模块版本。SHA-256：`e6175a0dc58877f1fe58bfcc25cdee72fe984526f8e12a820b3939d1dfe1a9ed`。清单和外层 SHA 文件随包生成；包含 apps/web，不包含 modules-src、环境文件或本地加密凭据。
 
-服务器 Jenkins 尚未执行本次修改，Linux `.so` 尚未重建。需为 Jenkins 配置 secret text 凭据 ID `rag-deepseek-api-key`，由已更新的流水线读取；缺凭据时真实模型阶段明确失败。用户提供的 key 已在本机 Windows 用户加密文件保存，本次仅用于本地授权验收，没有传到服务器。当前线上 Mock 演示保持其原有版本。
+初次记录时服务器 Jenkins 尚未执行本次修改。构建需 secret text 凭据 ID `rag-deepseek-api-key`，缺凭据时真实模型阶段明确失败。用户提供的 key 已在本机 Windows 用户加密文件保存。
+
+### 2026-10-10 追加 GitHub 与服务器交付
+
+- PR #2 已合入 master，提交 `6e84a8be807f9c28f3b583772aec3afb87e17826`；PR #1 因完整包含在新 PR 中关闭。整合了远端 `23bb124` 的管理员登录/工作区及新版公开页面。
+- 应用 0.4.1 加入公开页面手动临时 key：同源 HTTPS/回环校验、请求 ContextVar 清理、异常数据清理、绕过共享缓存。无 key 明确 Mock，全部静态资源在 apps/web。
+- 服务测试 27 项通过，管理员测试中的 Mock 检索提示修正后所属 5 项复验通过（完整集合共28项）。没有降低导入后真实来源、身份或私有范围断言。WSL 实际 POSIX 回滚共9项通过。
+- 更新 Windows 包 `dist/ai-rag-platform-0.4.1-win-amd64.zip`，172文件/16模块，SHA-256 `b4c0792a0943e6a47cfc46e192eade62df7905b5289f6ab70b34cbf2c53bc08b`。
+- Jenkins #15 已准确获取 master `6e84a8b`，Linux流水线最终SUCCESS：源码与二进制一级89/中间29、严格12、应用28、POSIX回滚及真实模型两题全部通过，公開Mock候选与正式发布通过。
+- 自动审批最初拒绝远端 Jenkins 保存 key；用户随后对明确授权问题回复“授权”。已通过 SSH 成功配置构建专用 Secret Text `rag-deepseek-api-key`，未写入运行镜像/容器。#15 已通过真实模型门禁并完成公开发布。
+
+### 追加鉴权0.5.0（验证中）
+
+新增 auth-runtime0.1.0 与共享AuthPrincipal/AuthServicePort，固定A01-A08验收。Windows17扩展严格契约12+143子测试、编译权限与RAG冒烟通过；源/二进制鉴权非法输入 parity 修复；应用29测试通过。Linux完整新构建、管理员候选导入、最终部署及主页更新仍在执行。

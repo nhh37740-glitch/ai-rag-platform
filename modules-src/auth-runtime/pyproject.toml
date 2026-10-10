@@ -3,10 +3,10 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "core_specifications"
-version = "0.3.0"
+name = "auth_runtime"
+version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["core_specifications"]
 
 [tool.setuptools]
-packages = ["core_specifications"]
+packages = ["auth_runtime"]

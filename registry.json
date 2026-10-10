@@ -112,6 +112,13 @@
       "checksum": "c1d6f6753f04ffb747b9f4426f13afa40c84101a85d3dc2b1d33df515100b13b",
       "path": "artifacts/tool-runtime/0.2.1",
       "status": "published"
+    },
+    "auth-runtime": {
+      "name": "auth_runtime",
+      "version": "0.1.0",
+      "checksum": "989ba93f3ab1cfdc4d6d1742ee7f75290085f6dd377a2daadc72bec69fca18aa",
+      "path": "artifacts/auth-runtime/0.1.0",
+      "status": "published"
     }
   }
 }

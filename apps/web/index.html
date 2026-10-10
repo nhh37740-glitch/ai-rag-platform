@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7f8fc">
   <title>Knowledge Studio</title>
-  <link rel="stylesheet" href="/static/knowledge_demo.css">
+  <link rel="stylesheet" href="./static/knowledge_demo.css?v=auth-ui-20261010">
 </head>
 <body>
   <header class="app-header">
-    <a class="brand" href="/" aria-label="Knowledge Studio 首页">
+    <a class="brand" href="../" aria-label="Knowledge Studio 首页">
       <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
       <span class="brand-name">Knowledge Studio</span>
     </a>
@@ -23,7 +23,7 @@
       <section id="notebook-menu" class="notebook-menu" hidden>
         <div class="menu-heading">
           <div><span class="eyebrow">工作区</span><h2>我的笔记本</h2></div>
-          <button id="toggle-create" class="icon-btn soft" type="button" aria-expanded="false" title="新建笔记本">
+          <button id="toggle-create" class="icon-btn soft" type="button" aria-expanded="false" title="新建笔记本" disabled hidden>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
           </button>
         </div>
@@ -40,8 +40,9 @@
       <p id="demo-status" class="dataset-status" aria-live="polite"></p>
       <button id="open-key-config" class="key-config-btn" type="button" aria-haspopup="dialog">DeepSeek 设置</button>
       <button id="admin-logout" class="key-config-btn" type="button" hidden>退出登录</button>
+      <a id="admin-login-link" class="key-config-btn" href="./login/" hidden>管理员登录</a>
       <span class="local-pill"><span class="online-dot"></span><span id="workspace-mode-label">正在验证身份</span></span>
-      <span id="admin-identity" class="profile-chip" aria-label="管理员知识工作区">Z</span>
+      <span id="admin-identity" class="profile-chip" aria-label="当前身份">…</span>
     </div>
   </header>
 
@@ -72,7 +73,7 @@
       </header>
 
       <div class="panel-body sources-body">
-        <button id="open-upload" class="add-source-btn" type="button">
+        <button id="open-upload" class="add-source-btn" type="button" disabled hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>添加来源
         </button>
         <label class="source-search">
@@ -120,7 +121,7 @@
 
       <form id="f" class="composer">
         <div class="composer-shell">
-          <textarea id="m" rows="1" placeholder="针对当前来源提问…" autofocus></textarea>
+          <textarea id="m" rows="1" placeholder="针对当前来源提问…" disabled autofocus></textarea>
           <button type="submit" class="send-btn" aria-label="发送问题" title="发送">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
@@ -182,6 +183,6 @@
     </section>
   </div>
 
-  <script src="/static/knowledge_demo.js" defer></script>
+  <script src="./static/knowledge_demo.js?v=auth-ui-20261010" defer></script>
 </body>
 </html>
