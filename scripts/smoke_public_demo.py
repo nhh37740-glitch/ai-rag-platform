@@ -5,6 +5,7 @@ import json
 import sys
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 
 
 def request(base, path, method="GET", payload=None, headers=None):
@@ -38,7 +39,7 @@ def smoke(base, expected_provider="deepseek"):
     status, documents = request(base, "api/notebooks/cmrc2018-demo/documents")
     assert status == 200 and documents["documents"]
     document_id = documents["documents"][0]["source_id"].split("/", 1)[1]
-    status, document = request(base, "api/demo/documents/" + document_id)
+    status, document = request(base, "api/demo/documents/" + quote(document_id, safe=""))
     assert status == 200 and document["contexts"] and len(document["contexts"]) <= 20
     assert document["source_id"].startswith("cmrc2018-demo/")
     assert request(base, "api/notebooks/private/documents")[0] == 403
