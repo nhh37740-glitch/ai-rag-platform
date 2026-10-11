@@ -40,7 +40,7 @@ class AdminBoundaryTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await self.client.get(path)).status_code, 403, path)
         for replacement in [
             {"x-rag-proxy-token": "forged"}, {"x-rag-user-id": "other-admin"},
-            {"x-rag-role": "user"}, {"x-rag-proxy-token": ""},
+            {"x-rag-role": "untrusted"}, {"x-rag-proxy-token": ""},
         ]:
             response = await self.client.get("/api/notebooks", headers={**HEADERS, **replacement})
             self.assertEqual(response.status_code, 403)

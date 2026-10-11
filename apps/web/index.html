@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7f8fc">
   <title>Knowledge Studio</title>
-  <link rel="stylesheet" href="./static/knowledge_demo.css?v=auth-ui-20261010">
+  <link rel="stylesheet" href="./static/knowledge_demo.css?v=notebook-acl-20261011">
 </head>
 <body>
   <header class="app-header">
@@ -38,12 +38,13 @@
 
     <div class="header-actions">
       <p id="demo-status" class="dataset-status" aria-live="polite"></p>
+      <button id="open-members" class="key-config-btn" type="button" hidden>笔记本成员</button>
       <button id="open-key-config" class="key-config-btn" type="button" aria-haspopup="dialog">模型设置</button>
       <span id="web-quota" role="status" hidden></span>
       <button id="admin-logout" class="key-config-btn" type="button" hidden>退出登录</button>
-      <a id="admin-login-link" class="key-config-btn" href="./login/" hidden>管理员登录</a>
+      <a id="admin-login-link" class="key-config-btn" href="./login/" hidden>工作区登录</a>
       <span class="local-pill"><span class="online-dot"></span><span id="workspace-mode-label">正在验证身份</span></span>
-      <span id="admin-identity" class="profile-chip" aria-label="当前身份">…</span>
+      <button id="admin-identity" class="profile-chip" type="button" aria-label="显示并复制当前用户ID">…</button>
     </div>
   </header>
 
@@ -58,6 +59,18 @@
         <button id="close-key-config" type="button">关闭</button>
         <button class="primary-btn" type="submit">保存</button>
       </div>
+    </form>
+  </dialog>
+
+  <dialog id="members-dialog" class="key-config-dialog" aria-labelledby="members-title">
+    <h2 id="members-title">笔记本成员与权限</h2>
+    <p id="members-status" role="status"></p>
+    <p>全局管理员始终可以管理笔记本。用户ID可在成员登录后的右上角身份提示中查看。</p>
+    <ul id="members-list"></ul>
+    <form id="member-form">
+      <label class="field"><span>现有账号的用户ID</span><input id="member-user-id" maxlength="128" required autocomplete="off"></label>
+      <label class="field"><span>笔记本权限</span><select id="member-role"><option value="viewer">查看者：阅读、提问</option><option value="editor">编辑者：另可导入文档</option><option value="manager">管理者：另可设置成员</option></select></label>
+      <div class="key-config-actions"><button id="close-members" type="button">关闭</button><button type="submit" class="primary-btn">添加或更新成员</button></div>
     </form>
   </dialog>
 
@@ -184,6 +197,6 @@
     </section>
   </div>
 
-  <script src="./static/knowledge_demo.js?v=auth-ui-20261010" defer></script>
+  <script src="./static/knowledge_demo.js?v=notebook-acl-20261011" defer></script>
 </body>
 </html>

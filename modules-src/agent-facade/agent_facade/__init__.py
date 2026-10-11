@@ -18,7 +18,7 @@ from llm_gateway import DeepSeekProvider, MockProvider
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def make_provider(
@@ -97,13 +97,14 @@ class AgentService:
         ctx: RequestContext,
         user_input: str,
         knowledge_base_ids: list[str] | None = None,
+        allow_write_tools: bool = True,
     ) -> str:
         self._ensure_open()
         if not isinstance(user_input, str):
             raise TypeError("user_input must be a string")
         if not user_input.strip():
             raise ValueError("user_input must not be empty")
-        return await self._runtime.run(ctx, user_input, knowledge_base_ids)
+        return await self._runtime.run(ctx, user_input, knowledge_base_ids, allow_write_tools)
 
     def register_tool(
         self,

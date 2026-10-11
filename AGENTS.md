@@ -47,6 +47,6 @@ python scripts/verify_compiled_runtime.py
 - 集成侧运行镜像只包含 `specifications/`、`apps/`、`artifacts/` 等运行资产，不包含 `modules-src/`。模块实现改动仍按接口规范、版本与测试流程审查。
 - 提交前检查：`AGENTS.md` 与 `docs/PLAN.md` 是否为最新事实；所有改动链路（版本、checksum、接口规范测试）一致。
 
-## 三域依赖（2026-10-09）
+## 业务依赖（2026-10-11）
 
-apps/agent-server 只导入 agent_facade、rag_facade、data_facade、auth_facade 和共享 core_specifications/observability。鉴权业务由 auth_facade 负责，证明校验由 auth_runtime 提供；跨域通过共享 Protocol 注入。修改前先读 specifications/DOMAIN_INTERFACES.md，分层检查入口为 scripts/check_module_dependencies.py。apps/web 是不编译的静态页面，只调用 API。Jenkins 每次构建用 secret text 凭据 rag-deepseek-api-key 验证真实模型，不进入镜像/发布包。
+apps/agent-server 只导入 agent_facade、rag_facade、data_facade、auth_facade 和共享 core_specifications/observability。鉴权业务由 auth_facade 负责，证明校验由 auth_runtime 提供；跨域通过共享 Protocol 注入。修改前先读 specifications/DOMAIN_INTERFACES.md，分层检查入口为 scripts/check_module_dependencies.py。apps/web 是不编译的静态页面，只调用 API。鉴权业务包括全站日额度和持久笔记本成员权限；通过 StateStorePort 注入，不依赖 data-facade 具体类。构建真实模型凭据与运行凭据分离，默认 OpenRouter 免费模型和全站每日20次，详见 docs/OPENROUTER_RUNTIME.md。

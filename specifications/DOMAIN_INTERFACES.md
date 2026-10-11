@@ -95,3 +95,9 @@ class AgentService:
 管理员／游客角色、操作权限和知识库可见范围由 auth-facade 的 AuthService 提供；管理员证明校验由 auth-runtime 的 AuthRuntime 提供。接口见 [AUTH_INTERFACES.md](AUTH_INTERFACES.md)。auth-facade 依赖共享类型和 auth-runtime，auth-runtime 依赖共享类型及标准库；两者不依赖 Agent、RAG、Data 业务实现。HTTP 集成调用 auth-facade；管理员身份来自经验证的 owner 登录，游客只读公开资料。
 
 DailyQueryQuota 通过注入的 StateStorePort 实施全站每日问答额度。DataService.state_db 返回的共享端口支持原子 increment_if_below，SQLite 事务位于 storage；额度业务不导入 data-facade 或 storage。
+
+## 2026-10-11 Agent 授权与语言
+
+AgentService.run 与 AgentRuntime.run 增加末尾可选 allow_write_tools: bool = True。False 时只向模型提供五个保留检索工具，并在执行时拒绝任何其它工具（即使模型伪造调用）。应用只为经验证的全局管理员授予 True。默认语言为简体中文，系统首条与每轮提示词一致；用户明确要求其它语言可以覆盖，工具/文档/历史不可以。
+
+应用为用户+客户端 session_id+本次笔记本集合派生内部 session_id，禁止跨范围复用历史。AgentRuntime 在知识库会话或只读运行中不读用户级记忆，知识库答案不写用户级记忆，避免通过记忆泄漏其它笔记本的内容。Data/RAG 现有共享端口签名不变。

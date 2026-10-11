@@ -1,7 +1,7 @@
 {
   "package": "agent_facade",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "facade": {
     "make_provider": {
       "kind": "function",
@@ -28,7 +28,8 @@
           "params": {
             "ctx": "RequestContext",
             "user_input": "str",
-            "knowledge_base_ids": "list[str]|null"
+            "knowledge_base_ids": "list[str]|null",
+            "allow_write_tools": "bool"
           },
           "returns": "str",
           "async": true

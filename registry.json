@@ -3,16 +3,16 @@
   "modules": {
     "agent-facade": {
       "name": "agent_facade",
-      "version": "0.1.0",
-      "checksum": "487f5204b559e96f508f137967a82ee68192801c2554f4f4b9e7d557312d4780",
-      "path": "artifacts/agent-facade/0.1.0",
+      "version": "0.2.0",
+      "checksum": "79dd5037b5128151460dea9e1929783884ccd0fcc132f8fc5d62b1acde39707a",
+      "path": "artifacts/agent-facade/0.2.0",
       "status": "published"
     },
     "agent-runtime": {
       "name": "agent_runtime",
-      "version": "0.4.0",
-      "checksum": "03055270a6abdcf8039e9002e3525ec5c431b0e5bbd37a8ca546fb21a66c24e2",
-      "path": "artifacts/agent-runtime/0.4.0",
+      "version": "0.5.0",
+      "checksum": "0dee01e0c1d3eee863a5c0526f4ff114b0b1fe07e330d398ed6c4faa53d1a874",
+      "path": "artifacts/agent-runtime/0.5.0",
       "status": "published"
     },
     "data-facade": {
@@ -115,16 +115,16 @@
     },
     "auth-runtime": {
       "name": "auth_runtime",
-      "version": "0.3.0",
-      "checksum": "91e4af11e98f769da4f3875f0d555bed0c24c9ad84c2163b8110256b6ae61a53",
-      "path": "artifacts/auth-runtime/0.3.0",
+      "version": "0.4.0",
+      "checksum": "933daf64ad13f2183b88f1807cadd1ad01a955fc5c39a122e20a2db982af5a88",
+      "path": "artifacts/auth-runtime/0.4.0",
       "status": "published"
     },
     "auth-facade": {
       "name": "auth_facade",
-      "version": "0.2.0",
-      "checksum": "47596b84a7085d3d269cde5bfd929e7bddc037193a79b1723ab3fa36d016e3fc",
-      "path": "artifacts/auth-facade/0.2.0",
+      "version": "0.3.0",
+      "checksum": "e9360c03cfb98e768f748dbfdf73a5b0185bf700d60e39c4b73138a1160cbed7",
+      "path": "artifacts/auth-facade/0.3.0",
       "status": "published"
     }
   }
