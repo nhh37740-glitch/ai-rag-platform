@@ -1,31 +1,10 @@
 # INTERFACE
 
-Version 0.3.0. All port types are imported from core_specifications; no dependency on RAG.
+Version 0.5.0. All stores accept a shared sqlite3.Connection and shared lock from DataService. They never create tables on an existing database. A standalone path opens only a new six-table database or rejects an incompatible schema.
 
-- `SqliteVectorStore(db_path: str)`
-- `SqliteVectorStore.add(source_id: str, chunks: List[str], embeddings: Any) -> None`
-- `SqliteVectorStore.search(embedding: Any, top_k: int = 5, scopes: Optional[List[str]] = None) -> List[tuple[str, str, float]]`
-- `SqliteVectorStore.list_documents(scopes: Optional[List[str]] = None) -> List[tuple[str, int]]`
-- `SqliteVectorStore.document_chunks(source_id: str) -> List[str]`
-- `StateStore(db_path: str)`
-- `StateStore.get(ctx: RequestContext, key: str) -> Any`
-- `StateStore.set(ctx: RequestContext, key: str, value: Any) -> None`
-- `StateStore.delete(ctx: RequestContext, key: str) -> None`
-- `StateStore.increment_if_below(ctx: RequestContext, key: str, limit: int) -> Optional[int]`
+- `SqliteVectorStore.add/search/list_documents/document_chunks`: vector API backed by `documents` JSON embeddings and dot-product ranking.
+- `StateStore.get/set/delete/increment_if_below`: user-scoped JSON values in `agent_data`; counters use `BEGIN IMMEDIATE`.
+- `NotebookStore`: user, notebook and member CRUD in the corresponding tables; member roles are only `editor` and `viewer`.
+- `close()` marks an injected wrapper closed; only the connection owner closes SQLite.
 
-Counters share the user-scoped state table. increment_if_below uses BEGIN IMMEDIATE to atomically reserve across independent connections/processes, returns the new integer, or None when exhausted. Missing counters start at zero; malformed counters and invalid positive-integer limits fail without modifying state.
-- `SqliteVectorStore/StateStore/Storage.close() -> None`
-
-Vectors use SQLite JSON plus NumPy dot-product ranking. add atomically replaces all chunks for one source.
-Validation checks counts, non-empty finite vectors and consistent collection dimensions before any deletion.
-An empty chunk/vector pair clears that source. scope=None searches all, scope=[] searches none.
-top_k must be a positive integer, excluding bool. State values are user-scoped JSON; missing keys return None.
-All owned connection access is locked. close is idempotent and all later operations raise RuntimeError.
-Legacy Storage closes its own evaluation connection and leaves injected stores caller-owned.
-
-- `Storage.memory_write/get/search/forget(ctx, namespace, ...)`
-- `Storage.add_documents(source_id, chunks, embeddings)` / `search_documents(query_embedding, top_k)`
-- `Storage.save_eval(run_id, payload)` / `load_eval(run_id)`
-- `make_storage(db_path, memory_store, vector_store)`
-
-0.4.0 新增 NotebookStore；关系表、FK、CAS版本、幂等迁移和软归档详见API_SCHEMA.json；不判定管理员或HTTP权限。
+Exactly six tables are accepted: users, notebooks, notebook_members, documents, conversations, agent_data. Existing extra tables or mismatched columns/keys/checks/foreign keys raise RuntimeError. No migration or old ACL import is performed.

@@ -1,3 +1,7 @@
+## 0.3.0 - 2026-10-11
+
+- Use the shared six-table SQLite schema and connection; add account, site quota, conversation, notebook membership, and agent data APIs. Reject incompatible databases; no legacy migration.
+
 # data-facade
 
 ## 0.2.0 — 2026-10-11

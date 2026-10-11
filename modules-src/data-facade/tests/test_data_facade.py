@@ -1,148 +1,67 @@
-import shutil
-import tempfile
-import unittest
+import sqlite3, tempfile, unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-
-from core_specifications import DataServicePort, MemoryStorePort, RequestContext, NotebookStorePort, StateStorePort, VectorStore
+from core_specifications import DataServicePort, RequestContext
 from data_facade import DataService
-
-
-CTX = RequestContext("trace", "request", "alice", "session")
-OTHER = RequestContext("trace", "request", "bob", "session")
-
-
-class TestDataService(unittest.TestCase):
-    def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temporary.cleanup)
-        self.path = Path(self.temporary.name) / "nested" / "state"
-        self.data = DataService(str(self.path))
-        self.addCleanup(self.data.close, CTX)
-
-    def test_D01_initialize_idempotent_and_store_identity(self):
-        self.assertIsInstance(self.data, DataServicePort)
-        self.data.initialize(CTX)
-        first = (self.data.memory_store(CTX), self.data.vector_store(CTX), self.data.state_db(CTX), self.data.notebook_store(CTX))
-        self.data.initialize(CTX)
-        second = (self.data.memory_store(OTHER), self.data.vector_store(OTHER), self.data.state_db(OTHER), self.data.notebook_store(OTHER))
-        for previous, current in zip(first, second):
-            self.assertIs(previous, current)
-        for store, protocol in zip(first, (MemoryStorePort, VectorStore, StateStorePort, NotebookStorePort)):
-            self.assertIsInstance(store, protocol)
-        for name in ("memory.sqlite", "vectors.sqlite", "state.sqlite", "notebook.sqlite"):
-            self.assertTrue((self.path / name).is_file())
-
-    def test_D02_persistence_after_reopen_and_user_state_isolation(self):
-        self.data.memory_store(CTX).write(CTX, "user", "project", "中文项目")
-        self.data.vector_store(CTX).add("kb/doc", ["first", "second"], [[1, 0], [0, 1]])
-        self.data.state_db(CTX).set(CTX, "settings", {"theme": "dark"})
-        self.data.state_db(OTHER).set(OTHER, "settings", {"theme": "light"})
-        self.data.close(CTX)
-        reopened = DataService(str(self.path))
-        self.addCleanup(reopened.close, CTX)
-        self.assertEqual(reopened.memory_store(CTX).get(CTX, "user", "project").content, "中文项目")
-        self.assertEqual(reopened.vector_store(CTX).document_chunks("kb/doc"), ["first", "second"])
-        self.assertEqual(reopened.state_db(CTX).get(CTX, "settings"), {"theme": "dark"})
-        self.assertEqual(reopened.state_db(OTHER).get(OTHER, "settings"), {"theme": "light"})
-        reopened.state_db(CTX).delete(CTX, "settings")
-        self.assertIsNone(reopened.state_db(CTX).get(CTX, "settings"))
-        self.assertEqual(reopened.state_db(OTHER).get(OTHER, "settings"), {"theme": "light"})
-
-    def test_D03_atomic_same_source_replacement_invalid_add_preserves(self):
-        store = self.data.vector_store(CTX)
-        store.add("kb/doc", ["old", "old2"], [[1, 0], [0, 1]])
-        store.add("kb/doc", ["new"], [[0, 1]])
-        self.assertEqual(store.list_documents(), [("kb/doc", 1)])
-        for chunks, embeddings in (
-            (["bad"], []), (["bad"], [[float("nan"), 1]]),
-            (["bad", "bad2"], [[1], [1, 0]]),
-        ):
-            with self.assertRaises(ValueError):
-                store.add("kb/doc", chunks, embeddings)
-            self.assertEqual(store.document_chunks("kb/doc"), ["new"])
-
-    def test_D04_scopes_and_parameterized_keys(self):
-        store = self.data.vector_store(CTX)
-        store.add("kb/doc", ["public"], [[1, 0]])
-        store.add("private/doc", ["private"], [[0, 1]])
-        for scope in ([], ["missing"], ["kb' OR 1=1 --"]):
-            self.assertEqual(store.list_documents(scope), [])
-            self.assertEqual(store.search([1, 0], scopes=scope), [])
-        self.assertEqual(store.list_documents(["kb"]), [("kb/doc", 1)])
-        self.assertEqual(len(store.list_documents()), 2)
-        state = self.data.state_db(CTX)
-        state.set(CTX, "key' OR 1=1 --", {"value": "literal"})
-        self.assertIsNone(state.get(OTHER, "key' OR 1=1 --"))
-        self.assertEqual(state.get(CTX, "key' OR 1=1 --"), {"value": "literal"})
-
-    def test_D05_close_is_idempotent_and_owned_stores_reject_access(self):
-        memory, vector, state = self.data.memory_store(CTX), self.data.vector_store(CTX), self.data.state_db(CTX)
-        self.data.close(CTX)
-        self.data.close(CTX)
-        for operation in (
-            lambda: self.data.initialize(CTX), lambda: self.data.memory_store(CTX),
-            lambda: self.data.vector_store(CTX), lambda: self.data.state_db(CTX),
-            lambda: memory.write(CTX, "user", "k", "v"), lambda: memory.get(CTX, "user", "k"),
-            lambda: memory.search(CTX, "user", ""), lambda: memory.forget(CTX, "user", "k"),
-            lambda: vector.add("kb/doc", ["x"], [[1]]), lambda: vector.search([1]),
-            lambda: vector.list_documents(), lambda: vector.document_chunks("kb/doc"),
-            lambda: state.get(CTX, "key"), lambda: state.set(CTX, "key", 1),
-            lambda: state.delete(CTX, "key"),
-        ):
-            with self.subTest(operation=operation), self.assertRaises(RuntimeError):
-                operation()
-        shutil.rmtree(self.path)
-        self.assertFalse(self.path.exists())
-
-    def test_memory_overrides_and_lazy_access(self):
-        service = DataService(str(self.path), memory_db_path=":memory:", vector_db_path=":memory:")
-        self.addCleanup(service.close, CTX)
-        service.memory_store(CTX).write(CTX, "user", "key", "temporary")
-        service.vector_store(CTX).add("kb/doc", ["temporary"], [[1]])
-        self.assertFalse((self.path / "memory.sqlite").exists())
-        self.assertFalse((self.path / "vectors.sqlite").exists())
-        self.assertTrue((self.path / "state.sqlite").exists())
-
-    def test_parallel_initialization_returns_one_store(self):
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            stores = list(pool.map(lambda number: self.data.vector_store(CTX), range(32)))
-        self.assertTrue(all(store is stores[0] for store in stores))
-
-    def test_failed_initialize_is_retryable_and_releases_connections(self):
-        invalid = self.path / "blocked"
-        invalid.mkdir(parents=True)
-        service = DataService(str(self.path), vector_db_path=str(invalid))
-        self.addCleanup(service.close, CTX)
-        with self.assertRaises(Exception):
-            service.initialize(CTX)
-        # The memory connection created before the vector failure must be released.
-        (self.path / "memory.sqlite").unlink()
-        invalid.rmdir()
-        service.initialize(CTX)
-        self.assertTrue(service.vector_store(CTX) is service.vector_store(CTX))
-
-    def test_close_before_initialize(self):
-        self.data.close(CTX)
-        self.data.close(CTX)
-        self.assertFalse(self.path.exists())
-        with self.assertRaises(RuntimeError):
-            self.data.initialize(CTX)
-
-
-    def test_D06_directory_business_methods_persist_and_archive(self):
-        self.data.notebook_store(CTX).register_user(CTX,"alice")
-        meta={"id":"book-a","owner_user_id":"alice","name":"测试目录","description":"","created_at":"2026-10-11","is_public":False}
-        self.data.create_notebook(CTX,meta)
-        self.data.update_notebook(CTX,"book-a","新名称","新说明")
-        self.data.set_notebook_archived(CTX,"book-a",True)
-        self.assertTrue(self.data.get_notebook(CTX,"book-a")['archived'])
-        self.assertEqual(self.data.list_notebooks(CTX)[0]['name'],"新名称")
-        self.data.close(CTX)
-        reopened=DataService(str(self.path));self.addCleanup(reopened.close,CTX)
-        reopened.set_notebook_archived(CTX,"book-a",False)
-        self.assertFalse(reopened.get_notebook(CTX,"book-a")['archived'])
-
-
-if __name__ == "__main__":
-    unittest.main()
+CTX=RequestContext("t","r","alice","s")
+OTHER=RequestContext("t","r","bob","s")
+class DataServiceTests(unittest.TestCase):
+ def setUp(self):
+  self.tmp=tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
+  self.path=str(Path(self.tmp.name)/"state.sqlite"); self.data=DataService(self.path); self.addCleanup(self.data.close,CTX)
+ def test_one_connection_one_file_six_tables(self):
+  self.assertIsInstance(self.data,DataServicePort)
+  stores=[self.data.memory_store(CTX),self.data.vector_store(CTX),self.data.state_db(CTX),self.data.notebook_store(CTX)]
+  self.assertEqual(len({id(s._conn) for s in stores}),1)
+  self.assertEqual(len({id(s._lock) for s in stores}),1)
+  names={r[0] for r in stores[0]._conn.execute("select name from sqlite_master where type='table' and name not like 'sqlite_%'")}
+  self.assertEqual(names,{"users","notebooks","notebook_members","documents","conversations","agent_data"})
+  self.assertEqual([p.name for p in Path(self.tmp.name).iterdir()],["state.sqlite"])
+ def test_user_crud_and_active(self):
+  self.data.create_user(CTX,{"id":"alice","username":"Alice","password_hash":"hash"})
+  self.assertEqual(self.data.get_user(CTX,"alice")["username"],"Alice")
+  self.assertEqual(self.data.get_user_by_username(CTX,"Alice")["id"],"alice")
+  self.assertNotIn("password_hash",self.data.list_users(CTX)[0])
+  self.assertEqual(len(self.data.list_users(CTX)),1)
+  self.data.set_user_active(CTX,"alice",False); self.assertEqual(self.data.get_user(CTX,"alice")["is_active"],0)
+  self.assertEqual(self.data.list_users(CTX),[])
+  self.assertEqual(len(self.data.list_users(CTX,active_only=False)),1)
+ def test_quota_aggregates_all_users_and_atomic_limit(self):
+  self.data.create_user(CTX,{"id":"alice","username":"alice"}); self.data.create_user(CTX,{"id":"bob","username":"bob"})
+  def reserve(i): return self.data.reserve_site_quota(CTX if i%2==0 else OTHER,"2026-10-11",20)
+  with ThreadPoolExecutor(max_workers=8) as pool: results=list(pool.map(reserve,range(64)))
+  self.assertEqual(sorted(x for x in results if x is not None),list(range(1,21)))
+  self.assertEqual(self.data.site_quota_used(CTX,"2026-10-11"),20)
+  self.assertEqual(self.data.reserve_site_quota(CTX,"2026-10-12",1),1)
+  self.assertEqual(self.data.site_quota_used(CTX,"2026-10-12"),1)
+ def test_conversation_crud_user_scope(self):
+  self.data.create_user(CTX,{"id":"alice","username":"alice"}); self.data.create_user(CTX,{"id":"bob","username":"bob"})
+  value={"id":"c1","title":"中文","notebook_id":["b","a"],"messages":[{"role":"user","content":"hello"}]}
+  self.data.save_conversation(CTX,value)
+  self.data.save_conversation(CTX,{"id":"c2","title":"other scope","notebook_id":["c"],"messages":[]})
+  self.assertEqual(self.data.get_conversation(CTX,"c1","alice")["notebook_id"],["a","b"])
+  self.assertEqual(len(self.data.list_conversations(CTX,"alice")),2)
+  self.assertEqual(len(self.data.list_conversations(CTX,"alice",'["a", "b"]')),1)
+  with self.assertRaises(PermissionError): self.data.get_conversation(CTX,"c1","bob")
+  self.data.delete_conversation(CTX,"c1","alice"); self.assertIsNone(self.data.get_conversation(CTX,"c1","alice"))
+ def test_shared_agent_data_memory_state_vector_and_reopen(self):
+  self.data.create_user(CTX,{"id":"alice","username":"alice"})
+  self.data.memory_store(CTX).write(CTX,"session","x","remember me")
+  self.data.state_db(CTX).set(CTX,"theme",{"x":1})
+  self.data.set_agent_data(CTX,"agent","key",'{"value":2}')
+  self.data.vector_store(CTX).add("book/doc",["chunk"],[[1,0]])
+  self.data.create_notebook(CTX,{"id":"book","owner_user_id":"alice","name":"Book"})
+  self.data.close(CTX); self.data=DataService(self.path)
+  self.assertEqual(self.data.memory_store(CTX).get(CTX,"session","x").content,"remember me")
+  self.assertEqual(self.data.state_db(CTX).get(CTX,"theme"),{"x":1})
+  self.assertEqual(self.data.get_agent_data(CTX,"agent","key")["content"],'{"value":2}')
+  self.assertEqual(self.data.vector_store(CTX).document_chunks("book/doc"),["chunk"])
+  self.assertEqual(self.data.get_notebook(CTX,"book")["name"],"Book")
+ def test_old_schema_rejected_without_mutation(self):
+  old=str(Path(self.tmp.name)/"old.sqlite"); c=sqlite3.connect(old); c.execute("CREATE TABLE state(user_id TEXT,key TEXT,payload TEXT)"); c.commit(); c.close()
+  with self.assertRaises(RuntimeError): DataService(old).initialize(CTX)
+  c=sqlite3.connect(old); self.assertEqual(c.execute("select name from sqlite_master where type='table'").fetchall(),[("state",)]); c.close()
+ def test_close_before_initialize_and_lifecycle(self):
+  self.data.close(CTX); self.data.close(CTX)
+  with self.assertRaises(RuntimeError): self.data.initialize(CTX)
+if __name__=="__main__": unittest.main()

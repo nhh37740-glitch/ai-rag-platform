@@ -38,6 +38,14 @@ class FakeData:
     def __init__(self):
         self.memory = FakeMemory()
         self.close_calls = 0
+        self.agent_data = {}
+
+    def get_agent_data(self, ctx, data_type, name):
+        content = self.agent_data.get((data_type, name))
+        return {"content": content} if content is not None else None
+
+    def set_agent_data(self, ctx, data_type, name, content):
+        self.agent_data[(data_type, name)] = content
 
     def initialize(self, ctx):
         pass
@@ -205,6 +213,31 @@ class TestAgentService(unittest.IsolatedAsyncioTestCase):
             service.history(self.ctx)
         with self.assertRaises(RuntimeError):
             service.tool_definitions(self.ctx)
+
+
+    async def test_model_update_persists_and_applies_to_following_runs(self):
+        service = self.service()
+        before = service.provider
+        result = service.update_model_settings(self.ctx, "mock", "mock")
+        self.assertEqual((result["provider_id"], result["model_id"]), ("mock", "mock"))
+        self.assertIsNot(service.provider, before)
+        await service.run(self.ctx, "hello")
+        restored = AgentService(self.data, self.rag, self.tracing, environment={})
+        self.assertEqual(restored.get_model_settings(self.ctx)["model_id"], "mock")
+        self.assertIsInstance(restored.provider, MockProvider)
+
+    def test_model_directory_hides_secrets_and_enforces_free_only(self):
+        service = self.service(environment={
+            "DEEPSEEK_API_KEY":"test-secret", "OPENROUTER_API_KEY":"test-openrouter-secret",
+            "OPENROUTER_MODELS": '[{"id":"free/model:free","name":"Free"},{"id":"paid/model","pricing":{"prompt":"0.01","completion":"0.02"}},{"id":"zero/model","pricing":{"prompt":"0","completion":"0"}}]'
+        })
+        providers = service.list_model_providers(self.ctx, service._environment)
+        self.assertNotIn("test-secret", repr(providers))
+        ids = {item["id"] for item in service.list_models(self.ctx, "openrouter", service._environment)}
+        self.assertTrue({"openrouter/free", "free/model:free", "zero/model"}.issubset(ids))
+        self.assertNotIn("paid/model", ids)
+        with self.assertRaises(ValueError):
+            service.update_model_settings(self.ctx, "openrouter", "paid/model")
 
     async def test_empty_input_and_insufficient_rounds_fail(self):
         service = self.service()

@@ -4,7 +4,7 @@
 
 ## 模块与配置
 
-- `apps/agent-server/model_config.py` 解析服务端配置；现有 AgentService/make_provider 与 llm-gateway 复用 OpenAI 兼容调用，不新增网络服务。
+- `apps/ragnotebook/model_config.py` 解析服务端配置；现有 AgentService/make_provider 与 llm-gateway 复用 OpenAI 兼容调用，不新增网络服务。
 - `LLM_PROVIDER=openrouter`，`OPENROUTER_MODEL=openrouter/free`，`OPENROUTER_API_KEY` 由服务端注入。仅允许免费路由或合法 `:free` 模型，不能指定付费模型、auto、额外后缀或付费回退。API 地址固定 `https://openrouter.ai/api/v1`。免费路由根据请求所需工具能力选择免费模型，依据：[OpenRouter 官方文档](https://openrouter.ai/docs/guides/routing/routers/free-router)。
 - 本机专用 `.env.openrouter` 已写入用户提供的凭据，受 `.gitignore` 和 `.dockerignore` 排除。应用默认读取此文件；可用 `RAG_LLM_ENV_FILE` 指定运行配置路径。已有环境变量优先；测试设置此变量为空，禁止读本机凭据。
 - 显式 `LLM_PROVIDER=mock` 不使用真实密钥；`LLM_PROVIDER=deepseek` 保留旧配置兼容。响应和 repr 不输出密钥，默认模型异常在记录 trace 前替换为固定错误。

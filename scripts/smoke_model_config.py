@@ -15,8 +15,8 @@ def check(model, env_file):
         assert model['model'] == 'openrouter/free' and model['free_models_only'] is True
         assert model['server_key_configured'] is True
         quota = model['quota']
-        assert quota['scope'] == 'site' and quota['limit'] == 20
-        assert 0 <= quota['used'] <= 20 and quota['remaining'] == 20 - quota['used']
+        assert quota['scope'] == 'site' and quota['limit'] == 100
+        assert 0 <= quota['used'] <= 100 and quota['remaining'] == 100 - quota['used']
     return model
 
 

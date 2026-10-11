@@ -1,154 +1,132 @@
+import threading
 import unittest
-from dataclasses import FrozenInstanceError, replace
-from unittest.mock import patch
-
-import auth_runtime
+from concurrent.futures import ThreadPoolExecutor
 from auth_facade import AuthService
-from core_specifications import AuthPrincipal, AuthServicePort, RequestContext
+from core_specifications import RequestContext
 
+CTX=RequestContext("trace","request","test")
+class FakeData:
+    def __init__(self):
+        self.users={}; self.names={}; self.notebooks={}; self.members={}; self.quotas={}; self.lock=threading.RLock()
+    def initialize(self,ctx): pass
+    def list_users(self,ctx,active_only=True):
+        with self.lock: return [dict(v) for v in self.users.values() if not active_only or v.get("is_active") is True]
+    def create_user(self,ctx,user):
+        with self.lock:
+            if user["id"] in self.users or user["username"].lower() in self.names: raise ValueError("duplicate")
+            row=dict(user); self.users[row["id"]]=row; self.names[row["username"].lower()]=row["id"]; return dict(row)
+    def get_user(self,ctx,user_id):
+        with self.lock:
+            row=self.users.get(user_id); return dict(row) if row else None
+    def get_user_by_username(self,ctx,username):
+        with self.lock:
+            user_id=self.names.get(username.lower()) if isinstance(username,str) else None
+            return self.get_user(ctx,user_id) if user_id else None
+    def set_user_active(self,ctx,user_id,active):
+        with self.lock: self.users[user_id]["is_active"]=active
+    def create_notebook(self,notebook_id,owner):
+        self.notebooks[notebook_id]={"id":notebook_id,"owner_user_id":owner,"name":notebook_id,"created_at":"2026-10-11"}
+        self.members[notebook_id]={}
+    def get_notebook(self,ctx,notebook_id):
+        row=self.notebooks.get(notebook_id); return dict(row) if row else None
+    def membership_snapshot(self,ctx,notebook_id):
+        return {"members":[{"user_id":u,"role":r} for u,r in self.members.get(notebook_id,{}).items()]}
+    def put_member(self,ctx,notebook_id,user_id,role):
+        self.members[notebook_id][user_id]=role
+    def delete_member(self,ctx,notebook_id,user_id):
+        self.members.get(notebook_id,{}).pop(user_id,None)
+    def reserve_site_quota(self,ctx,local_date,limit):
+        with self.lock:
+            used=self.quotas.get(local_date,0)
+            if used>=limit:return None
+            self.quotas[local_date]=used+1
+            return used+1
+    def site_quota_used(self,ctx,local_date):
+        with self.lock:return self.quotas.get(local_date,0)
 
-TOKEN = "test-only-proxy-token-private-sentinel-123456789"
-OWNER = "private-owner-sentinel"
-PERMISSIONS = ("read", "query", "create_notebook", "import_document", "write")
-
-
-class TestAuthService(unittest.TestCase):
+class AuthFacadeTests(unittest.TestCase):
     def setUp(self):
-        self.ctx = RequestContext("trace", "request", "visitor", "session")
-        self.auth = AuthService(TOKEN, OWNER)
+        self.data=FakeData(); self.auth=AuthService(self.data,daily_limit=100)
+        self.auth.initialize(CTX,"rootadmin","bootstrap-password")
+        self.admin,self.admin_token=self.auth.login(CTX,"rootadmin","bootstrap-password")
+        self.guest=self.auth.guest(CTX)
+        self.alice_record=self.auth.register(CTX,"alice","alice-password")
+        self.alice,self.alice_token=self.auth.login(CTX,"alice","alice-password")
+        self.bob_record=self.auth.register(CTX,"bob","bob-password")
+        self.bob,self.bob_token=self.auth.login(CTX,"bob","bob-password")
+    def test_bootstrap_is_one_time_and_guest_cannot_register_or_login(self):
+        self.auth.initialize(CTX,"changedadmin","other-password")
+        self.assertIsNone(self.data.get_user_by_username(CTX,"changedadmin"))
+        self.assertEqual(self.auth.guest(CTX).role,"guest")
+        with self.assertRaises(ValueError): self.auth.register(CTX,"guest","guest-password")
+        with self.assertRaises(PermissionError): self.auth.login(CTX,"guest","guest-password")
+        with self.assertRaises(ValueError): AuthService(FakeData()).initialize(CTX,"admin","short")
+    def test_registration_password_hash_and_session_lifecycle(self):
+        row=self.data.get_user(CTX,self.alice.user_id)
+        self.assertTrue(row["password_hash"].startswith("scrypt$"))
+        self.assertNotIn("password_hash",self.alice_record)
+        self.assertEqual(self.auth.authenticate_session(CTX,self.alice_token).user_id,self.alice.user_id)
+        with self.assertRaises(PermissionError): self.auth.login(CTX,"alice","wrong-password")
+        self.auth.logout(CTX,self.alice_token)
+        with self.assertRaises(PermissionError): self.auth.authenticate_session(CTX,self.alice_token)
+        with self.assertRaises(PermissionError): self.auth.authenticate_session(CTX,"forged")
+    def test_active_state_is_reloaded_for_principal_and_session(self):
+        self.auth.set_user_active(CTX,self.admin,self.alice.user_id,False)
+        for action in (lambda:self.auth.authorize(CTX,self.alice,"read"),
+                       lambda:self.auth.authenticate_session(CTX,self.alice_token)):
+            with self.assertRaises(PermissionError): action()
+        self.assertNotIn("password_hash",repr(self.auth))
+        with self.assertRaises(PermissionError): self.auth.set_user_active(CTX,self.alice,self.bob.user_id,False)
+    def test_notebook_owner_editor_viewer_guest_and_admin_scope(self):
+        self.data.create_notebook("admin-book",self.admin.user_id)
+        self.data.create_notebook("bob-book",self.bob.user_id)
+        self.auth.set_member(CTX,self.admin,"admin-book",self.alice.user_id,"editor")
+        self.auth.set_member(CTX,self.admin,"admin-book","guest","viewer")
+        self.auth.set_member(CTX,self.bob,"bob-book",self.alice.user_id,"viewer")
+        self.assertEqual(self.auth.notebook_permissions(CTX,self.admin,"admin-book"),
+                         ["read","query","import_document","write","manage_members","manage_notebook"])
+        self.assertEqual(self.auth.notebook_permissions(CTX,self.alice,"admin-book"),
+                         ["read","query","import_document","write"])
+        self.assertEqual(self.auth.notebook_permissions(CTX,self.guest,"admin-book"),["read","query"])
+        self.assertEqual(self.auth.notebook_permissions(CTX,self.admin,"bob-book"),[])
+        self.assertEqual(self.auth.allowed_notebooks(CTX,self.admin,["admin-book","bob-book"],["bob-book"]),["admin-book"])
+        self.assertEqual(self.auth.allowed_notebooks(CTX,self.alice,["admin-book","bob-book"]),["admin-book","bob-book"])
+        with self.assertRaises(PermissionError): self.auth.authorize_notebook(CTX,self.alice,"admin-book","manage_members")
+        with self.assertRaises(ValueError): self.auth.set_member(CTX,self.admin,"admin-book","guest","editor")
+        with self.assertRaises(ValueError): self.auth.set_member(CTX,self.admin,"admin-book",self.bob.user_id,"manager")
+    def test_share_targets_include_guest_and_membership_is_owner_only(self):
+        self.data.create_notebook("admin-book",self.admin.user_id)
+        targets=self.auth.list_share_targets(CTX,self.admin,"admin-book")
+        self.assertIn("guest",{item["id"] for item in targets})
+        self.assertNotIn("password_hash",str(targets))
+        with self.assertRaises(PermissionError): self.auth.list_members(CTX,self.alice,"admin-book")
+        self.auth.set_member(CTX,self.admin,"admin-book",self.alice.user_id,"viewer")
+        self.assertEqual(self.auth.list_members(CTX,self.admin,"admin-book"),[{"user_id":self.alice.user_id,"role":"viewer"}])
+        self.auth.remove_member(CTX,self.admin,"admin-book",self.alice.user_id)
+        self.assertEqual(self.auth.notebook_permissions(CTX,self.alice,"admin-book"),[])
+    def test_admin_user_controls_and_last_admin_protection(self):
+        with self.assertRaises(PermissionError): self.auth.set_user_active(CTX,self.admin,self.admin.user_id,False)
+        self.assertEqual({u["username"] for u in self.auth.list_admin_users(CTX,self.admin)},{"rootadmin","alice","bob"})
+        self.auth.set_user_active(CTX,self.admin,self.bob.user_id,False)
+        with self.assertRaises(PermissionError): self.auth.authorize(CTX,self.bob,"query")
+        listed={u["id"]:u for u in self.auth.list_admin_users(CTX,self.admin)}
+        self.assertFalse(listed[self.bob.user_id]["is_active"])
+        self.auth.set_user_active(CTX,self.admin,self.bob.user_id,True)
+        self.assertTrue({u["id"]:u for u in self.auth.list_admin_users(CTX,self.admin)}[self.bob.user_id]["is_active"])
+        with self.assertRaises(ValueError): self.auth.set_user_active(CTX,self.admin,"guest",False)
+    def test_site_quota_is_shared_and_atomic_under_concurrency(self):
+        def reserve(_):
+            try:self.auth.reserve_query(CTX); return True
+            except PermissionError:return False
+        with ThreadPoolExecutor(max_workers=32) as pool:
+            results=list(pool.map(reserve,range(140)))
+        self.assertEqual(sum(results),100)
+        self.assertEqual(self.auth.quota_status(CTX)["used"],100)
+        with self.assertRaises(PermissionError):self.auth.reserve_query(CTX)
+    def test_unknown_permission_and_forged_principal_rejected(self):
+        from core_specifications import AuthPrincipal
+        with self.assertRaises(PermissionError): self.auth.authorize(CTX,AuthPrincipal(self.admin.user_id,"admin"),"manage_models")
+        with self.assertRaises(ValueError): self.auth.authorize(CTX,self.admin,"unknown")
+        self.auth.authorize(CTX,self.admin,"manage_models")
 
-    def admin(self, service=None):
-        return (service or self.auth).authenticate_proxy(self.ctx, TOKEN, OWNER, "admin")
-
-    def test_A01_guest_read_query_allowed_writes_denied(self):
-        for service in (AuthService(), self.auth):
-            principal = service.guest(self.ctx)
-            self.assertEqual((principal.user_id, principal.role, principal.proof), ("visitor", "guest", ""))
-            for permission in ("read", "query"):
-                self.assertIsNone(service.authorize(self.ctx, principal, permission))
-            for permission in PERMISSIONS[2:]:
-                with self.assertRaises(PermissionError):
-                    service.authorize(self.ctx, principal, permission)
-            anonymous = service.guest(RequestContext("t", "r"))
-            self.assertEqual(anonymous.user_id, "guest")
-            with self.assertRaises(FrozenInstanceError):
-                principal.role = "admin"
-
-    def test_A02_authenticated_owner_can_use_all_permissions(self):
-        principal = self.admin()
-        self.assertEqual((principal.user_id, principal.role), (OWNER, "admin"))
-        self.assertTrue(principal.proof)
-        self.assertNotEqual(principal.proof, TOKEN)
-        for permission in PERMISSIONS:
-            self.assertIsNone(self.auth.authorize(self.ctx, principal, permission))
-        self.assertIsInstance(self.auth, AuthServicePort)
-
-    def test_A02_wrong_token_owner_or_role_denied(self):
-        cases = [
-            ("incorrect-token-sentinel", OWNER, "admin"), (TOKEN, "different-owner", "admin"),
-            (TOKEN, OWNER, "guest"), (TOKEN, OWNER, "Admin"), (TOKEN, OWNER, "admin "),
-            (None, OWNER, "admin"), (TOKEN, None, "admin"), (TOKEN, OWNER, None),
-            (TOKEN.encode(), OWNER, "admin"), ("\ud800", OWNER, "admin"),
-        ]
-        for token, owner, role in cases:
-            with self.subTest(token_type=type(token).__name__, owner_type=type(owner).__name__, role=role):
-                with self.assertRaises(PermissionError):
-                    self.auth.authenticate_proxy(self.ctx, token, owner, role)
-        with self.assertRaises(PermissionError):
-            AuthService().authenticate_proxy(self.ctx, "", "", "admin")
-
-    def test_A02_proxy_token_uses_constant_time_comparison_even_wrong_identity(self):
-        original = auth_runtime.hmac.compare_digest
-        with patch.object(auth_runtime.hmac, "compare_digest", wraps=original) as compare:
-            with self.assertRaises(PermissionError):
-                self.auth.authenticate_proxy(self.ctx, TOKEN, "wrong-owner", "guest")
-            compare.assert_called_once_with(TOKEN.encode("utf-8"), TOKEN.encode("utf-8"))
-
-    def test_A03_forged_and_cross_instance_principals_denied_for_every_permission(self):
-        principal = self.admin()
-        other = AuthService(TOKEN, OWNER)
-        for permission in PERMISSIONS:
-            with self.assertRaises(PermissionError):
-                other.authorize(self.ctx, principal, permission)
-        forged = [
-            AuthPrincipal(OWNER, "admin"), AuthPrincipal(OWNER, "admin", TOKEN),
-            AuthPrincipal(OWNER, "admin", "forged-proof"), replace(principal, user_id="other-owner"),
-            replace(principal, role="guest"), replace(principal, proof=principal.proof[:-1]),
-            replace(principal, proof="\ud800"), AuthPrincipal("", "guest"),
-            AuthPrincipal(" guest ", "guest"), AuthPrincipal("visitor", "owner"),
-            {"user_id": OWNER, "role": "admin", "proof": principal.proof}, None,
-        ]
-        for value in forged:
-            for permission in PERMISSIONS:
-                with self.assertRaises(PermissionError):
-                    self.auth.authorize(self.ctx, value, permission)
-            with self.assertRaises(PermissionError):
-                self.auth.allowed_notebooks(self.ctx, value, ["cmrc2018-demo"], ["cmrc2018-demo"])
-
-    def test_A04_guest_public_intersection_admin_all_order_and_deduplication(self):
-        available = ["private", "public-b", "public-a", "public-b", "知识库_1"]
-        published = ["public-a", "public-b", "not-available", "public-a"]
-        guest = self.auth.guest(self.ctx)
-        self.assertEqual(self.auth.allowed_notebooks(self.ctx, guest, available, published), ["public-b", "public-a"])
-        selected = self.auth.allowed_notebooks(self.ctx, self.admin(), available, published)
-        self.assertEqual(selected, ["private", "public-b", "public-a", "知识库_1"])
-        selected.append("changed")
-        self.assertNotIn("changed", available)
-        self.assertEqual(self.auth.allowed_notebooks(self.ctx, guest, available, []), [])
-        self.assertEqual(self.auth.allowed_notebooks(self.ctx, self.admin(), [], published), [])
-
-    def test_A04_invalid_ids_and_unknown_permissions_rejected(self):
-        guest = self.auth.guest(self.ctx)
-        invalid_ids = ["", " ", "../private", "private/source", "private\\source", ".", "..",
-                       "a\x00b", "a\nb", " hidden", "trailing ", "a b", "private%2Fsource", True, None]
-        for notebook_id in invalid_ids:
-            for available, published in (([notebook_id], []), ([], [notebook_id])):
-                with self.assertRaises(ValueError):
-                    self.auth.allowed_notebooks(self.ctx, guest, available, published)
-                with self.assertRaises(ValueError):
-                    self.auth.allowed_notebooks(self.ctx, self.admin(), available, published)
-        for invalid_list in (None, "public", ("public",), {"public"}):
-            with self.assertRaises(ValueError):
-                self.auth.allowed_notebooks(self.ctx, guest, invalid_list, [])
-        for permission in ("delete", "", "READ", True, None, ["read"]):
-            with self.assertRaises(ValueError):
-                self.auth.authorize(self.ctx, guest, permission)
-
-    def test_A05_repr_and_exceptions_do_not_contain_server_secrets(self):
-        admin = self.admin()
-        forbidden = (TOKEN, OWNER, admin.proof)
-        for value in forbidden:
-            self.assertNotIn(value, repr(self.auth))
-        self.assertNotIn(TOKEN, repr(admin))
-        self.assertNotIn(admin.proof, repr(admin))
-        for action in (
-            lambda: self.auth.authenticate_proxy(self.ctx, TOKEN, "bad-owner", "admin"),
-            lambda: self.auth.authorize(self.ctx, AuthPrincipal(OWNER, "admin", TOKEN), "write"),
-            lambda: AuthService(TOKEN, OWNER + " "),
-        ):
-            try:
-                action()
-            except (PermissionError, ValueError) as error:
-                for value in forbidden:
-                    self.assertNotIn(value, str(error))
-                    self.assertNotIn(value, repr(error))
-            else:
-                self.fail("Expected authentication failure")
-
-    def test_configuration_validates_pair_byte_length_and_owner(self):
-        for token, owner in (("", OWNER), (TOKEN, ""), ("x" * 31, OWNER),
-                             (TOKEN, " owner"), (TOKEN, "owner "), (TOKEN, "o\nn"),
-                             (TOKEN, "\ud800"), ("\ud800", OWNER), (" " * 40, OWNER),
-                             (None, OWNER), (TOKEN, None)):
-            with self.assertRaises(ValueError):
-                AuthService(token, owner)
-        exact = AuthService("x" * 32, OWNER)
-        self.assertEqual(exact.authenticate_proxy(self.ctx, "x" * 32, OWNER, "admin").role, "admin")
-        multibyte = "密" * 11
-        service = AuthService(multibyte, "管理员")
-        principal = service.authenticate_proxy(self.ctx, multibyte, "管理员", "admin")
-        self.assertIsNone(service.authorize(self.ctx, principal, "write"))
-
-
-if __name__ == "__main__":
-    unittest.main()
+if __name__=="__main__": unittest.main()

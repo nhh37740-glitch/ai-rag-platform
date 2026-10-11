@@ -2,6 +2,36 @@
 
 唯一共享类型和 Protocol 位于 `core_specifications`。下列签名同时登记在 `API_SCHEMA.json`，实现不得自行增删必需参数。业务方法的第一个参数均为 `ctx: RequestContext`（不计 self）。
 
+## 0.3.0 用户授权重构的生效接口
+
+本节优先于下方历史接口。运行时单个 RAGnotebook HTTP 进程；四个业务模块仅在进程内调用公开 API。一次性新建并冻结六张表，不迁移旧账号、ACL、笔记本或独立数据库。
+
+DataService 使用唯一 database_path。所有 store 共用同一 SQLite connection；不暴露裸连接，不自动 ALTER 或建立 schema_migrations。
+
+DataServicePort：
+
+- initialize(ctx)；memory_store(ctx)、vector_store(ctx)、state_db(ctx)、notebook_store(ctx)。
+- 用户：get_user(ctx,user_id)、get_user_by_username(ctx,username)、create_user(ctx,user)、list_users(ctx,active_only=True)、set_user_active(ctx,user_id,active)。
+- 额度：reserve_site_quota(ctx,local_date,limit) 原子预占，超额返回 None；site_quota_used(ctx,local_date) 聚合全站用量。
+- 笔记本：create_notebook(ctx,metadata)、get_notebook(ctx,notebook_id)、list_notebooks(ctx,user_id)、update_notebook(ctx,notebook_id,name)、delete_notebook(ctx,notebook_id)。
+- 成员：membership_snapshot(ctx,notebook_id)、list_members(ctx,notebook_id)、put_member(ctx,notebook_id,user_id,role)、delete_member(ctx,notebook_id,user_id)。
+- 会话：save_conversation(ctx,conversation)、get_conversation(ctx,conversation_id,user_id)、list_conversations(ctx,user_id,notebook_id=None)、delete_conversation(ctx,conversation_id,user_id)。notebook_id 是排序 scope 的 JSON；None 表示该用户全部会话。
+- Agent数据：get_agent_data(ctx,type,name)、set_agent_data(ctx,type,name,content)、list_agent_data(ctx,type)；memory、state、模型选择均存 agent_data。
+- close(ctx) 只关闭一次底层连接。
+
+AuthService 构造参数：data: DataServicePort、session_ttl_seconds=43200、daily_limit=100。公开入口：initialize(ctx,admin_username,admin_password)、register(ctx,username,password)、login(ctx,username,password)、authenticate_session(ctx,token)、logout(ctx,token)、guest(ctx)、authorize(ctx,principal,permission)、allowed_notebooks(ctx,principal,available_ids,public_ids=None)、notebook_permissions(ctx,principal,notebook_id)、authorize_notebook(ctx,principal,notebook_id,permission)、list_members(ctx,principal,notebook_id)、list_share_targets(ctx,principal,notebook_id)、set_member(ctx,principal,notebook_id,user_id,role)、remove_member(ctx,principal,notebook_id,user_id)、list_admin_users(ctx,principal)、set_user_active(ctx,principal,user_id,active)、quota_status(ctx)、reserve_query(ctx)。
+
+身份 role 仅 admin/user/guest；笔记本 owner 由 notebooks.owner_user_id 表示，不是成员 role。成员 role 仅 editor/viewer；游客可作为 viewer，不可为 editor。admin 不自动访问私人笔记本；普通用户可创建 notebook，guest 不可。每个鉴权请求查询用户有效状态。令牌限 12 小时且仅进程内保存，重启后全部失效。guest 问答不保存 conversations。全站 100 次/北京时间日，由 users 计数并事务原子预占。
+
+Schema 六表字段固定：
+- users：id, username, password_hash, is_admin, is_guest, is_active, quota_date, quota_used
+- notebooks：id, owner_user_id, name, created_at
+- notebook_members：notebook_id, user_id, role
+- documents：id, document_id, notebook_id, file_name, chunk_index, content, embedding
+- conversations：id, user_id, notebook_id, title, messages, updated_at
+- agent_data：id, type, name, content, updated_at
+
+首次初始化由环境提供管理员用户名和密码，并创建一个 admin 和固定 guest；已有库不会覆盖或重新播种。结构不同立即启动失败。
 ## 数据库：data-facade / data_facade
 
 ```python

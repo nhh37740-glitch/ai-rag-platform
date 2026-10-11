@@ -6,7 +6,7 @@
 
 ## 当前分层（2026-10-09）
 
-apps/web 只负责静态网页和 API 调用；apps/agent-server 装配 AgentService、RagService、DataService、AuthService。鉴权业务由独立 auth-facade 提供，底层身份与代理证明校验由 auth-runtime 提供；四个业务 facade 各自封装本域能力，跨域只通过 core_specifications 中的 Protocol 注入。
+apps/web 只负责静态网页和 API 调用；apps/ragnotebook 装配 AgentService、RagService、DataService、AuthService。鉴权业务由独立 auth-facade 提供，底层身份与代理证明校验由 auth-runtime 提供；四个业务 facade 各自封装本域能力，跨域只通过 core_specifications 中的 Protocol 注入。
 
 | 域 | 中间包 | 一级实现 |
 |---|---|---|
@@ -24,7 +24,7 @@ apps/web 只负责静态网页和 API 调用；apps/agent-server 装配 AgentSer
 | **端口与适配器（六边形）** | 核心只依赖"端口"接口，外部实现是"适配器"，可整体替换 | `LLMProvider`、`VectorStore`、`Storage`、`McpServerClient`；适配器见下 |
 | **策略（Strategy）** | 同一操作可有多个可切换实现 | 向量化 `embed`（`fastembed`/`hash`）、LLM（`DeepSeek`/`Mock`） |
 | **适配器（Adapter）** | 把异构接口转成统一类型 | `DeepSeekProvider`（OpenAI 兼容→`LLMProvider`）、`normalize_to_tool`（MCP→`ToolDef`） |
-| **抽象工厂 / 依赖注入（组合根）** | 主进程集中创建并注入依赖 | `apps/agent-server/server.py` 装配四个业务 facade，各 facade 构造或封装本域实现 |
+| **抽象工厂 / 依赖注入（组合根）** | 主进程集中创建并注入依赖 | `apps/ragnotebook/server.py` 装配四个业务 facade，各 facade 构造或封装本域实现 |
 | **门面（Facade）** | 一个薄入口封装复杂编排 | `AgentRuntime.run`（编排循环）、`Storage`（持久层门面） |
 | **注册表 / 插件（Registry）** | 动态注册、按名取用 | `ToolRegistry`（`@tool`）、`SkillRegistry`（`SKILL.md`）、`MockMcpServer` |
 | **接口规范 / 按合约设计** | 先定接口与类型，再实现 | `specifications/`（`core_specifications` + `INTERFACE.md` + `API_SCHEMA.json` + `test_specification.py`） |
@@ -99,7 +99,7 @@ apps/web 只负责静态网页和 API 调用；apps/agent-server 装配 AgentSer
 - `Storage.memory_*/add_documents/search_documents/save_eval/load_eval`
 - `make_storage(db_path, memory_store, vector_store)`（组合 memory + vector + SQLite 门面；没有 pgvector 适配器；SQLite 向量实现及状态门面已注册并由 DataService 消费）
 
-### 主进程 `apps/agent-server/server.py`
+### 主进程 `apps/ragnotebook/server.py`
 FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问题）、`GET/POST /api/notebooks`（列出/创建笔记本）、`POST /api/notebooks/{id}/files`（上传并转 Markdown）、`POST /api/chat`、`GET /api/chat/stream`（携带知识库选择的 SSE）、`GET /api/trace/{trace_id}`。
 
 ## 4. 运行结构与数据流
@@ -119,8 +119,8 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
 ```
 
 前端与产物：
-- **上传适配**：`apps/agent-server/document_upload.py` 负责类型/大小校验、临时文件清理并调用 ingestion 转换 Markdown。
-- **Web 前端**：`apps/agent-server/webui/index.html` 负责页面结构，`knowledge_demo.css` 负责样式，`knowledge_demo.js` 负责笔记本创建、文件上传、知识库选择、示例问题和 SSE 聊天。
+- **上传适配**：`apps/ragnotebook/document_upload.py` 负责类型/大小校验、临时文件清理并调用 ingestion 转换 Markdown。
+- **Web 前端**：`apps/ragnotebook/webui/index.html` 负责页面结构，`knowledge_demo.css` 负责样式，`knowledge_demo.js` 负责笔记本创建、文件上传、知识库选择、示例问题和 SSE 聊天。
 - **编译产物**：Jenkins/Linux 通过 `scripts/compile_extension_modules.py` 用 Cython 编成 `.so`；Windows 目标为 `.pyd`，独立 worker 的手动交付可由 `scripts/compile_service_executables.ps1` 生成 `bin/*.exe`；`scripts/package_release_artifacts.py` 生成发布元数据与注册表。
 
 ## 5. 关键设计决策
@@ -135,7 +135,7 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
 前提为依赖和当前平台编译工件齐备。新环境安装与离线 hash 配置见根 README；源码 editable 安装不能替代运行工件。下面的启动默认使用 FastEmbed，运行验收也会使用当前 embedding 配置。
 
 ```bash
-.\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server server:app --port 8000
+.\.venv\Scripts\python.exe -m uvicorn --app-dir apps/ragnotebook server:app --port 8000
 .\.venv\Scripts\python.exe scripts/verify_compiled_runtime.py
 ```
 

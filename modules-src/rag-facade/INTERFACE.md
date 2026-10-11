@@ -1,24 +1,7 @@
-# rag-facade 0.1.0
+# rag-facade 0.2.0
 
-Public export: `RagService`. Shared types come from `core_specifications`.
-Canonical signatures and acceptance cases R01–R05 are defined in
-`specifications/DOMAIN_INTERFACES.md`; the package schema mirrors the root API schema.
+`RagService` 提供文档解析、切分、嵌入、入库、检索和追踪读取。它依赖 VectorStore 端口、`ingestion`、`rag-core`、`rag-tools` 与 `observability`。持久化由 `data-facade` 提供。
 
-Construct with `RagService(store: VectorStore, tracing: TraceStorePort, top_k: int = 5)`.
-The caller owns persistence and tracing. No database connection is created here.
-Search modes are vector, hybrid and keyword. Queries must be nonempty; top_k is
-an integer 1..20 excluding bool. Scope is always an explicit list; [] yields no
-documents. Reads enforce scope and pagination (default 20, maximum 100 chunks).
-Citation metadata includes chunk_index and total_chunks; tool JSON additionally
-reports offset, truncated and next_offset.
+构造：`RagService(store: VectorStore, tracing: TraceStorePort | None = None, top_k: int = 5)`。未传入 tracing 时，由 RAG 业务模块创建进程内追踪存储。`record(span)` 和 `get(trace_id)` 暴露追踪业务接口，供同一问答链路记录和读取事件；HTTP 应用不直接导入 `observability`。
 
-`execute_tool` accepts only the five read-only RagTools tools. Model arguments
-`ctx`, `runtime_context` and `knowledge_base_ids` are ignored; unknown remaining
-arguments/tools raise ValueError. Typed retrieval and tool execution record rag
-spans, including validation failures. Empty-scope search does not load embeddings.
-
-Ingestion supports md/txt/docx/pdf via ingestion. Empty extracted content is
-rejected before a title is added. source_id is exactly kb/document, without path
-traversal or separators within either component. VectorStore.add determines
-atomic replacement semantics. IngestResult reports source_id, knowledge_base_id
-and chunk_count. The embedding backend follows rag_core configuration.
+支持 md/txt/docx/pdf。检索范围必须显式提供；空范围不返回文档。文档按页读取，每次最多 100 个分块。`ingest` 接收服务端临时文件路径，完成解析、切分、嵌入和入库。

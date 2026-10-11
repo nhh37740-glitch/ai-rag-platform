@@ -66,7 +66,7 @@ uv pip install cython nuitka build
 .\.venv\Scripts\python.exe scripts\build_release_bundle.py
 ```
 
-`verify_compiled_runtime.py` 会复用 `apps/agent-server/runtime_boundary.py`，确认所有业务模块都来自 `artifacts/` 的编译产物；只要有一个模块来自 `modules-src`，服务与验收都会直接失败。
+`verify_compiled_runtime.py` 会复用 `apps/ragnotebook/runtime_boundary.py`，确认所有业务模块都来自 `artifacts/` 的编译产物；只要有一个模块来自 `modules-src`，服务与验收都会直接失败。
 
 发布脚本按当前操作系统生成 `dist/ai-rag-platform-<version>-<platform>.zip`、独立 SHA-256 文件及清单，并重新读取 ZIP 验证所有条目校验和。Linux `.so` 交付必须在 Linux 构建机执行；Jenkinsfile 在 Docker 构建阶段完成这一步并归档产物。
 

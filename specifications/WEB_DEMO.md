@@ -1,6 +1,6 @@
 # 公开研发文档问答演示 HTTP 接口规范
 
-本接口规范只约束 apps/agent-server 的 HTTP 适配，不修改已发布模块 facade。由独立容器设置 PUBLIC_DEMO=1 启用，私有工作区保持原行为。
+本接口规范只约束 apps/ragnotebook 的 HTTP 适配，不修改已发布模块 facade。由独立容器设置 PUBLIC_DEMO=1 启用，私有工作区保持原行为。
 
 ## 范围与模式
 

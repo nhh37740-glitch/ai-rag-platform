@@ -1,5 +1,11 @@
 # agent-facade
 
+## 0.4.0 — 2026-10-11
+
+- 增加 Provider/Model 目录和管理员选择接口，凭据只从服务器环境读取。
+- 模型选择写入统一 agent_data，启动恢复；切换后新请求使用新 Runtime。
+- Provider 更新串行提交并原子替换 Runtime，正在运行的问答继续使用开始时的配置。
+
 ## 0.3.0 — 2026-10-11
 
 将既有环境模型配置及OpenRouter免费选择策略归入resolve_model_config业务接口；返回隐藏凭据repr的不可变共享值对象。管理员目录管理仍为设计。

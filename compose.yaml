@@ -22,25 +22,14 @@ services:
       dev-knowledge.model-env-file: ${RAG_MODEL_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
     environment:
       STATE_DIR: /opt/agent/state
-      WEB_QUOTA_STATE_DIR: /opt/agent/web-quota
+      RAG_DATABASE_PATH: /opt/agent/state/ragnotebook.sqlite
       RAG_EMBED: ${RAG_EMBED:-hash}
       BGE_MODEL: ${BGE_MODEL:-BAAI/bge-small-zh-v1.5}
       FASTEMBED_CACHE_PATH: /opt/agent/models/fastembed_cache
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
-      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
     volumes:
       - agent-state:/opt/agent/state
-      - user-notebooks:/opt/agent/data/kb/user-notebooks
-      - agent-files:/opt/agent/data/agent-files
       - model-cache:/opt/agent/models/fastembed_cache
-      - web-quota:/opt/agent/web-quota
 
 volumes:
   agent-state:
-  user-notebooks:
-  agent-files:
   model-cache:
-  web-quota:
-    external: true
-    name: ai-rag-web-quota

@@ -1,121 +1,33 @@
-# 研发文档问答（Dev Knowledge Agent）
+# RAGnotebook
 
-上传研发文档，在所选笔记本内查资料、返回来源，并通过 trace 查看检索与工具调用过程。当前 Web 使用自写 Python Agent 循环，集成 RAG、Agent Skills、Function Calling、记忆和链路追踪；MCP 是独立模块，尚未接入该 Web。
+RAGnotebook 是一个面向浏览器的文档问答应用，支持账号注册与登录、笔记本创建和共享、文档上传、带来源问答、会话历史，以及管理员账号和模型管理。
 
-准备面试先读 [`docs/INTERVIEW.md`](docs/INTERVIEW.md)：一条请求链路、三天练习安排、演示步骤及能力边界。当前没有 LangChain/LangGraph/Hermes 实践实现，也没有可信的回答质量提升数据。2026-10-08 本机二进制链路和 7 项应用演示测试通过，接口规范检查有 3 处产物签名不一致，详情见 [`docs/PLAN.md`](docs/PLAN.md#三天面试准备与事实核对2026-10-08)。
+浏览器只访问 `RAGnotebook` HTTP API。后端运行在一个进程中，内部由 `auth-facade`、`data-facade`、`rag-facade`、`agent-facade` 四个业务模块处理请求。HTTP 路由不直接访问数据库、向量库或其他一级能力模块。
 
-文档入口：[`docs/PLAN.md`](docs/PLAN.md) 是唯一实施计划；[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 解释模块关系；[`docs/MANUAL_COMPILATION.md`](docs/MANUAL_COMPILATION.md) 提供手动编译顺序。
+## 数据与账号
 
-## 目录职责
+全部关系数据和文档向量共用一个 SQLite 文件，固定六张表：`users`、`notebooks`、`notebook_members`、`documents`、`conversations`、`agent_data`。首次启动创建结构；已有数据库结构不符时启动失败，不执行迁移。旧账号和笔记本不导入。
 
-```text
-specifications/                  共享类型、接口接口规范与接口规范测试
-modules-src/                各独立模块的实现源码
-artifacts/                  手动编译和发布后生成的版本化交付物
-apps/agent-server/server.py FastAPI 服务与模块装配入口
-apps/agent-server/document_upload.py 上传校验、临时文件清理与 Markdown 转换入口
-apps/agent-server/webui/    笔记本管理、文件上传与中文知识问答页面
-data/kb/                    内置中文语料与用户文档共用的项目知识库
-data/agent-files/           Agent 只能在此创建的受限文本文件
-skills/                     Agent Skills 定义
-scripts/                    编译、打包和验收入口
-registry.json               模块版本、校验和与发布状态
-```
+首次启动通过服务器环境配置管理员账号，并创建固定游客账号。普通用户可自行注册。笔记本所有者由 `notebooks.owner_user_id` 表示；成员角色只有 `editor`、`viewer`。项目管理员身份与笔记本所有权相互独立。游客可作为 `viewer` 被共享，游客问答不保存历史。所有身份共用每天 100 次问答额度。
 
-`scripts/` 只保留职责明确的入口：
+登录令牌只保存在后端进程内存。服务器重启后需要重新登录；每个请求都会检查账号是否有效。模型密钥只从服务器环境读取，模型选择保存在 `agent_data`，API 不返回密钥。
 
-- `compile_extension_modules.py`：编译进程内 Python 扩展模块。
-- `compile_service_executables.ps1`：编译独立服务可执行文件。
-- `package_release_artifacts.py`：生成发布接口规范、校验和与注册表。
-- `verify_compiled_runtime.py`：验收二进制模式；业务模块必须全部来自 `artifacts/`，源码模式会被运行边界拒绝。
+## 目录
 
-## 四个业务模块（2026-10-10）
+- `apps/ragnotebook/`：RAGnotebook HTTP API 与网页资源。
+- `apps/web/`：只调用 RAGnotebook API 的浏览器页面。
+- `modules-src/*-facade/`：四个业务模块的公开接口。
+- `modules-src/` 其他目录：解析、检索、存储等能力模块。
+- `specifications/`：共享类型与模块接口规范。
+- `scripts/`：依赖边界检查、测试、编译和发布制品脚本。
 
-服务通过 `AgentService`、`RagService`、`DataService`、`AuthService` 装配；前三个接口见 [specifications/DOMAIN_INTERFACES.md](specifications/DOMAIN_INTERFACES.md)，鉴权接口见 [specifications/AUTH_INTERFACES.md](specifications/AUTH_INTERFACES.md)。网页位于 `apps/web/`，仅调用 API。四个业务包和所有一级实现均编译交付，服务拒绝源码加载。
-
-```powershell
-.venv/Scripts/python.exe scripts/run_tests.py --mode source --group leaf
-.venv/Scripts/python.exe scripts/run_tests.py --mode source --group facade
-.venv/Scripts/python.exe scripts/compile_extension_modules.py
-.venv/Scripts/python.exe scripts/package_release_artifacts.py
-.venv/Scripts/python.exe scripts/run_tests.py --mode binary --group specification
-.venv/Scripts/python.exe scripts/run_tests.py --mode binary --group domain
-.venv/Scripts/python.exe scripts/run_tests.py --mode binary --group app
-```
-
-Jenkins 每次构建通过 secret text 凭据 `rag-deepseek-api-key` 跑真实模型验收；凭据不进入源码、前端和发布包。检索回归跑 CMRC 全99题，模型验收跑两道固定题。Linux 部署回滚测试在 Linux 环境运行。
-
-## 中文 RAG 演示
-
-Web 启动时从 `data/kb/cmrc2018-demo/` 导入 CMRC2018 dev 子集，共 24 篇中文知识文档、99 个可用问题。页面还能创建独立笔记本，上传 `.md/.txt/.docx/.pdf` 并统一转成 Markdown；每次对话只检索勾选的知识库。内置语料只用于展示流程，不用于比较中文向量模型。
-
-## Web 界面：笔记本即工作区
-
-界面按"笔记本 = 独立工作区"组织：左栏列出全部笔记本与当前笔记本的来源，切换到某个笔记本就切换整个工作区——来源列表、对话记录、会话 id 都随之切换，互不干扰。
-
-- 检索范围只包含当前笔记本，不存在"上一次还选中着"的残留状态。
-- 页面为每个笔记本生成独立会话 id，同一笔记本连续提问共享聊天历史；后端持久记忆尚未按 session_id 过滤，因此不能保证全部记忆跨笔记本隔离。
-- 上传只作用于当前笔记本；创建或导入完成后自动切到那个笔记本。
-- 每条回答下方以小号等宽字体显示 trace id，可点击跳转到 `/api/trace/<id>`。
-
-## 安装与启动
-
-```powershell
-uv venv .venv
-uv pip install --python .venv/Scripts/python.exe -r requirements-runtime.txt
-
-# 前提：artifacts 中已有与当前 Python ABI/平台匹配的全部 published 扩展。
-# 未交付二进制时先走下方 Linux Docker 构建或构建机流程，不能直接用源码启动。
-.\.venv\Scripts\python.exe scripts/verify_compiled_runtime.py
-.\.venv\Scripts\python.exe -m uvicorn --app-dir apps/agent-server server:app --port 8000
-```
-
-浏览器打开 `http://127.0.0.1:8000/`。当前本机工件为 Windows CPython 3.11 扩展，创建新环境时应使用匹配的解释器。编译工件被 Git 忽略，clone 仓库不会自动获得它们；安装 editable 业务源码也无法替代工件。源码安装仅用于模块单测和构建阶段，见 `Dockerfile`。
-
-未配置 `DEEPSEEK_API_KEY` 时使用离线 Mock；在根目录 `.env` 配置该变量后使用 DeepSeek。Mock 通过关键词选工具，可能原样返回工具 JSON 或固定文本，只可证明链路，不可当成真实问答效果。无需模型的离线演练要显式设置 `$env:RAG_EMBED='hash'`；默认 FastEmbed 可能下载模型。
-
-页面右上角「DeepSeek 设置」可为当前页面设置、替换或移除个人密钥。仅 HTTPS 或本机页面允许输入个人密钥；服务端也会拒绝来自公网 HTTP 页面携带密钥的请求。密钥只保留在页面内存中，通过同源 `POST /api/chat` 的请求头传递，刷新后清除；移除后恢复服务器配置或离线 Mock。服务端不保存浏览器密钥，`GET /api/llm/config` 只返回服务器是否已配置的布尔值和模型名。旧 `GET /api/chat/stream` 继续使用服务器配置。
-
-`rag_core` 会通过包依赖自动安装 FastEmbed，并在首次启动时加载 `.env` 中 `BGE_MODEL=BAAI/bge-small-zh-v1.5` 指定的中文向量模型。如果运行库或模型不可用，服务会直接报错；只有显式设置 `RAG_EMBED=hash` 才会启用无模型的离线向量。
-
-Agent 实际获得七个真实工具：五个由 `rag-tools` 模块公布的知识库检索工具（`search_knowledge_base`、`hybrid_search_knowledge_base`、`keyword_search_knowledge_base`、`list_knowledge_documents`、`read_knowledge_document`），以及 `create_file` 和 `save_conversation_to_knowledge_base`。选择知识库后，提示词要求先检索；未检索就收尾时最多追加两次提醒，并留下 `retrieval_guard` span，提醒耗尽仍可能返回未检索答案。回退顺序依赖模型遵循提示词，每轮只执行一次知识库检索。工具循环默认最多 10 轮。
-
-当前向量存储是 SQLite 保存 JSON 向量、NumPy 点积排序，不是 FAISS/Chroma；检索范围过滤不等于用户鉴权。SSE 在完整答案生成后一次返回，尚非逐 token 流式生成。聊天历史在进程内按用户/会话保存，SQLite 记忆尚未严格按会话隔离；这些边界均需在展示时说明。
-
-## 手动编译与验收
-
-编译步骤见 [`docs/MANUAL_COMPILATION.md`](docs/MANUAL_COMPILATION.md)。整理后的命令为：
-
-```powershell
-.\.venv\Scripts\python.exe scripts/compile_extension_modules.py
-.\scripts\compile_service_executables.ps1
-.\.venv\Scripts\python.exe scripts/package_release_artifacts.py
-.\.venv\Scripts\python.exe scripts/verify_compiled_runtime.py
-.\.venv\Scripts\python.exe -m pytest specifications/test_specification.py
-```
-
-总体方案见 [`docs/PLAN.md`](docs/PLAN.md)，架构说明见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
-
-## Linux Docker 与 Jenkins 交付
-
-根仓库是当前发布单元；`modules-src/` 中每个模块保留独立包、接口和版本，构建阶段用 Cython 编译为 Linux `.so`，运行镜像只包含 `artifacts/` 中的扩展、接口规范、应用、技能和演示语料。`runtime_boundary.py` 在启动时验证模块来源，缺少扩展时拒绝启动。
-
-在有 Docker Compose 的 Linux 主机上，从仓库根目录运行：
+## 源码测试
 
 ```sh
-docker compose --project-name ai-rag up -d --build
-docker compose --project-name ai-rag ps
-curl -f http://127.0.0.1:18080/api/demo
+python scripts/check_module_dependencies.py
+python scripts/run_tests.py --mode source --group leaf
+python scripts/run_tests.py --mode source --group facade
+python scripts/run_tests.py --mode source --group scripts
 ```
 
-默认只监听服务器回环地址的 `18080` 端口，供同机反向代理使用。Compose 显式设置 `RAG_EMBED=hash`，这样无需下载模型即可启动演示；需要 BGE 语义向量时，配置 `RAG_EMBED=fastembed`，模型缓存使用独立 volume。数据库、向量索引、用户笔记本和 Agent 文件分别用 volume 持久化。`DEEPSEEK_API_KEY` 留空时继续使用 Mock；实际密钥仅通过 Jenkins 凭据或服务器环境变量注入。
-
-`Jenkinsfile` 假设 Jenkins agent 运行在目标 Linux Docker 主机且有 Docker/Compose 权限。流水线执行模块单测、Linux 编译、严格接口规范测试、应用端到端测试和二进制运行边界验证；然后归档 `dist/ai-rag-platform-<version>-<platform>.zip`、SHA-256 与逐文件清单。`DeployDemo` 和 `DeployPublicDemo` 默认关闭，分别选择私有工作区与独立公开服务。候选健康检查或 smoke 失败时恢复旧镜像并重建容器；该流程不删除原服务命名卷。部署回滚测试在 Docker builder 阶段运行。ZIP 内不含 `modules-src/`。
-
-公开演示使用 `compose.public-demo.yaml`，回环端口18106，由主页反代到 `/projects/apps/rag/`。应用候选0.6.0通过独立编译的 `auth-facade` 实施管理员／游客操作权限及知识库可见范围，`auth-runtime` 提供身份和代理证明校验原语：游客只能查看内置CMRC文档和自由查询，管理员复用现有owner登录后可创建私人笔记本、导入文档并检索；管理员数据使用隔离持久卷，不自动公开。管理员工作区与登录适配分别为18108、18107，使用 `DeployAdminWorkspace` 部署参数。
-
-默认模型配置已支持 OpenRouter 服务端凭据与免费路由 `openrouter/free`，全站每天20次问答，按北京时间零点恢复；计数在后端持久化。显式 Mock / DeepSeek 模式保留。公开页可手动应用临时 key，仅页面内存保存，通过同源HTTPS请求使用，刷新后清除，不能绕过日额度或免费模型限制。凭据加载与发布依赖见 [`docs/OPENROUTER_RUNTIME.md`](docs/OPENROUTER_RUNTIME.md)；权限接口见 [`specifications/AUTH_INTERFACES.md`](specifications/AUTH_INTERFACES.md)，网页接口见 [`specifications/WEB_DEMO.md`](specifications/WEB_DEMO.md)。
-
-[公开演示](https://portfolio.72945645.xyz:8443/projects/apps/rag/) 与 [管理员登录](https://portfolio.72945645.xyz:8443/projects/apps/rag/admin/login) 沿用已开放8443端口。实际构建和部署记录见 [`docs/REFACTOR_VALIDATION.md`](docs/REFACTOR_VALIDATION.md)。
-
-笔记本权限、模型管理设计与本轮业务归属：[权限矩阵](docs/NOTEBOOK_PERMISSIONS.md) · [模型配置设计](docs/MODEL_CONFIGURATION.md) · [业务模块变更](docs/BUSINESS_CHANGE_MAP.md) · [验收及发布状态](docs/NOTEBOOK_ACCESS_VALIDATION.md)。模型表与管理员重置界面当前是设计，不能视为已上线能力。
+Docker/Jenkins 构建还会编译 Cython 扩展、验证二进制加载边界并运行应用集成测试。生产构建与部署状态以构建发布记录为准。

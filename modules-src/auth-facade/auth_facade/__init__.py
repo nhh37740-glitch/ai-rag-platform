@@ -1,197 +1,157 @@
 # cython: annotation_typing=False
 # cython: infer_types=False
 from __future__ import annotations
-
 import re
 import threading
-from datetime import datetime, timedelta, timezone
-
+import uuid
+from datetime import datetime,timedelta,timezone
 from auth_runtime import AuthRuntime
-from core_specifications import AuthPrincipal, RequestContext, StateStorePort, NotebookStorePort
-
-__version__ = "0.4.0"
-
-_READ_PERMISSIONS = frozenset({"read", "query"})
-_WRITE_PERMISSIONS = frozenset({"create_notebook", "import_document", "write", "archive_notebook", "restore_notebook"})
-_ROLE_PERMISSIONS = {
-    "viewer": ["read", "query"],
-    "editor": ["read", "query", "import_document", "write"],
-    "manager": ["read", "query", "import_document", "write", "manage_members", "manage_notebook"],
-}
-_NOTEBOOK_ID = re.compile(r"\w[\w.-]*", re.UNICODE)
-
-
+from core_specifications import AuthPrincipal,DataServicePort,RequestContext
+__version__="0.5.0"
+_USER_NAME=re.compile(r"[A-Za-z0-9_.-]{3,64}")
+_NOTEBOOK_ID=re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
+_PERMISSION_SET={"read","query","authenticated","create_notebook","manage_users","manage_models"}
+def _valid_password(value):
+    if not isinstance(value,str): return False
+    try: size=len(value.encode("utf-8"))
+    except UnicodeEncodeError: return False
+    return 8<=size<=1024
+def _public_user(user):
+    return {k:user[k] for k in ("id","username","is_admin","is_guest","is_active") if k in user}
 class AuthService:
-    """Authentication business facade over the low-level proof verifier."""
-
-    def __init__(self, proxy_token: str = "", owner_id: str = "", store: NotebookStorePort | None = None) -> None:
-        self._runtime = AuthRuntime(proxy_token, owner_id)
-        self._owner_id = owner_id
-        self._store = store
-        self._lock = threading.RLock()
-        if store is not None:
-            store.configure_roles(RequestContext("auth-boot", "auth-boot"), _ROLE_PERMISSIONS)
-
-    def guest(self, ctx: RequestContext) -> AuthPrincipal:
-        return self._runtime.guest(ctx)
-
-    def authenticate_proxy(
-        self, ctx: RequestContext, proxy_token: str, user_id: str, role: str
-    ) -> AuthPrincipal:
-        principal = self._runtime.authenticate_proxy(ctx, proxy_token, user_id, role)
-        if self._store is not None:
-            self._store.register_user(ctx, principal.user_id)
-        return principal
-
-    def authorize(
-        self, ctx: RequestContext, principal: AuthPrincipal, permission: str
-    ) -> None:
-        if not isinstance(permission, str) or permission not in _READ_PERMISSIONS | _WRITE_PERMISSIONS | {"authenticated"}:
-            raise ValueError("Unknown permission")
-        administrator = self._runtime.is_administrator(ctx, principal)
-        if permission == "authenticated" and not self._runtime.is_authenticated(ctx, principal):
-            raise PermissionError("Authentication required")
-        if permission in _WRITE_PERMISSIONS and not administrator:
-            raise PermissionError("Permission denied")
-
-    def allowed_notebooks(
-        self,
-        ctx: RequestContext,
-        principal: AuthPrincipal,
-        available_ids: list[str],
-        public_ids: list[str],
-    ) -> list[str]:
-        administrator = self._runtime.is_administrator(ctx, principal)
-        self._validate_ids(available_ids)
-        self._validate_ids(public_ids)
-        published = set(public_ids)
-        return list(dict.fromkeys(
-            notebook_id for notebook_id in available_ids
-            if self.notebook_permissions(ctx, principal, notebook_id, notebook_id in published)
-        ))
-
-    def _snapshot(self, ctx: RequestContext, notebook_id: str) -> dict:
-        self._validate_ids([notebook_id])
-        if self._store is None:
-            return {"revision": 0, "members": [], "is_public": False, "archived": False}
-        return self._store.membership_snapshot(ctx, notebook_id)
-
-    def _snapshot_permissions(self, ctx: RequestContext, principal: AuthPrincipal, snapshot: dict, public: bool = False) -> list[str]:
-        admin = self._runtime.is_administrator(ctx, principal)
-        if snapshot.get("archived"):
-            return []
-        if public or snapshot.get("is_public"):
-            return ["read", "query"]
-        if admin:
-            return [*_ROLE_PERMISSIONS["manager"], "archive_notebook", "restore_notebook"]
-        if not self._runtime.is_authenticated(ctx, principal) or self._store is None:
-            return []
-        role = next((m["role"] for m in snapshot["members"] if m["user_id"] == principal.user_id), None)
-        if role not in _ROLE_PERMISSIONS:
-            return []
-        granted = set(self._store.role_permissions(ctx, role))
-        return [p for p in _ROLE_PERMISSIONS[role] if p in granted]
-
-    @staticmethod
-    def _valid_user(user_id: object) -> bool:
-        return isinstance(user_id, str) and 0 < len(user_id) <= 128 and user_id == user_id.strip() and all(
-            ch.isalnum() or ch in "@_.-" for ch in user_id
-        )
-
-    def notebook_permissions(self, ctx: RequestContext, principal: AuthPrincipal, notebook_id: str, public: bool = False) -> list[str]:
-        self._validate_ids([notebook_id])
-        # Verify even before testing existence, so forged principals always fail.
-        self._runtime.is_administrator(ctx, principal)
-        try:
-            snapshot = self._snapshot(ctx, notebook_id)
-        except ValueError:
-            return []
-        if self._store is not None:
-            public = bool(snapshot.get("is_public"))
-        return self._snapshot_permissions(ctx, principal, snapshot, public)
-
-    def authorize_notebook(self, ctx: RequestContext, principal: AuthPrincipal, notebook_id: str, permission: str, public: bool = False) -> None:
-        if not isinstance(permission, str) or permission not in _ROLE_PERMISSIONS["manager"] + ["archive_notebook", "restore_notebook"]:
-            raise ValueError("Unknown notebook permission")
-        if permission not in self.notebook_permissions(ctx, principal, notebook_id, public):
-            raise PermissionError("Notebook permission denied")
-
-    def list_members(self, ctx: RequestContext, principal: AuthPrincipal, notebook_id: str) -> list[dict]:
+    """Authentication, notebook authorization, and site-wide query quota."""
+    def __init__(self,data:DataServicePort,session_ttl_seconds:int=43200,daily_limit:int=100):
+        if type(session_ttl_seconds) is not int or not 1<=session_ttl_seconds<=43200: raise ValueError("Invalid session lifetime")
+        if type(daily_limit) is not int or daily_limit<1: raise ValueError("Invalid daily limit")
+        self._data=data; self._runtime=AuthRuntime(); self._session_ttl=session_ttl_seconds
+        self._daily_limit=daily_limit; self._lock=threading.RLock()
+        self._dummy_hash=self._runtime.hash_password("constant-time-dummy-password")
+    def __repr__(self): return "AuthService(session_ttl_seconds=%r, daily_limit=%r)"%(self._session_ttl,self._daily_limit)
+    def initialize(self,ctx:RequestContext,admin_username:str,admin_password:str)->None:
+        self._data.initialize(ctx); users=self._data.list_users(ctx)
+        if users: return
+        self._validate_username(admin_username)
+        if admin_username.lower()=="guest" or not _valid_password(admin_password): raise ValueError("Invalid bootstrap credentials")
+        admin={"id":uuid.uuid4().hex,"username":admin_username,"password_hash":self._runtime.hash_password(admin_password),
+               "is_admin":True,"is_guest":False,"is_active":True,"quota_date":"","quota_used":0}
+        guest={"id":"guest","username":"guest","password_hash":None,"is_admin":False,"is_guest":True,"is_active":True,"quota_date":"","quota_used":0}
         with self._lock:
-            snapshot = self._snapshot(ctx, notebook_id)
-            if "manage_members" not in self._snapshot_permissions(ctx, principal, snapshot):
-                raise PermissionError("Notebook permission denied")
-            return [dict(member) for member in snapshot["members"]]
-
-    def _change_member(self, ctx, principal, notebook_id, user_id, role):
-        self._runtime.is_administrator(ctx, principal)
-        if not self._valid_user(user_id) or user_id == self._owner_id or (role is not None and (not isinstance(role,str) or role not in _ROLE_PERMISSIONS)):
-            raise ValueError("Invalid notebook member")
-        if self._store is None:
-            raise PermissionError("Notebook policy store unavailable")
-        with self._lock:
-            for _ in range(64):
-                snapshot = self._snapshot(ctx, notebook_id)
-                if "manage_members" not in self._snapshot_permissions(ctx, principal, snapshot):
-                    raise PermissionError("Notebook permission denied")
-                if role is None:
-                    done = self._store.delete_member(ctx,notebook_id,user_id,snapshot["revision"])
-                else:
-                    done = self._store.put_member(ctx,notebook_id,user_id,role,snapshot["revision"])
-                if done: return
-            raise PermissionError("Notebook policy changed; retry request")
-
-    def set_member(self, ctx: RequestContext, principal: AuthPrincipal, notebook_id: str, user_id: str, role: str) -> None:
-        if not isinstance(role,str) or role not in _ROLE_PERMISSIONS:
-            raise ValueError("Invalid notebook role")
-        self._change_member(ctx,principal,notebook_id,user_id,role)
-
-    def remove_member(self, ctx: RequestContext, principal: AuthPrincipal, notebook_id: str, user_id: str) -> None:
-        self._change_member(ctx,principal,notebook_id,user_id,None)
-
+            if self._data.list_users(ctx): return
+            self._data.create_user(ctx,admin); self._data.create_user(ctx,guest)
     @staticmethod
-    def _validate_ids(values: object) -> None:
-        if not isinstance(values, list) or any(
-            not isinstance(value, str) or _NOTEBOOK_ID.fullmatch(value) is None
-            for value in values
-        ):
-            raise ValueError("Invalid notebook identifiers")
-
-
-class DailyQueryQuota:
-    """Site-wide query policy backed by an injected atomic state-store port."""
-
-    def __init__(self, store: StateStorePort, limit: int = 20) -> None:
-        if type(limit) is not int or limit < 1:
-            raise ValueError("daily query limit must be a positive integer")
-        self._store = store
-        self._limit = limit
-
-    def _identity(self, ctx: RequestContext):
-        now = datetime.now(timezone(timedelta(hours=8)))
-        reset = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        # Client-supplied identities, sessions and roles never partition the budget.
-        fixed = RequestContext(ctx.trace_id, ctx.request_id, "__rag_shared_web_quota__")
-        return fixed, "web-query:" + now.date().isoformat(), reset.isoformat()
-
-    def _result(self, used: int, reset: str) -> dict:
-        return {"scope": "site", "limit": self._limit, "used": used,
-                "remaining": max(0, self._limit - used), "reset_at": reset}
-
-    def status(self, ctx: RequestContext) -> dict:
-        fixed, key, reset = self._identity(ctx)
-        used = self._store.get(fixed, key)
-        used = 0 if used is None else used
-        if type(used) is not int or used < 0:
-            raise ValueError("invalid daily query counter")
-        return self._result(used, reset)
-
-    def reserve(self, ctx: RequestContext) -> dict:
-        fixed, key, reset = self._identity(ctx)
-        used = self._store.increment_if_below(fixed, key, self._limit)
-        if used is None:
-            raise PermissionError("Daily query quota exhausted")
-        return self._result(used, reset)
-
-
-__all__ = ["AuthService", "DailyQueryQuota"]
+    def _validate_username(username):
+        if not isinstance(username,str) or not _USER_NAME.fullmatch(username) or username.lower()=="guest": raise ValueError("Invalid username")
+    def _user_by_id(self,ctx,user_id,active=True):
+        user=self._data.get_user(ctx,user_id)
+        if not isinstance(user,dict) or user.get("id")!=user_id or (active and user.get("is_active") is not True):
+            raise PermissionError("Authentication denied")
+        return user
+    def _principal_user(self,ctx,principal):
+        self._runtime.validate_principal(ctx,principal); user=self._user_by_id(ctx,principal.user_id)
+        expected="guest" if user.get("is_guest") else "admin" if user.get("is_admin") else "user"
+        if principal.role!=expected: raise PermissionError("Authentication denied")
+        return user
+    def _principal(self,ctx,user):
+        role="guest" if user.get("is_guest") else "admin" if user.get("is_admin") else "user"
+        return self._runtime.issue_principal(ctx,user["id"],role)
+    def register(self,ctx:RequestContext,username:str,password:str)->dict:
+        self._validate_username(username)
+        if not _valid_password(password): raise ValueError("Invalid password")
+        if self._data.get_user_by_username(ctx,username) is not None: raise ValueError("Username unavailable")
+        user={"id":uuid.uuid4().hex,"username":username,"password_hash":self._runtime.hash_password(password),
+              "is_admin":False,"is_guest":False,"is_active":True,"quota_date":"","quota_used":0}
+        try: created=self._data.create_user(ctx,user)
+        except (ValueError,KeyError): raise ValueError("Username unavailable") from None
+        return _public_user(created if isinstance(created,dict) else user)
+    def login(self,ctx:RequestContext,username:str,password:str)->tuple[AuthPrincipal,str]:
+        user=self._data.get_user_by_username(ctx,username) if isinstance(username,str) else None
+        encoded=user.get("password_hash") if isinstance(user,dict) else self._dummy_hash
+        valid=self._runtime.verify_password(password,encoded) if isinstance(encoded,str) else False
+        if not valid or user.get("is_guest") or user.get("is_active") is not True: raise PermissionError("Authentication denied")
+        principal=self._principal(ctx,user); token=self._runtime.issue_session(ctx,user["id"],self._session_ttl)
+        return principal,token
+    def authenticate_session(self,ctx:RequestContext,token:str)->AuthPrincipal:
+        user_id=self._runtime.resolve_session(ctx,token)
+        if user_id is None: raise PermissionError("Authentication denied")
+        return self._principal(ctx,self._user_by_id(ctx,user_id))
+    def logout(self,ctx:RequestContext,token:str)->None: self._runtime.revoke_session(ctx,token)
+    def guest(self,ctx:RequestContext)->AuthPrincipal:
+        user=self._data.get_user_by_username(ctx,"guest")
+        if not isinstance(user,dict) or user.get("is_guest") is not True or user.get("is_active") is not True: raise PermissionError("Guest unavailable")
+        return self._principal(ctx,user)
+    def authorize(self,ctx:RequestContext,principal:AuthPrincipal,permission:str)->None:
+        if not isinstance(permission,str) or permission not in _PERMISSION_SET: raise ValueError("Unknown permission")
+        user=self._principal_user(ctx,principal)
+        if permission=="authenticated" and user.get("is_guest"): raise PermissionError("Authentication required")
+        if permission=="create_notebook" and user.get("is_guest"): raise PermissionError("Permission denied")
+        if permission in {"manage_users","manage_models"} and not user.get("is_admin"): raise PermissionError("Permission denied")
+    def _notebook(self,ctx,notebook_id):
+        if not isinstance(notebook_id,str) or not _NOTEBOOK_ID.fullmatch(notebook_id): raise ValueError("Invalid notebook identifier")
+        record=self._data.get_notebook(ctx,notebook_id)
+        return record if isinstance(record,dict) else None
+    def allowed_notebooks(self,ctx:RequestContext,principal:AuthPrincipal,available_ids:list[str],public_ids:list[str]=[])->list[str]:
+        if not isinstance(available_ids,list) or not isinstance(public_ids,list): raise ValueError("Invalid notebook identifiers")
+        self._principal_user(ctx,principal)
+        if any(not isinstance(value,str) or not _NOTEBOOK_ID.fullmatch(value) for value in available_ids+public_ids): raise ValueError("Invalid notebook identifiers")
+        return list(dict.fromkeys(notebook_id for notebook_id in available_ids if self.notebook_permissions(ctx,principal,notebook_id)))
+    def notebook_permissions(self,ctx:RequestContext,principal:AuthPrincipal,notebook_id:str)->list[str]:
+        user=self._principal_user(ctx,principal); notebook=self._notebook(ctx,notebook_id)
+        if notebook is None: return []
+        if notebook.get("owner_user_id")==user["id"]: return ["read","query","import_document","write","manage_members","manage_notebook"]
+        snapshot=self._data.membership_snapshot(ctx,notebook_id)
+        role=next((m.get("role") for m in snapshot.get("members",[]) if m.get("user_id")==user["id"]),None)
+        if role=="editor": return ["read","query","import_document","write"]
+        if role=="viewer": return ["read","query"]
+        return []
+    def authorize_notebook(self,ctx:RequestContext,principal:AuthPrincipal,notebook_id:str,permission:str)->None:
+        if not isinstance(permission,str) or permission not in {"read","query","import_document","write","manage_members","manage_notebook"}: raise ValueError("Unknown notebook permission")
+        if permission not in self.notebook_permissions(ctx,principal,notebook_id): raise PermissionError("Notebook permission denied")
+    def _require_owner(self,ctx,principal,notebook_id):
+        user=self._principal_user(ctx,principal); notebook=self._notebook(ctx,notebook_id)
+        if notebook is None: raise ValueError("Notebook does not exist")
+        if notebook.get("owner_user_id")!=user["id"]: raise PermissionError("Notebook permission denied")
+        return user,notebook
+    def list_members(self,ctx:RequestContext,principal:AuthPrincipal,notebook_id:str)->list[dict]:
+        self._require_owner(ctx,principal,notebook_id); snapshot=self._data.membership_snapshot(ctx,notebook_id)
+        return [{"user_id":m["user_id"],"role":m["role"]} for m in snapshot.get("members",[])]
+    def list_share_targets(self,ctx:RequestContext,principal:AuthPrincipal,notebook_id:str)->list[dict]:
+        _,notebook=self._require_owner(ctx,principal,notebook_id); owner=notebook["owner_user_id"]
+        return [{"id":u["id"],"username":u["username"],"is_admin":bool(u.get("is_admin")),"is_guest":bool(u.get("is_guest"))}
+                for u in self._data.list_users(ctx) if u.get("is_active") is True and u.get("id")!=owner]
+    def set_member(self,ctx:RequestContext,principal:AuthPrincipal,notebook_id:str,user_id:str,role:str)->None:
+        self._require_owner(ctx,principal,notebook_id)
+        if role not in {"editor","viewer"}: raise ValueError("Invalid notebook role")
+        if user_id==self._data.get_notebook(ctx,notebook_id).get("owner_user_id"): raise ValueError("Owner is not a notebook member")
+        target=self._data.get_user(ctx,user_id)
+        if not isinstance(target,dict) or target.get("is_active") is not True or (target.get("is_guest") and role!="viewer"): raise ValueError("User unavailable")
+        with self._lock: self._data.put_member(ctx,notebook_id,user_id,role)
+    def remove_member(self,ctx:RequestContext,principal:AuthPrincipal,notebook_id:str,user_id:str)->None:
+        self._require_owner(ctx,principal,notebook_id)
+        if not isinstance(user_id,str) or not user_id: raise ValueError("Invalid user identifier")
+        with self._lock: self._data.delete_member(ctx,notebook_id,user_id)
+    def list_admin_users(self,ctx:RequestContext,principal:AuthPrincipal)->list[dict]:
+        if not self._principal_user(ctx,principal).get("is_admin"): raise PermissionError("Permission denied")
+        return [_public_user(u) for u in self._data.list_users(ctx,active_only=False) if not u.get("is_guest")]
+    def set_user_active(self,ctx:RequestContext,principal:AuthPrincipal,user_id:str,active:bool)->None:
+        if not self._principal_user(ctx,principal).get("is_admin"): raise PermissionError("Permission denied")
+        if type(active) is not bool: raise ValueError("Invalid active state")
+        target=self._data.get_user(ctx,user_id)
+        if not isinstance(target,dict) or target.get("is_guest"): raise ValueError("User unavailable")
+        if not active and target.get("is_admin") and target.get("is_active"):
+            admins=[u for u in self._data.list_users(ctx) if u.get("is_admin") and u.get("is_active") is True]
+            if len(admins)<=1: raise PermissionError("Cannot deactivate the last administrator")
+        self._data.set_user_active(ctx,user_id,active)
+    def _quota_date(self):
+        now=datetime.now(timezone(timedelta(hours=8)))
+        reset=(now+timedelta(days=1)).replace(hour=0,minute=0,second=0,microsecond=0)
+        return now.date().isoformat(),reset.isoformat()
+    def quota_status(self,ctx:RequestContext)->dict:
+        date,reset=self._quota_date(); used=self._data.site_quota_used(ctx,date)
+        if type(used) is not int or used<0: raise ValueError("Invalid site quota")
+        return {"scope":"site","limit":self._daily_limit,"used":used,"remaining":max(0,self._daily_limit-used),"reset_at":reset}
+    def reserve_query(self,ctx:RequestContext)->dict:
+        date,reset=self._quota_date(); used=self._data.reserve_site_quota(ctx,date,self._daily_limit)
+        if used is None: raise PermissionError("Daily query quota exhausted")
+        if type(used) is not int or not 1<=used<=self._daily_limit: raise ValueError("Invalid site quota")
+        return {"scope":"site","limit":self._daily_limit,"used":used,"remaining":max(0,self._daily_limit-used),"reset_at":reset}
+__all__=["AuthService"]

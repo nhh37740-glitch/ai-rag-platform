@@ -45,7 +45,7 @@ def main(argv=None):
         sys.meta_path.insert(0, SourcePackages())
         os.environ["SPEC_STATIC_ONLY"] = "1"
     elif args.group not in {"app", "specification"}:
-        sys.path.insert(0, str(ROOT / "apps/agent-server"))
+        sys.path.insert(0, str(ROOT / "apps/ragnotebook"))
         import runtime_boundary
         published = runtime_boundary.enforce_binary_runtime()
         for package in published:
@@ -58,7 +58,7 @@ def main(argv=None):
         paths = [str(p / "tests") for p in sorted((ROOT / "modules-src").iterdir())
                  if (p / "tests").is_dir() and (p.name.endswith("-facade") == (args.group == "facade"))]
     else:
-        paths = {"scripts": ["scripts/tests"], "app": ["apps/agent-server/tests"],
+        paths = {"scripts": ["scripts/tests"], "app": ["apps/ragnotebook/tests"],
                  "specification": ["specifications/test_specification.py"],
                  "domain": ["scripts/tests/test_domain_integration.py", "scripts/tests/test_module_dependencies.py"]}[args.group]
     import pytest
@@ -69,13 +69,15 @@ def main(argv=None):
     if args.group == "app":
         import tempfile
         with tempfile.TemporaryDirectory(prefix="agent-app-tests-") as temporary:
-            os.environ.update(STATE_DIR=temporary, DB_PATH=str(Path(temporary) / "memory.sqlite"),
-                              VECTOR_DB_PATH=str(Path(temporary) / "vectors.sqlite"),
-                              INDEX_PATH=str(Path(temporary) / "no-index.json"), DEEPSEEK_API_KEY="",
-                              OPENROUTER_API_KEY="", LLM_PROVIDER="mock", RAG_LLM_ENV_FILE="")
+            os.environ.update(STATE_DIR=temporary,
+                              RAG_DATABASE_PATH=str(Path(temporary) / "ragnotebook.sqlite"),
+                              RAG_BOOTSTRAP_ADMIN_USERNAME="test-admin",
+                              RAG_BOOTSTRAP_ADMIN_PASSWORD="test-admin-password",
+                              DEEPSEEK_API_KEY="", OPENROUTER_API_KEY="",
+                              LLM_PROVIDER="mock", RAG_LLM_ENV_FILE="", RAG_EMBED="hash")
             # The server must establish the boundary before auth middleware tests
             # import extensions. Boot only after allocating isolated test state.
-            sys.path.insert(0, str(ROOT / "apps/agent-server"))
+            sys.path.insert(0, str(ROOT / "apps/ragnotebook"))
             server = importlib.import_module("server")
             import runtime_boundary
             published = runtime_boundary.load_published_modules()
@@ -89,8 +91,6 @@ def main(argv=None):
                 import asyncio
                 asyncio.run(server.runtime.aclose(server.BOOT_CONTEXT))
                 server.data_service.close(server.BOOT_CONTEXT)
-                if server.quota_data_service is not None:
-                    server.quota_data_service.close(server.BOOT_CONTEXT)
             return result
     return pytest.main(options)
 

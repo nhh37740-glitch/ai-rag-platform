@@ -1,62 +1,92 @@
-"""验证所有编译模块可加载，并用三个中间包执行入库、五个工具和问答。"""
+"""验证编译模块边界，以及 RAGnotebook 的单数据库业务闭环。"""
 from __future__ import annotations
+
 import asyncio
 import importlib
 import json
+import sqlite3
 import sys
 import tempfile
 from pathlib import Path
+
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "apps/agent-server"))
+sys.path.insert(0, str(ROOT / "apps/ragnotebook"))
 import runtime_boundary
+
 PUBLISHED = runtime_boundary.enforce_binary_runtime()
 for package in PUBLISHED:
     importlib.import_module(package)
-from core_specifications import RequestContext, ToolCall
+
+from core_specifications import RequestContext
 from agent_facade import AgentService, make_provider
+from auth_facade import AuthService
 from data_facade import DataService
 from rag_facade import RagService
-from observability import make_trace_store
-from auth_facade import AuthService
+
 runtime_boundary.assert_binary_runtime(PUBLISHED)
-EXPECTED_TOOLS = {"search_knowledge_base", "hybrid_search_knowledge_base", "keyword_search_knowledge_base", "list_knowledge_documents", "read_knowledge_document"}
 
 
 def main():
-    ctx = RequestContext("compiled-smoke", "request", "user", "session")
-    auth = AuthService("compiled-smoke-proxy-proof-32-bytes", "owner")
-    guest = auth.guest(ctx)
-    auth.authorize(ctx, guest, "query")
-    assert auth.allowed_notebooks(ctx, guest, ["private", "public"], ["public"]) == ["public"]
-    try:
-        auth.authorize(ctx, guest, "create_notebook")
-    except PermissionError:
-        pass
-    else:
-        raise AssertionError("guest write was authorized")
-    owner = auth.authenticate_proxy(ctx, "compiled-smoke-proxy-proof-32-bytes", "owner", "admin")
-    auth.authorize(ctx, owner, "import_document")
     with tempfile.TemporaryDirectory() as temporary:
-        data = DataService(temporary)
-        tracing = make_trace_store()
-        rag = RagService(data.vector_store(ctx), tracing)
-        agent = AgentService(data, rag, tracing, str(ROOT / "skills"), make_provider())
+        database_path = str(Path(temporary) / "ragnotebook.sqlite")
+        ctx = RequestContext("compiled-smoke", "request")
+        data = DataService(database_path)
+        auth = AuthService(data)
+        auth.initialize(ctx, "bootstrap-admin", "compiled-smoke-password")
+        admin, token = auth.login(ctx, "bootstrap-admin", "compiled-smoke-password")
+        assert auth.authenticate_session(ctx, token).user_id == admin.user_id
+        registered = auth.register(ctx, "compiled-user", "compiled-user-password")
+        user, user_token = auth.login(ctx, "compiled-user", "compiled-user-password")
+        guest = auth.guest(ctx)
+
+        notebook_id = "compiled-smoke-notebook"
+        data.create_notebook(ctx, {"id": notebook_id, "owner_user_id": user.user_id, "name": "Smoke"})
+        auth.set_member(ctx, user, notebook_id, "guest", "viewer")
+        auth.authorize_notebook(ctx, guest, notebook_id, "read")
         try:
-            rag.ingest_markdown(ctx, "# API\n\nAPI 认证需要 Bearer token。", "engineering/api-doc")
-            assert {d.name for d in agent.tool_definitions(ctx)} == EXPECTED_TOOLS
-            for name in sorted(EXPECTED_TOOLS):
-                args = {"query": "API 如何认证？"} if "search" in name else {"source_id": "engineering/api-doc"} if name == "read_knowledge_document" else {}
-                result = json.loads(rag.execute_tool(ctx, ToolCall(name, name, args), ["engineering"]))
-                assert result.get("hit_count", len(result.get("documents", []))) > 0, (name, result)
-            answer = asyncio.run(agent.run(ctx, "请查询 API 如何认证？", ["engineering"]))
-            assert "api-doc" in answer, answer
-            spans = [e for e in tracing.get(ctx.trace_id) if e.span == "rag"]
-            assert EXPECTED_TOOLS <= {e.meta.get("tool") for e in spans}
+            auth.authorize_notebook(ctx, guest, notebook_id, "write")
+        except PermissionError:
+            pass
+        else:
+            raise AssertionError("guest viewer was allowed to write")
+
+        admin_ctx = RequestContext("compiled-admin", "query", admin.user_id)
+        assert auth.reserve_query(admin_ctx)["limit"] == 100
+        guest_ctx = RequestContext("compiled-guest", "query", "guest")
+        assert auth.reserve_query(guest_ctx)["used"] == 2
+        auth.set_user_active(ctx, admin, registered["id"], False)
+        try:
+            auth.authenticate_session(ctx, user_token)  # Disabled accounts cannot reuse an in-memory session.
+        except PermissionError:
+            pass
+        else:
+            raise AssertionError("disabled account retained a valid session")
+
+        rag = RagService(data.vector_store(ctx))
+        rag.ingest_markdown(ctx, "# API\n\nAPI authentication uses a server-managed session.", notebook_id)
+        result = rag.search(ctx, "API authentication", [notebook_id], mode="keyword")
+        assert result.citations and result.citations[0].source_id.startswith(notebook_id + "/")
+
+        agent = AgentService(data, rag, skill_dir=str(ROOT / "skills"), provider=make_provider(),
+                             environment={"LLM_PROVIDER": "mock"})
+        try:
+            settings = agent.update_model_settings(ctx, "mock", "mock")
+            assert settings["provider_id"] == "mock"
+            assert "api_key" not in settings and "key" not in settings
         finally:
             asyncio.run(agent.aclose(ctx))
             data.close(ctx)
+
+        with sqlite3.connect(database_path) as connection:
+            tables = {row[0] for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )}
+        assert tables == {"users", "notebooks", "notebook_members", "documents", "conversations", "agent_data"}, tables
+        assert list(Path(temporary).glob("*.sqlite")) == [Path(database_path)]
+
     print("modules loaded from:", json.dumps({k: str(v["extension"]) for k,v in PUBLISHED.items()}, ensure_ascii=False))
-    print("COMPILED_AGENT_OK")
+    print("RAGNOTEBOOK_COMPILED_OK")
+
 
 if __name__ == "__main__":
     main()

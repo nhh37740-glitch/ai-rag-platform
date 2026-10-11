@@ -40,7 +40,7 @@ def violations(root: Path = ROOT) -> list[str]:
     for mid, spec in schema["modules"].items():
         directory = root / "modules-src" / mid / spec["package"]
         files.extend((p, spec["package"]) for p in directory.rglob("*.py"))
-    files.extend((p, "app") for p in (root / "apps/agent-server").glob("*.py"))
+    files.extend((p, "app") for p in (root / "apps/ragnotebook").glob("*.py"))
     files.extend((p, "core_specifications") for p in (root / "specifications/core_specifications").rglob("*.py"))
     for path, owner in files:
         allowed_imports = (set(domains["app"]) | public if owner == "app" else

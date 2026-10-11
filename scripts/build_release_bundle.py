@@ -34,7 +34,7 @@ def _files_under(relative_directory: str) -> list[Path]:
 def release_files(registry: dict) -> list[Path]:
     files: list[Path] = []
     for directory in (
-        "apps/agent-server",
+        "apps/ragnotebook",
         "apps/web",
         "specifications",
         "skills",
@@ -95,7 +95,7 @@ def verify_archive(archive: Path) -> int:
 
 
 def main() -> None:
-    with (ROOT / "apps/agent-server/pyproject.toml").open("rb") as handle:
+    with (ROOT / "apps/ragnotebook/pyproject.toml").open("rb") as handle:
         version = tomllib.load(handle)["project"]["version"]
     registry = json.loads((ROOT / "registry.json").read_text(encoding="utf-8"))
     files = release_files(registry)

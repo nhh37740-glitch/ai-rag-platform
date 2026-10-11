@@ -1,6 +1,6 @@
 # Module Interfaces（模块接口规范）
 
-所有模块实现位于根仓库 `modules-src/<module>/`，各目录是独立可安装 Python 包（通常含 `pyproject.toml`、包目录与 `tests/`），但并非独立 Git 仓库。对外只暴露下面这些接口；集成侧 `apps/agent-server` 通过这些接口调用。跨模块依赖必须显式声明并只调用对方公开 facade；共享数据结构来自 `specifications.core_specifications`。
+所有模块实现位于根仓库 `modules-src/<module>/`，各目录是独立可安装 Python 包（通常含 `pyproject.toml`、包目录与 `tests/`），但并非独立 Git 仓库。对外只暴露下面这些接口；集成侧 `apps/ragnotebook` 通过这些接口调用。跨模块依赖必须显式声明并只调用对方公开 facade；共享数据结构来自 `specifications.core_specifications`。
 
 约定：请求级操作以 `RequestContext` 为首参并命名为 `ctx`；构造器与纯工具函数按各自公开接口规范声明参数。除 `generate/stream` 外的同步方法如需阻塞 IO，由调用方 `asyncio.to_thread` 包裹。共享返回类型来自 `core_specifications`。
 

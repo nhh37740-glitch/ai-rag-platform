@@ -1,5 +1,47 @@
 # 企业研发知识与协作智能体系统（Dev Knowledge Agent）实施计划
 
+
+## 当前生效：RAGnotebook 单进程、单数据库重构（2026-10-11）
+
+本节由用户明确授权，优先于本文中旧的 Media 代理登录、多服务公开/私有部署、多数据库、20 次额度、manager 角色、自动迁移与独立管理员登录适配器方案。它们仅作历史记录，不再是本次实现依据。
+
+### 目标与调用边界
+
+浏览器只访问唯一后端应用 `RAGnotebook`。部署后只有一个 RAGnotebook 后端进程；`auth-facade`、`data-facade`、`rag-facade`、`agent-facade` 是同进程的二级业务模块，不是独立 HTTP 服务。调用链为 `浏览器 → RAGnotebook HTTP → 二级业务模块 → 数据/能力模块`。应用只能调用四个 facade 的公开 API；各 facade 可调用自己的一级模块及其他 facade 的公开 API。禁止 HTTP 路由直接调用一级模块、SQLite 类、向量类或文件存储实现。所有 RAG 功能必须归属具体二级业务模块。
+
+### 业务模块归属与结果
+
+- `RAGnotebook`（三层应用）：登录/注册、用户与笔记本页面、成员共享、上传/进度、问答/会话、管理员 Provider/Model 配置的 HTTP 和页面。它是唯一浏览器入口，不承担数据库、权限或 RAG 策略。
+- `auth-facade`：账号注册/登录、活动状态鉴权、项目管理员用户管理、笔记本成员权限、每日额度；`auth-runtime` 只做密码哈希与进程内登录凭据验证。
+- `data-facade`：唯一数据库入口；统一用户、笔记本、成员、文档分块和向量、会话历史、Agent 记忆/配置/技能/提示词及额度数据持久化。`storage` 与 `memory` 均归该业务模块，不由 Agent 间接借用。
+- `rag-facade`：文档解析、切分、嵌入、写入/删除和检索；HTTP 上传经其公开的统一入库 API。
+- `agent-facade`：问答执行和管理员 Provider/Model 目录、选择；密钥始终从服务器环境读取，不落数据库或前端。
+
+### 首次数据库结构（首次创建后冻结）
+
+只创建一个活动 SQLite 文件，schema 首次启用前完整确认；若已有表结构不匹配则启动失败，不自动 ALTER、不自动迁移。业务表固定为六张：
+
+- `users(id, username, password_hash, is_admin, is_guest, is_active, quota_date, quota_used)`：本地登录账号、禁用状态和全站额度的分摊计数。
+- `notebooks(id, owner_user_id, name, created_at)`：每个笔记本唯一所有者；所有者只对自己的笔记本具有 owner 权限，不是项目管理员。
+- `notebook_members(notebook_id, user_id, role)`：角色仅 `editor`、`viewer`；所有者不重复登记为成员。
+- `documents(id, document_id, notebook_id, file_name, chunk_index, content, embedding)`：文档块和向量共库保存。
+- `conversations(id, user_id, notebook_id, title, messages, updated_at)`：只保存注册用户会话；游客问答不留历史。
+- `agent_data(id, type, name, content, updated_at)`：Agent 记忆、技能、提示词、模型选择及其缓存配置。
+
+不再创建独立 auth、memory、vector、state、quota 或 notebook 数据库文件；向量搜索直接读取同库文档向量。旧账号、旧笔记本、旧 ACL 不导入，旧数据不由新应用读取或修改。
+
+### 账号、权限与额度
+
+首次空库启动时，使用服务器一次性 bootstrap 环境配置创建一个项目管理员和固定游客账号；不提供默认密码。普通用户可以公开注册。管理员禁用账号后，后续每个请求都检查 `is_active` 并立即拒绝；项目管理员权限与 notebook owner 权限分开。登录凭据只存在后端内存，过期时间默认 12 小时；退出撤销当前凭据，服务重启清空全部登录状态，不建登录会话表。游客身份固定且所有游客共用；将游客加入笔记本仅允许 `viewer`，会明确告知所有游客都能查看该笔记本。分享界面先查有效用户，再由笔记本 owner 选人和角色；被禁用用户不能登录或访问共享内容。全站每天最多 100 次问答，注册用户、游客和管理员共用，北京时间零点重置，SQLite 事务原子预占；游客问题和对话不入历史表。
+
+### Web 接口与 Provider/Model
+
+RAGnotebook 提供同源的注册/登录/退出/当前用户、管理员用户列表与启停、笔记本与成员查询/改权、文件上传/进度、问答/历史、管理员 Provider/Model 查询与选择接口。所有私有端点在业务调用前先通过 `auth-facade` 鉴权；用户角色和 user_id 不接受前端自报。Provider/model 清单由后端基于已有 provider 能力与服务器凭据查询，管理员选择保存至 `agent_data`；切换立即影响新问答，不返回 API key。
+
+### 服务器 Git、验收与发布
+
+只在服务器上的独立 Git clone/worktree 开发。开始写代码前只读核实持久仓库路径、GitHub master SHA 和工作区状态；保留已有仓库/分支/脏文件，不在 Jenkins 临时目录编辑。完成后在主题分支提交并推送 GitHub。完成架构边界、六表单库、账号/禁用、共享和角色、游客历史隔离、100 次额度、入库检索与管理员模型选择验证；再把提交 SHA 和验证结果交构建发布职责执行 Linux 构建/发布，按其实际日志记录构建、部署和线上验收阶段。视频平台项目明确排除。
+
 > 本文件是执行的唯一事实来源；主 Agent 与各 subagent 均以它为准。任何改动先回到这里。
 
 ## 目标
@@ -182,7 +224,7 @@
 - 新增 agent-facade、rag-facade、data-facade 三个编译模块。服务组合根只导入三个中间包及共享规范/observability，不再构造一级模块。公共层为 core_specifications + observability；AGENT 叶子为 agent-runtime、llm-gateway、skill-runtime、tool-runtime、mcp-gateway、mcp-servers、evaluation；RAG 叶子为 rag-core、rag-tools、ingestion；数据库叶子为 memory、storage。
 - VectorStore、MemoryStorePort、LLMProviderPort、TraceStorePort、StateStorePort、DataServicePort、RagServicePort 定义在共享规范。数据库只依赖本域实现；SQLite 向量存储迁至 storage。agent-runtime 通过共享 MemoryStorePort 接收记忆，不再 import memory。AGENT 中间包接收 DataServicePort/RagServicePort，禁止跨域导入具体叶子。
 - 三包 API 的参数、返回类型、异常、生命周期和测试清单先写 specifications/DOMAIN_INTERFACES.md 与 API_SCHEMA.json；负责人不得自行更改共享签名。
-- Web 静态资源独立放 apps/web/，不编译，仅调用 API；随发布包交付。HTTP 上传校验等适配仍在 apps/agent-server，文档转换调用 RAG 中间包。
+- Web 静态资源独立放 apps/web/，不编译，仅调用 API；随发布包交付。HTTP 上传校验等适配仍在 apps/ragnotebook，文档转换调用 RAG 中间包。
 - 测试覆盖一级模块、三个中间包、最终服务、编译产物行为及模块依赖规则。基线只用 data/kb/cmrc2018-demo/，检索回归跑全问题集，真实模型每次构建跑少量固定问题控制费用；不能用 Mock 代替真实模型验收。
 - Jenkins 按准备环境、检查依赖、测试一级模块、测试中间模块、编译、验证编译产物、测试最终服务、实例文档与真实模型验收、打包归档的顺序显示步骤，并归档 JUnit 报告。API key 用 Jenkins secret text 凭据注入，禁止写入 Git、前端、镜像或报告；缺凭据则真实模型阶段失败。尚未连接或配置服务器 Jenkins。
 - 本机可进行目标 Windows 编译与验证；Linux .so 仍须在 Linux Jenkins 节点生成。未完成的构建/远端结果据实记录，不把源码测试通过当作二进制交付完成。

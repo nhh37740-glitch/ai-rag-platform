@@ -1,14 +1,12 @@
 {
   "package": "data_facade",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "facade": {
     "DataService": {
       "kind": "class",
       "init": {
-        "state_dir": "str",
-        "memory_db_path": "str|null",
-        "vector_db_path": "str|null"
+        "database_path": "str"
       },
       "methods": {
         "initialize": {
@@ -35,24 +33,100 @@
           },
           "returns": "StateStorePort"
         },
-        "close": {
-          "params": {
-            "ctx": "RequestContext"
-          },
-          "returns": "None"
-        },
         "notebook_store": {
           "params": {
             "ctx": "RequestContext"
           },
           "returns": "NotebookStorePort"
         },
+        "get_user": {
+          "params": {
+            "ctx": "RequestContext",
+            "user_id": "str"
+          },
+          "returns": "dict|null"
+        },
+        "get_user_by_username": {
+          "params": {
+            "ctx": "RequestContext",
+            "username": "str"
+          },
+          "returns": "dict|null"
+        },
+        "create_user": {
+          "params": {
+            "ctx": "RequestContext",
+            "user": "dict"
+          },
+          "returns": "dict"
+        },
+        "list_users": {
+          "params": {
+            "ctx": "RequestContext",
+            "active_only": "bool (default true)"
+          },
+          "returns": "list[dict]"
+        },
+        "set_user_active": {
+          "params": {
+            "ctx": "RequestContext",
+            "user_id": "str",
+            "active": "bool"
+          },
+          "returns": "None"
+        },
+        "reserve_site_quota": {
+          "params": {
+            "ctx": "RequestContext",
+            "local_date": "str",
+            "limit": "int"
+          },
+          "returns": "int|null"
+        },
+        "site_quota_used": {
+          "params": {
+            "ctx": "RequestContext",
+            "local_date": "str"
+          },
+          "returns": "int"
+        },
+        "save_conversation": {
+          "params": {
+            "ctx": "RequestContext",
+            "conversation": "dict"
+          },
+          "returns": "dict"
+        },
+        "get_conversation": {
+          "params": {
+            "ctx": "RequestContext",
+            "conversation_id": "str",
+            "user_id": "str"
+          },
+          "returns": "dict|null"
+        },
+        "list_conversations": {
+          "params": {
+            "ctx": "RequestContext",
+            "user_id": "str",
+            "notebook_id": "str|null (default null)"
+          },
+          "returns": "list[dict]"
+        },
+        "delete_conversation": {
+          "params": {
+            "ctx": "RequestContext",
+            "conversation_id": "str",
+            "user_id": "str"
+          },
+          "returns": "None"
+        },
         "create_notebook": {
           "params": {
             "ctx": "RequestContext",
             "metadata": "dict"
           },
-          "returns": "None"
+          "returns": "dict"
         },
         "get_notebook": {
           "params": {
@@ -63,32 +137,84 @@
         },
         "list_notebooks": {
           "params": {
-            "ctx": "RequestContext"
+            "ctx": "RequestContext",
+            "user_id": "str"
           },
           "returns": "list[dict]"
-        },
-        "migrate_notebook": {
-          "params": {
-            "ctx": "RequestContext",
-            "metadata": "dict",
-            "members": "list[dict]"
-          },
-          "returns": "None"
         },
         "update_notebook": {
           "params": {
             "ctx": "RequestContext",
             "notebook_id": "str",
-            "name": "str",
-            "description": "str"
+            "name": "str"
           },
           "returns": "None"
         },
-        "set_notebook_archived": {
+        "delete_notebook": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str"
+          },
+          "returns": "None"
+        },
+        "membership_snapshot": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str"
+          },
+          "returns": "dict"
+        },
+        "list_members": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str"
+          },
+          "returns": "list[dict]"
+        },
+        "put_member": {
           "params": {
             "ctx": "RequestContext",
             "notebook_id": "str",
-            "archived": "bool"
+            "user_id": "str",
+            "role": "str"
+          },
+          "returns": "None"
+        },
+        "delete_member": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str",
+            "user_id": "str"
+          },
+          "returns": "None"
+        },
+        "get_agent_data": {
+          "params": {
+            "ctx": "RequestContext",
+            "data_type": "str",
+            "name": "str"
+          },
+          "returns": "dict|null"
+        },
+        "set_agent_data": {
+          "params": {
+            "ctx": "RequestContext",
+            "data_type": "str",
+            "name": "str",
+            "content": "str"
+          },
+          "returns": "None"
+        },
+        "list_agent_data": {
+          "params": {
+            "ctx": "RequestContext",
+            "data_type": "str"
+          },
+          "returns": "list[dict]"
+        },
+        "close": {
+          "params": {
+            "ctx": "RequestContext"
           },
           "returns": "None"
         }

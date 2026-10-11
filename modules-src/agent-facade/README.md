@@ -1,6 +1,6 @@
 # agent-facade
 
-AGENT 中间包对应用只公开 AgentService 和 make_provider。接口见 INTERFACE.md；构建以 VERSION=0.1.0 编译为当前平台扩展模块。
+AGENT 中间包对应用只公开 AgentService 和 make_provider。接口见 INTERFACE.md；构建以 VERSION=0.4.0 编译为当前平台扩展模块。
 
 注入 data/rag/tracing 的共享接口对象，内部创建工具注册表和技能注册表。应用通过 register_tool 扩展工具，通过 history 获取当前用户和会话的消息副本。
 资源所有者负责关闭数据库与 Provider；AgentService.aclose 只释放自己的内存运行对象。
@@ -14,3 +14,5 @@ AGENT 中间包对应用只公开 AgentService 和 make_provider。接口见 INT
 集成运行只从 artifacts 的已发布二进制加载本包。
 
 0.3.0提供 resolve_model_config(ctx,environment,public=False)->ModelConfiguration，负责既有环境配置选择、免费模型ID校验、固定OpenRouter地址及凭据配置错误处理。api_key仅在服务器内存使用，repr隐藏，HTTP不得序列化整个对象。
+
+Provider/Model 管理使用 data-facade 的 agent_data 保存当前选择；凭据只从服务器环境读取。

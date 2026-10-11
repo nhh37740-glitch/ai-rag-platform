@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from core_specifications import (
-    IngestResult, RagServicePort, RequestContext, RetrievalResult, ToolCall, VectorStore,
+    IngestResult, RagServicePort, RequestContext, RetrievalResult, SpanEvent, ToolCall, VectorStore,
 )
 from rag_facade import RagService
 from rag_tools import RagTools
@@ -63,6 +63,12 @@ class TestRagFacade(unittest.TestCase):
         self.trace = RecordingTraceStore()
         self.ctx = RequestContext("trace-rag", "request-rag", "user-rag", "session-rag")
         self.rag = RagService(self.store, self.trace)
+
+    def test_default_trace_store_is_exposed_by_rag_business_interface(self):
+        rag = RagService(FakeVectorStore())
+        event = SpanEvent("owned-trace", "rag", 1, 2)
+        rag.record(event)
+        self.assertEqual(rag.get("owned-trace"), [event])
 
     def _seed(self):
         self.rag.ingest_markdown(self.ctx, "SQLite memory persist\n\n原子替换向量", "selected/guide")

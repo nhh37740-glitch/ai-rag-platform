@@ -78,7 +78,7 @@ SMOKE_LOGIN=$(docker run -d --rm --read-only --tmpfs /tmp:size=8m \
     --add-host host.docker.internal:host-gateway --env-file "$ENV_FILE" \
     --health-cmd "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).read()\"" \
     --health-start-period 15s --health-interval 10s \
-    -p 127.0.0.1::8000 "$CANDIDATE" python -m uvicorn --app-dir apps/agent-server \
+    -p 127.0.0.1::8000 "$CANDIDATE" python -m uvicorn --app-dir apps/ragnotebook \
     admin_login:app_factory --factory --host 0.0.0.0 --port 8000)
 wait_for_health "$SMOKE_AGENT"
 wait_for_health "$SMOKE_LOGIN"

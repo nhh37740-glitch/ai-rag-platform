@@ -14,8 +14,9 @@ from core_specifications import (
 from ingestion import SUPPORTED_EXTENSIONS, chunk, parse, to_markdown
 from rag_core import DEFAULT_READ_CHUNKS, MAX_READ_CHUNKS, embed
 from rag_tools import RagTools
+from observability import make_trace_store
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = ["RagService"]
 
 _SEARCH_MODES = {
@@ -76,11 +77,17 @@ def _retrieval(payload: dict) -> RetrievalResult:
 class RagService:
     """RAG domain facade; all persistence is provided through VectorStore."""
 
-    def __init__(self, store: VectorStore, tracing: TraceStorePort, top_k: int = 5) -> None:
+    def __init__(self, store: VectorStore, tracing: Optional[TraceStorePort] = None, top_k: int = 5) -> None:
         self.store = store
-        self.tracing = tracing
+        self.tracing = tracing if tracing is not None else make_trace_store()
         self.top_k = _integer(top_k, "top_k", 1, 20)
-        self._tools = RagTools(store, tracing, self.top_k)
+        self._tools = RagTools(store, self.tracing, self.top_k)
+
+    def record(self, span: SpanEvent) -> None:
+        self.tracing.record(span)
+
+    def get(self, trace_id: str) -> List[SpanEvent]:
+        return self.tracing.get(trace_id)
 
     def tool_definitions(self, ctx: RequestContext) -> List[ToolDef]:
         return self._tools.tool_definitions()
