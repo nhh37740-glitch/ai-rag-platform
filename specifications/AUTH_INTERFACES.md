@@ -34,3 +34,9 @@ remove_member(ctx: RequestContext, principal: AuthPrincipal, notebook_id: str, u
 ```
 
 viewer=read/query；editor 增加 import_document/write；manager 增加 manage_members。全局 admin 隐式 manager，其 owner 身份不能列为成员、删除或降级。guest 只在 public=True 时 read/query，冒用成员 userId 的游客不能获得 ACL 权限。available_ids 仅服务端提供；allowed_notebooks 增加有有效 ACL 的成员范围。非法参数 ValueError，越权 PermissionError；缺少成员删除幂等。ACL 固定命名空间 __rag_notebook_acl__，键 notebook-members:{id}；非法持久数据拒绝授权。单管理进程锁避免并发覆盖，私有卷不与公开实例共享。
+
+## 关系型权限仓库（0.4.0，替代0.3.0状态键存储）
+
+AuthService(proxy_token: str = "", owner_id: str = "", store: NotebookStorePort | None = None)。可信代理认证成功登记 users；角色权限通过关系表查询。成员增删使用快照 acl_revision 与事务比较更新；冲突重新核验管理权限，不能在撤权后用旧快照写入。添加对象需为已登记用户，否则 ValueError。旧文件目录/JSON ACL 由应用启动迁移一次到关系表，权限不再从旧状态键实时读取。其它授权接口与角色行为沿用；全站日额度继续使用独立 StateStorePort。完整仓库接口见 DOMAIN_INTERFACES.md 的 NotebookStorePort 条款。
+
+0.4.0：manager增加manage_notebook；全局authorize支持archive_notebook/restore_notebook且仅可信管理员。用户目录在验证登录后登记；成员变更必须目标用户已登记，CAS冲突后重新读取权限再重试。

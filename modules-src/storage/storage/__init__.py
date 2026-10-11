@@ -11,7 +11,7 @@ import numpy as np
 
 from core_specifications import MemoryEntry, MemoryStorePort, RequestContext, VectorStore
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 class _SqliteStore:
@@ -265,4 +265,197 @@ def make_storage(db_path: str, memory_store: MemoryStorePort, vector_store: Vect
     return Storage(memory_store, vector_store, db_path)
 
 
-__all__ = ["SqliteVectorStore", "StateStore", "Storage", "make_storage"]
+class NotebookStore(_SqliteStore):
+    """Relational resource directory; authorization remains in auth-facade."""
+
+    _columns = "notebook_id,owner_user_id,name,description,created_at,is_public,archived,acl_revision,legacy_migrated"
+
+    def __init__(self, db_path: str) -> None:
+        super().__init__(db_path)
+        self._conn.execute("PRAGMA foreign_keys=ON")
+        self._conn.execute("PRAGMA busy_timeout=10000")
+        self._create_schema([
+            "CREATE TABLE IF NOT EXISTS schema_migrations(version TEXT PRIMARY KEY,applied_at TEXT NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS users(user_id TEXT PRIMARY KEY CHECK(length(user_id)>0),created_at TEXT NOT NULL,last_seen_at TEXT NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS roles(role_id TEXT PRIMARY KEY)",
+            "CREATE TABLE IF NOT EXISTS permissions(permission_id TEXT PRIMARY KEY)",
+            "CREATE TABLE IF NOT EXISTS role_permissions(role_id TEXT NOT NULL REFERENCES roles(role_id),permission_id TEXT NOT NULL REFERENCES permissions(permission_id),PRIMARY KEY(role_id,permission_id))",
+            "CREATE TABLE IF NOT EXISTS notebooks(notebook_id TEXT PRIMARY KEY,owner_user_id TEXT NOT NULL REFERENCES users(user_id),name TEXT NOT NULL,description TEXT NOT NULL,created_at TEXT NOT NULL,is_public INTEGER NOT NULL CHECK(is_public IN(0,1)),archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN(0,1)),acl_revision INTEGER NOT NULL DEFAULT 0 CHECK(acl_revision>=0),legacy_migrated INTEGER NOT NULL DEFAULT 0 CHECK(legacy_migrated IN(0,1)))",
+            "CREATE TABLE IF NOT EXISTS notebook_members(notebook_id TEXT NOT NULL REFERENCES notebooks(notebook_id),user_id TEXT NOT NULL REFERENCES users(user_id),role_id TEXT NOT NULL REFERENCES roles(role_id),PRIMARY KEY(notebook_id,user_id))",
+            "CREATE INDEX IF NOT EXISTS notebook_members_user ON notebook_members(user_id,notebook_id)",
+            "INSERT OR IGNORE INTO schema_migrations VALUES('1',datetime('now'))",
+        ])
+
+    @staticmethod
+    def _identifier(value) -> str:
+        if not isinstance(value, str) or not 0 < len(value) <= 128 or any(not (c.isalnum() or c in '@_.-') for c in value):
+            raise ValueError("Invalid identifier")
+        return value
+
+    @staticmethod
+    def _metadata(metadata: dict) -> tuple:
+        if not isinstance(metadata, dict):
+            raise ValueError("Invalid notebook metadata")
+        notebook_id = NotebookStore._identifier(metadata.get('id'))
+        owner_id = NotebookStore._identifier(metadata.get('owner_user_id'))
+        name, description = metadata.get('name'), metadata.get('description', '')
+        if not isinstance(name, str) or not 0 < len(name.strip()) <= 80 or not isinstance(description, str) or len(description) > 300:
+            raise ValueError("Invalid notebook name or description")
+        created = metadata.get('created_at')
+        if not isinstance(created, str) or not created:
+            raise ValueError("Invalid creation timestamp")
+        public = metadata.get('is_public', False)
+        if type(public) is not bool:
+            raise ValueError("Invalid public flag")
+        return notebook_id, owner_id, name.strip(), description.strip(), created, int(public)
+
+    @staticmethod
+    def _row(row) -> dict:
+        value = dict(zip(('id','owner_user_id','name','description','created_at','is_public','archived','acl_revision','legacy_migrated'), row))
+        for field in ('is_public','archived','legacy_migrated'):
+            value[field] = bool(value[field])
+        return value
+
+    def configure_roles(self, ctx: RequestContext, roles: dict) -> None:
+        if not isinstance(roles, dict) or not roles:
+            raise ValueError("Invalid roles")
+        for role, permissions in roles.items():
+            self._identifier(role)
+            if not isinstance(permissions, list) or not permissions:
+                raise ValueError("Invalid permissions")
+            for permission in permissions: self._identifier(permission)
+        with self._lock:
+            self._require_open()
+            with self._conn:
+                self._conn.execute('BEGIN IMMEDIATE')
+                for role, permissions in roles.items():
+                    inserted = self._conn.execute('INSERT OR IGNORE INTO roles VALUES(?)',(role,)).rowcount
+                    if inserted:
+                        for permission in permissions:
+                            self._conn.execute('INSERT OR IGNORE INTO permissions VALUES(?)',(permission,))
+                            self._conn.execute('INSERT INTO role_permissions VALUES(?,?)',(role,permission))
+
+    def register_user(self, ctx: RequestContext, user_id: str) -> None:
+        self._identifier(user_id)
+        with self._lock:
+            self._require_open()
+            with self._conn:
+                self._conn.execute("INSERT INTO users VALUES(?,datetime('now'),datetime('now')) ON CONFLICT(user_id) DO UPDATE SET last_seen_at=excluded.last_seen_at",(user_id,))
+
+    def list_users(self, ctx: RequestContext) -> list[dict]:
+        with self._lock:
+            self._require_open()
+            return [dict(zip(('user_id','created_at','last_seen_at'),row)) for row in self._conn.execute('SELECT * FROM users ORDER BY user_id').fetchall()]
+
+    def create_notebook(self, ctx: RequestContext, metadata: dict) -> None:
+        values = self._metadata(metadata)
+        with self._lock:
+            self._require_open()
+            try:
+                with self._conn:
+                    self._conn.execute('INSERT INTO notebooks(notebook_id,owner_user_id,name,description,created_at,is_public,legacy_migrated) VALUES(?,?,?,?,?,?,1)',values)
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("Notebook conflict or unregistered owner") from exc
+
+    def get_notebook(self, ctx: RequestContext, notebook_id: str) -> Optional[dict]:
+        self._identifier(notebook_id)
+        with self._lock:
+            self._require_open()
+            row = self._conn.execute('SELECT '+self._columns+' FROM notebooks WHERE notebook_id=?',(notebook_id,)).fetchone()
+            return self._row(row) if row else None
+
+    def list_notebooks(self, ctx: RequestContext) -> list[dict]:
+        with self._lock:
+            self._require_open()
+            return [self._row(row) for row in self._conn.execute('SELECT '+self._columns+' FROM notebooks ORDER BY notebook_id').fetchall()]
+
+    def migrate_notebook(self, ctx: RequestContext, metadata: dict, members: list[dict]) -> None:
+        values = self._metadata(metadata)
+        if not isinstance(members,list): raise ValueError("Invalid legacy members")
+        normalized = []
+        for member in members:
+            if not isinstance(member,dict): raise ValueError("Invalid legacy member")
+            normalized.append((self._identifier(member.get('user_id')),self._identifier(member.get('role'))))
+        if len({uid for uid, _ in normalized}) != len(normalized): raise ValueError("Duplicate legacy member")
+        with self._lock:
+            self._require_open()
+            try:
+                with self._conn:
+                    self._conn.execute('BEGIN IMMEDIATE')
+                    row = self._conn.execute('SELECT legacy_migrated,acl_revision FROM notebooks WHERE notebook_id=?',(values[0],)).fetchone()
+                    if row and (row[0] or row[1]): return
+                    if any(not self._conn.execute('SELECT 1 FROM roles WHERE role_id=?',(role,)).fetchone() for _,role in normalized):
+                        raise ValueError("Invalid legacy role")
+                    for uid in [values[1]]+[uid for uid,_ in normalized]:
+                        self._conn.execute("INSERT OR IGNORE INTO users VALUES(?,datetime('now'),datetime('now'))",(uid,))
+                    if not row:
+                        self._conn.execute('INSERT INTO notebooks(notebook_id,owner_user_id,name,description,created_at,is_public) VALUES(?,?,?,?,?,?)',values)
+                    self._conn.executemany('INSERT INTO notebook_members VALUES(?,?,?)',[(values[0],uid,role) for uid,role in normalized])
+                    self._conn.execute('UPDATE notebooks SET legacy_migrated=1 WHERE notebook_id=?',(values[0],))
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("Invalid legacy relations") from exc
+
+    def membership_snapshot(self, ctx: RequestContext, notebook_id: str) -> dict:
+        self._identifier(notebook_id)
+        with self._lock:
+            self._require_open()
+            rows = self._conn.execute('SELECT n.acl_revision,n.is_public,n.archived,m.user_id,m.role_id FROM notebooks n LEFT JOIN notebook_members m ON m.notebook_id=n.notebook_id WHERE n.notebook_id=? ORDER BY m.user_id',(notebook_id,)).fetchall()
+            if not rows: raise ValueError("Notebook does not exist")
+            return {'revision':rows[0][0], 'is_public':bool(rows[0][1]), 'archived':bool(rows[0][2]),'members':[{'user_id':row[3],'role':row[4]} for row in rows if row[3] is not None]}
+
+    def role_permissions(self, ctx: RequestContext, role: str) -> list[str]:
+        self._identifier(role)
+        with self._lock:
+            self._require_open()
+            return [row[0] for row in self._conn.execute('SELECT permission_id FROM role_permissions WHERE role_id=? ORDER BY permission_id',(role,)).fetchall()]
+
+    def _change_member(self, notebook_id, user_id, role, expected_revision) -> bool:
+        self._identifier(notebook_id); self._identifier(user_id)
+        if type(expected_revision) is not int or expected_revision < 0: raise ValueError("Invalid revision")
+        if role is not None: self._identifier(role)
+        with self._lock:
+            self._require_open()
+            try:
+                with self._conn:
+                    self._conn.execute('BEGIN IMMEDIATE')
+                    exists = self._conn.execute('SELECT 1 FROM notebooks WHERE notebook_id=?',(notebook_id,)).fetchone()
+                    if not exists: raise ValueError("Notebook does not exist")
+                    if not self._conn.execute('SELECT 1 FROM users WHERE user_id=?',(user_id,)).fetchone():
+                        raise ValueError("User must first sign in")
+                    count = self._conn.execute('UPDATE notebooks SET acl_revision=acl_revision+1 WHERE notebook_id=? AND acl_revision=?',(notebook_id,expected_revision)).rowcount
+                    if not count: return False
+                    if role is None:
+                        self._conn.execute('DELETE FROM notebook_members WHERE notebook_id=? AND user_id=?',(notebook_id,user_id))
+                    else:
+                        self._conn.execute('INSERT INTO notebook_members VALUES(?,?,?) ON CONFLICT(notebook_id,user_id) DO UPDATE SET role_id=excluded.role_id',(notebook_id,user_id,role))
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("Unknown role or relation") from exc
+            return True
+
+    def put_member(self, ctx: RequestContext, notebook_id: str, user_id: str, role: str, expected_revision: int) -> bool:
+        return self._change_member(notebook_id,user_id,role,expected_revision)
+
+    def delete_member(self, ctx: RequestContext, notebook_id: str, user_id: str, expected_revision: int) -> bool:
+        return self._change_member(notebook_id,user_id,None,expected_revision)
+
+    def update_notebook(self, ctx: RequestContext, notebook_id: str, name: str, description: str) -> None:
+        self._identifier(notebook_id)
+        if not isinstance(name,str) or not 0 < len(name.strip()) <= 80 or not isinstance(description,str) or len(description)>300:
+            raise ValueError("Invalid notebook name or description")
+        with self._lock:
+            self._require_open()
+            with self._conn:
+                if not self._conn.execute('UPDATE notebooks SET name=?,description=? WHERE notebook_id=? AND is_public=0 AND archived=0',(name.strip(),description.strip(),notebook_id)).rowcount:
+                    raise ValueError("Notebook is absent, public or archived")
+
+    def set_archived(self, ctx: RequestContext, notebook_id: str, archived: bool) -> None:
+        self._identifier(notebook_id)
+        if type(archived) is not bool: raise ValueError("Invalid archive flag")
+        with self._lock:
+            self._require_open()
+            with self._conn:
+                if not self._conn.execute('UPDATE notebooks SET archived=?,acl_revision=acl_revision+1 WHERE notebook_id=? AND is_public=0',(int(archived),notebook_id)).rowcount:
+                    raise ValueError("Notebook is absent or public")
+
+
+__all__ = ["NotebookStore", "SqliteVectorStore", "StateStore", "Storage", "make_storage"]

@@ -75,7 +75,7 @@ const state = {
 function permitted(permission) {
   const principal = state.principal;
   if (!principal || !["admin", "user", "guest"].includes(principal.role)) return false;
-  if (["import_document", "write", "manage_members"].includes(permission)) {
+  if (["import_document", "write", "manage_members", "manage_notebook", "archive_notebook"].includes(permission)) {
     return activeNotebook()?.permissions?.includes(permission) === true;
   }
   return principal.permissions?.includes(permission) === true;
@@ -95,6 +95,9 @@ function applyPermissions() {
   if (!permitted("create_notebook")) dom.createForm.hidden = true;
   dom.openUpload.hidden = !permitted("import_document");
   $("open-members").hidden = !permitted("manage_members");
+  $("edit-notebook").hidden = !permitted("manage_notebook");
+  $("archive-notebook").hidden = !permitted("archive_notebook");
+  $("open-archives").hidden = !administrator;
   dom.studioNotes.closest(".notes-card").hidden = !permitted("write");
   dom.message.disabled = !permitted("query");
   dom.form.querySelector('button[type="submit"]').disabled = !permitted("query");
@@ -879,7 +882,7 @@ $("open-members").onclick = async () => {
   if (!permitted("manage_members")) return;
   const notebookId = state.activeId;
   $("members-dialog").dataset.notebookId = notebookId;
-  $("members-status").textContent = "请输入现有登录账号的用户ID；同一用户在不同笔记本可有不同权限。";
+  $("members-status").textContent = "请输入已登录过RAG的账号用户ID；同一用户在不同笔记本可有不同权限。";
   $("members-dialog").showModal();
   try { await loadMembers(notebookId); }
   catch (error) { $("members-status").textContent = error.message; }
@@ -903,6 +906,76 @@ $("member-form").onsubmit = async (event) => {
   } catch (error) { $("members-status").textContent = error.message; }
   finally { if (button) button.disabled = false; }
 };
+
+// 笔记本目录操作由 DataService 业务接口保存；浏览器只发HTTP请求。
+$("edit-notebook").onclick = () => {
+  if (!permitted("manage_notebook")) return;
+  const book = activeNotebook();
+  $("edit-notebook-dialog").dataset.notebookId = book.id;
+  $("edit-notebook-name").value = book.name;
+  $("edit-notebook-description").value = book.description || "";
+  $("edit-notebook-status").textContent = "";
+  $("edit-notebook-dialog").showModal();
+};
+$("close-edit-notebook").onclick = () => $("edit-notebook-dialog").close();
+$("edit-notebook-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const id = $("edit-notebook-dialog").dataset.notebookId;
+  if (id !== state.activeId || !permitted("manage_notebook")) return;
+  const button = event.submitter;
+  if (button) button.disabled = true;
+  try {
+    const response = await apiFetch(`/api/notebooks/${encodeURIComponent(id)}`, {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:$("edit-notebook-name").value.trim(),description:$("edit-notebook-description").value.trim()})});
+    const data = await response.json();
+    if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "修改失败");
+    $("edit-notebook-dialog").close();
+    await loadNotebooks(id);
+  } catch (error) { $("edit-notebook-status").textContent = error.message; }
+  finally { if (button) button.disabled = false; }
+};
+$("archive-notebook").onclick = async () => {
+  if (!permitted("archive_notebook") || state.busy || state.uploading) return;
+  const id = state.activeId;
+  $("archive-notebook").disabled = true;
+  try {
+    const response = await apiFetch(`/api/notebooks/${encodeURIComponent(id)}/archive`, {method:"POST"});
+    if (!response.ok) throw new Error("归档失败或权限已变更");
+    await loadNotebooks(state.defaultIds[0]);
+    setStatus(dom.notebookStatus,"笔记本已归档，可在「已归档」中恢复。","success");
+  } catch (error) { setStatus(dom.notebookStatus,error.message,"error"); }
+  finally { $("archive-notebook").disabled = false; }
+};
+async function loadArchives() {
+  const response = await apiFetch("/api/notebooks?include_archived=true");
+  if (!response.ok) throw new Error("归档目录加载失败");
+  const books = (await response.json()).notebooks.filter(book => book.archived);
+  const list = $("archives-list");
+  list.replaceChildren();
+  $("archives-status").textContent = books.length ? "" : "暂无归档笔记本。";
+  for (const book of books) {
+    const row = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = `${book.name} · ${book.document_count} 篇来源 `;
+    const button = document.createElement("button");
+    button.type = "button"; button.textContent = "恢复";
+    button.onclick = async () => {
+      button.disabled = true;
+      try {
+        const result = await apiFetch(`/api/notebooks/${encodeURIComponent(book.id)}/restore`,{method:"POST"});
+        if (!result.ok) throw new Error("恢复失败或权限已变更");
+        await loadNotebooks(); await loadArchives();
+      } catch (error) { $("archives-status").textContent = error.message; }
+      finally { button.disabled = false; }
+    };
+    row.append(label,button); list.append(row);
+  }
+}
+$("open-archives").onclick = async () => {
+  if (state.principal?.role !== "admin") return;
+  $("archives-dialog").showModal();
+  try { await loadArchives(); } catch (error) { $("archives-status").textContent = error.message; }
+};
+$("close-archives").onclick = () => $("archives-dialog").close();
 
 // ---------------------------------------------------------------- 启动
 

@@ -117,3 +117,5 @@ curl -f http://127.0.0.1:18080/api/demo
 默认模型配置已支持 OpenRouter 服务端凭据与免费路由 `openrouter/free`，全站每天20次问答，按北京时间零点恢复；计数在后端持久化。显式 Mock / DeepSeek 模式保留。公开页可手动应用临时 key，仅页面内存保存，通过同源HTTPS请求使用，刷新后清除，不能绕过日额度或免费模型限制。凭据加载与发布依赖见 [`docs/OPENROUTER_RUNTIME.md`](docs/OPENROUTER_RUNTIME.md)；权限接口见 [`specifications/AUTH_INTERFACES.md`](specifications/AUTH_INTERFACES.md)，网页接口见 [`specifications/WEB_DEMO.md`](specifications/WEB_DEMO.md)。
 
 [公开演示](https://portfolio.72945645.xyz:8443/projects/apps/rag/) 与 [管理员登录](https://portfolio.72945645.xyz:8443/projects/apps/rag/admin/login) 沿用已开放8443端口。实际构建和部署记录见 [`docs/REFACTOR_VALIDATION.md`](docs/REFACTOR_VALIDATION.md)。
+
+笔记本权限、模型管理设计与本轮业务归属：[权限矩阵](docs/NOTEBOOK_PERMISSIONS.md) · [模型配置设计](docs/MODEL_CONFIGURATION.md) · [业务模块变更](docs/BUSINESS_CHANGE_MAP.md) · [验收及发布状态](docs/NOTEBOOK_ACCESS_VALIDATION.md)。模型表与管理员重置界面当前是设计，不能视为已上线能力。

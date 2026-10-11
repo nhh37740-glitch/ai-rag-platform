@@ -3,9 +3,9 @@
   "modules": {
     "agent-facade": {
       "name": "agent_facade",
-      "version": "0.2.0",
-      "checksum": "79dd5037b5128151460dea9e1929783884ccd0fcc132f8fc5d62b1acde39707a",
-      "path": "artifacts/agent-facade/0.2.0",
+      "version": "0.3.0",
+      "checksum": "b39f7614fe87c443eeee413243be2ad8b4098002efafecc6c6c05629b7b7b577",
+      "path": "artifacts/agent-facade/0.3.0",
       "status": "published"
     },
     "agent-runtime": {
@@ -17,9 +17,9 @@
     },
     "data-facade": {
       "name": "data_facade",
-      "version": "0.1.0",
-      "checksum": "5cdee5f683ffae071cf55c5695ebc86724c1d2afffd01bd9faf1f803d05727ec",
-      "path": "artifacts/data-facade/0.1.0",
+      "version": "0.2.0",
+      "checksum": "4963e9ada75873cfc4fb3e186bfd1a336a0c45d99c31445cb2b5b02c09ebd49f",
+      "path": "artifacts/data-facade/0.2.0",
       "status": "published"
     },
     "evaluation": {
@@ -101,9 +101,9 @@
     },
     "storage": {
       "name": "storage",
-      "version": "0.3.0",
-      "checksum": "23d892045fb4bd8e4966276ba28f426427c562b69ff6af1a746062aaa2e2665c",
-      "path": "artifacts/storage/0.3.0",
+      "version": "0.4.0",
+      "checksum": "a0b8ce5c82d9ab778f534acf62817c8ba1609c33af363aa08aae6ffcaef1d645",
+      "path": "artifacts/storage/0.4.0",
       "status": "published"
     },
     "tool-runtime": {
@@ -122,9 +122,9 @@
     },
     "auth-facade": {
       "name": "auth_facade",
-      "version": "0.3.0",
-      "checksum": "e9360c03cfb98e768f748dbfdf73a5b0185bf700d60e39c4b73138a1160cbed7",
-      "path": "artifacts/auth-facade/0.3.0",
+      "version": "0.4.0",
+      "checksum": "a286a3de175007f040116dc034a18405b7122398096ee5d3d6e308e1bf5ee7c1",
+      "path": "artifacts/auth-facade/0.4.0",
       "status": "published"
     }
   }

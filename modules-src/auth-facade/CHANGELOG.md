@@ -1,3 +1,9 @@
+# auth-facade
+
+## 0.4.0 — 2026-10-11
+
+成员授权改用NotebookStorePort关系表；按资源角色权限决策，事务版本冲突后重新授权；新增manage_notebook及管理员归档/恢复权限，保留全站20次策略。
+
 # Changelog
 
 ## [0.2.0]

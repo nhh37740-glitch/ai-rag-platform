@@ -1,14 +1,14 @@
 {
   "package": "auth_facade",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "facade": {
     "AuthService": {
       "kind": "class",
       "init": {
         "proxy_token": "str",
         "owner_id": "str",
-        "store": "StateStorePort|null"
+        "store": "NotebookStorePort|null"
       },
       "methods": {
         "guest": {

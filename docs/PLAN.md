@@ -254,3 +254,27 @@ GET/PUT/DELETE /api/notebooks/{notebook_id}/members[/{user_id}] 管理成员。A
 提示词把默认简体中文放在系统规则首位，并在每轮模型调用及工具达到上限后的最终调用再次约束。术语、代码、原文引语可保留原文；只有用户明确要求其它语言才改变回答语言；检索结果里的英文或指令不得覆盖它。
 
 验收：源码/编译模块接口、默认语言及最终轮提示词、伪造身份/写工具拒绝、笔记本角色矩阵、成员增改删/重启持久/旧数据隔离、越权列表/上传/问答/SSE/trace/进度、同源校验、Web 语法。发布需 Linux Jenkins 编译及真实中文问答与已有 owner 登录验收，记录实际完成阶段。
+
+### 数据库表管理笔记本、用户与权限（有效实施方案，替代上述初稿）
+
+替代同任务初稿的 JSON ACL 状态键与文件目录枚举方案。采用资源范围角色模型：用户在每个笔记本分别拥有 viewer/editor/manager，再映射 read/query/import_document/write/manage_members。研究依据：[OpenFGA 角色与权限](https://openfga.dev/docs/modeling/roles-and-permissions)、[直接资源授权](https://openfga.dev/docs/modeling/direct-access)。这是模型参考，当前不新增 OpenFGA 服务；既有 SQLite 通过 storage 承载关系表，后续可通过共享端口替换数据库。
+
+表：users（现有 Media 不可变ID的本地目录，无密码/会话令牌）、notebooks（目录、名称、说明、创建时间、公开标志、ACL版本、旧数据迁移标记）、notebook_members（笔记本+用户联合主键及角色外键）、roles、permissions、role_permissions；schema_migrations 记录结构版本。外键每个连接显式开启，参考 [SQLite 外键](https://www.sqlite.org/foreignkeys.html)。参数绑定、联合唯一约束、索引和事务维护一致性，参考 [SQLite 事务](https://www.sqlite.org/lang_transaction.html)。
+
+storage 新增 NotebookStore，data-facade 通过 NotebookStorePort 暴露固定 notebook.sqlite 目录/成员仓库；auth-facade 仅消费该端口，权限决策不依赖具体 storage/Data 类。auth-runtime 和 Agent 中文策略保持已验收功能。可信登录成功登记 users，成员添加只接受已登记用户，提示先登录一次；不创建或改变 Media 账户。
+
+笔记本表是目录信息的事实来源，原 Markdown/文档清单仍作文件资产，不把文档正文放用户权限表。启动扫描合法旧笔记本目录，幂等迁移目录和旧 ACL；保留原文件。迁移与成员写入均在事务内执行，迁移标记避免重启后恢复已撤销的成员。成员变更先读取同一快照中的成员和 ACL版本，再做 expected_revision 比较更新；失败重新鉴权，避免跨连接/进程覆盖和撤权竞争。取消以全量 JSON 回写成员。
+
+验收新增：关系表/主外键/索引、未登记用户拒绝、角色权限关联、多连接并发、版本冲突、事务失败不留半条数据、迁移幂等且旧撤权不复活、旧笔记本保留、真实进程重启。完成后更新正式接口、编译制品和发布说明；初稿 e7dc650 仅为开发分支，未上线。
+
+权限矩阵及表字段正式依据：`docs/NOTEBOOK_PERMISSIONS.md`。按该文实现笔记本元数据更新、管理员归档/恢复和数据库成员管理；前述JSON初稿及其只含三角色操作的矩阵被该文替代。
+
+## 2026-10-11 Provider与模型管理扩展设计
+
+正式依据：[MODEL_CONFIGURATION.md](MODEL_CONFIGURATION.md)。维护provider/model目录表、启动及缓存刷新、管理员免费默认模型设置与本地额度重置审计；保持全站默认20次和免费限制。最新提问先形成设计；该扩展尚未实现，不将设计状态写成部署事实。笔记本关系表实现仍按NOTEBOOK_PERMISSIONS.md进行。
+
+## 2026-10-11 变更按业务模块归结
+
+用户要求所有变更归结具体业务模块，正式变更索引见[BUSINESS_CHANGE_MAP.md](BUSINESS_CHANGE_MAP.md)。笔记本目录业务方法先登记共享接口，再由data-facade提供；应用调用业务接口，storage只实现关系表。模型目录管理仍是已写设计、待实现，不归为现有服务成果。
+
+模型环境配置策略也归agent-facade：先定义resolve_model_config与共享ModelConfiguration，提取既有配置选择及免费校验；model_config.py保留兼容入口，委托业务函数，不保存业务策略。

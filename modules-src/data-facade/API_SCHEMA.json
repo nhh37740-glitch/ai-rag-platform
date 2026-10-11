@@ -1,7 +1,7 @@
 {
   "package": "data_facade",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "facade": {
     "DataService": {
       "kind": "class",
@@ -38,6 +38,57 @@
         "close": {
           "params": {
             "ctx": "RequestContext"
+          },
+          "returns": "None"
+        },
+        "notebook_store": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "NotebookStorePort"
+        },
+        "create_notebook": {
+          "params": {
+            "ctx": "RequestContext",
+            "metadata": "dict"
+          },
+          "returns": "None"
+        },
+        "get_notebook": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str"
+          },
+          "returns": "dict|null"
+        },
+        "list_notebooks": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "list[dict]"
+        },
+        "migrate_notebook": {
+          "params": {
+            "ctx": "RequestContext",
+            "metadata": "dict",
+            "members": "list[dict]"
+          },
+          "returns": "None"
+        },
+        "update_notebook": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str",
+            "name": "str",
+            "description": "str"
+          },
+          "returns": "None"
+        },
+        "set_notebook_archived": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str",
+            "archived": "bool"
           },
           "returns": "None"
         }

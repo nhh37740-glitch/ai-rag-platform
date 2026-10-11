@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from typing import Callable
 
@@ -8,6 +9,7 @@ from core_specifications import (
     ChatMessage,
     DataServicePort,
     LLMProviderPort,
+    ModelConfiguration,
     RagServicePort,
     RequestContext,
     ToolCall,
@@ -18,7 +20,33 @@ from llm_gateway import DeepSeekProvider, MockProvider
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
+
+
+def resolve_model_config(ctx: RequestContext, environment: dict[str, str], public: bool = False) -> ModelConfiguration:
+    """Resolve deployment settings and enforce the OpenRouter free-only policy."""
+    env = environment
+    selected = env.get("LLM_PROVIDER", "").strip().lower()
+    if not selected:
+        selected = "openrouter" if env.get("OPENROUTER_API_KEY", "").strip() else (
+            env.get("DEMO_PROVIDER", "mock").strip().lower() if public else
+            "deepseek" if env.get("DEEPSEEK_API_KEY", "").strip() else "mock"
+        )
+    if selected == "openrouter":
+        key = env.get("OPENROUTER_API_KEY", "").strip()
+        model = env.get("OPENROUTER_MODEL", "openrouter/free").strip()
+        if not key:
+            raise ValueError("OpenRouter 缺少服务端凭据")
+        if model != "openrouter/free" and re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+:free", model) is None:
+            raise ValueError("OpenRouter 仅允许免费模型")
+        return ModelConfiguration(selected, key, "https://openrouter.ai/api/v1", model)
+    if selected not in {"mock", "deepseek"}:
+        raise ValueError("LLM_PROVIDER 必须为 mock、deepseek 或 openrouter")
+    key = env.get("DEEPSEEK_API_KEY", "").strip() if selected == "deepseek" else ""
+    if selected == "deepseek" and not key:
+        raise ValueError("DeepSeek 缺少服务端凭据")
+    return ModelConfiguration(selected, key, env.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+               env.get("DEEPSEEK_MODEL", "deepseek-chat"))
 
 
 def make_provider(
@@ -140,4 +168,4 @@ class AgentService:
         self._rag = None
 
 
-__all__ = ["AgentService", "make_provider"]
+__all__ = ["resolve_model_config", "AgentService", "make_provider"]

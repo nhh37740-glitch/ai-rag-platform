@@ -41,7 +41,8 @@ class DomainIntegrationTests(unittest.TestCase):
                 result = rag.search(ctx, "Bearer", ["engineering"], mode="keyword")
                 self.assertIsInstance(result, RetrievalResult)
                 self.assertEqual(result.citations[0].source_id, receipt.source_id)
-                self.assertTrue(reopened.memory_store(ctx).get(ctx, "user", "last_task"))
+                self.assertIsNone(reopened.memory_store(ctx).get(ctx, "user", "last_task"))
+                self.assertIsNotNone(reopened.memory_store(ctx).get(ctx, "session", "current_task"))
                 self.assertEqual(rag.search(ctx, "Bearer", []).citations, [])
                 with self.assertRaises(ValueError):
                     rag.read_document(ctx, receipt.source_id, ["outside"])

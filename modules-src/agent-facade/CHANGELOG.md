@@ -1,3 +1,9 @@
+# agent-facade
+
+## 0.3.0 — 2026-10-11
+
+将既有环境模型配置及OpenRouter免费选择策略归入resolve_model_config业务接口；返回隐藏凭据repr的不可变共享值对象。管理员目录管理仍为设计。
+
 # Changelog
 
 ## [0.1.0]

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7f8fc">
   <title>Knowledge Studio</title>
-  <link rel="stylesheet" href="./static/knowledge_demo.css?v=notebook-acl-20261011">
+  <link rel="stylesheet" href="./static/knowledge_demo.css?v=notebook-db-20261011">
 </head>
 <body>
   <header class="app-header">
@@ -38,6 +38,9 @@
 
     <div class="header-actions">
       <p id="demo-status" class="dataset-status" aria-live="polite"></p>
+      <button id="edit-notebook" class="key-config-btn" type="button" hidden>修改笔记本</button>
+      <button id="archive-notebook" class="key-config-btn" type="button" hidden>归档笔记本</button>
+      <button id="open-archives" class="key-config-btn" type="button" hidden>已归档</button>
       <button id="open-members" class="key-config-btn" type="button" hidden>笔记本成员</button>
       <button id="open-key-config" class="key-config-btn" type="button" aria-haspopup="dialog">模型设置</button>
       <span id="web-quota" role="status" hidden></span>
@@ -65,15 +68,30 @@
   <dialog id="members-dialog" class="key-config-dialog" aria-labelledby="members-title">
     <h2 id="members-title">笔记本成员与权限</h2>
     <p id="members-status" role="status"></p>
-    <p>全局管理员始终可以管理笔记本。用户ID可在成员登录后的右上角身份提示中查看。</p>
+    <p>成员须先登录一次RAG；右上角身份按钮可复制用户ID。全局管理员始终保留管理权限。</p>
     <ul id="members-list"></ul>
     <form id="member-form">
       <label class="field"><span>现有账号的用户ID</span><input id="member-user-id" maxlength="128" required autocomplete="off"></label>
-      <label class="field"><span>笔记本权限</span><select id="member-role"><option value="viewer">查看者：阅读、提问</option><option value="editor">编辑者：另可导入文档</option><option value="manager">管理者：另可设置成员</option></select></label>
+      <label class="field"><span>笔记本权限</span><select id="member-role"><option value="viewer">查看者：阅读、提问</option><option value="editor">编辑者：另可导入文档</option><option value="manager">管理者：另可设置成员和修改笔记本</option></select></label>
       <div class="key-config-actions"><button id="close-members" type="button">关闭</button><button type="submit" class="primary-btn">添加或更新成员</button></div>
     </form>
   </dialog>
 
+  <dialog id="edit-notebook-dialog" class="key-config-dialog" aria-labelledby="edit-notebook-title">
+    <h2 id="edit-notebook-title">修改笔记本</h2>
+    <form id="edit-notebook-form">
+      <label class="field"><span>名称</span><input id="edit-notebook-name" maxlength="80" required></label>
+      <label class="field"><span>说明</span><input id="edit-notebook-description" maxlength="300"></label>
+      <p id="edit-notebook-status" role="status"></p>
+      <div class="key-config-actions"><button id="close-edit-notebook" type="button">关闭</button><button type="submit" class="primary-btn">保存</button></div>
+    </form>
+  </dialog>
+  <dialog id="archives-dialog" class="key-config-dialog" aria-labelledby="archives-title">
+    <h2 id="archives-title">已归档笔记本</h2>
+    <p>归档保留文档和成员权限，恢复后可继续使用。</p>
+    <p id="archives-status" role="status"></p><ul id="archives-list"></ul>
+    <button id="close-archives" type="button">关闭</button>
+  </dialog>
   <div id="workspace" class="workspace">
     <aside id="sources-panel" class="panel sources-panel" aria-label="来源">
       <header class="panel-header">
@@ -197,6 +215,6 @@
     </section>
   </div>
 
-  <script src="./static/knowledge_demo.js?v=notebook-acl-20261011" defer></script>
+  <script src="./static/knowledge_demo.js?v=notebook-db-20261011" defer></script>
 </body>
 </html>

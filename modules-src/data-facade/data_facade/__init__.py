@@ -5,15 +5,15 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-from core_specifications import MemoryStorePort, RequestContext, StateStorePort, VectorStore
+from core_specifications import NotebookStorePort, MemoryStorePort, RequestContext, StateStorePort, VectorStore
 from memory import MemoryStore
-from storage import SqliteVectorStore, StateStore
+from storage import NotebookStore, SqliteVectorStore, StateStore
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 class DataService:
-    """Owns the three persistent stores for the database domain."""
+    """Owns the four persistent stores for the database domain."""
 
     def __init__(
         self, state_dir: str, memory_db_path: str | None = None,
@@ -25,6 +25,7 @@ class DataService:
         self._memory: Optional[MemoryStore] = None
         self._vectors: Optional[SqliteVectorStore] = None
         self._state: Optional[StateStore] = None
+        self._notebooks: Optional[NotebookStore] = None
         self._lock = threading.RLock()
         self._closed = False
 
@@ -46,11 +47,13 @@ class DataService:
                 owned.append(vectors)
                 state = StateStore(str(self._state_dir / "state.sqlite"))
                 owned.append(state)
+                notebooks = NotebookStore(str(self._state_dir / "notebook.sqlite"))
+                owned.append(notebooks)
             except Exception:
                 for store in reversed(owned):
                     store.close()
                 raise
-            self._memory, self._vectors, self._state = memory, vectors, state
+            self._memory, self._vectors, self._state, self._notebooks = memory, vectors, state, notebooks
 
     def memory_store(self, ctx: RequestContext) -> MemoryStorePort:
         with self._lock:
@@ -67,11 +70,34 @@ class DataService:
             self.initialize(ctx)
             return self._state
 
+    def notebook_store(self, ctx: RequestContext) -> NotebookStorePort:
+        with self._lock:
+            self.initialize(ctx)
+            return self._notebooks
+
+    def create_notebook(self, ctx: RequestContext, metadata: dict) -> None:
+        return self.notebook_store(ctx).create_notebook(ctx, metadata)
+
+    def get_notebook(self, ctx: RequestContext, notebook_id: str) -> Optional[dict]:
+        return self.notebook_store(ctx).get_notebook(ctx, notebook_id)
+
+    def list_notebooks(self, ctx: RequestContext) -> list[dict]:
+        return self.notebook_store(ctx).list_notebooks(ctx)
+
+    def migrate_notebook(self, ctx: RequestContext, metadata: dict, members: list[dict]) -> None:
+        return self.notebook_store(ctx).migrate_notebook(ctx, metadata, members)
+
+    def update_notebook(self, ctx: RequestContext, notebook_id: str, name: str, description: str) -> None:
+        return self.notebook_store(ctx).update_notebook(ctx, notebook_id, name, description)
+
+    def set_notebook_archived(self, ctx: RequestContext, notebook_id: str, archived: bool) -> None:
+        return self.notebook_store(ctx).set_archived(ctx, notebook_id, archived)
+
     def close(self, ctx: RequestContext) -> None:
         with self._lock:
             if self._closed:
                 return
-            for store in (self._state, self._vectors, self._memory):
+            for store in (self._notebooks, self._state, self._vectors, self._memory):
                 if store is not None:
                     store.close()
             self._closed = True

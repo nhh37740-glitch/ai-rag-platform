@@ -27,3 +27,5 @@ Legacy Storage closes its own evaluation connection and leaves injected stores c
 - `Storage.add_documents(source_id, chunks, embeddings)` / `search_documents(query_embedding, top_k)`
 - `Storage.save_eval(run_id, payload)` / `load_eval(run_id)`
 - `make_storage(db_path, memory_store, vector_store)`
+
+0.4.0 新增 NotebookStore；关系表、FK、CAS版本、幂等迁移和软归档详见API_SCHEMA.json；不判定管理员或HTTP权限。

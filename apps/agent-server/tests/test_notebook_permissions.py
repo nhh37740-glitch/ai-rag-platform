@@ -35,6 +35,8 @@ s.request_provider._default = Provider()
 
 async def main():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=s.app), base_url=ORIGIN) as client:
+        for actor in [alice,bob,headers('carol','user')]:
+            assert (await client.get('/api/auth/session',headers=actor)).status_code==200
         a=(await client.post('/api/notebooks',headers=owner,json={'name':'甲笔记本'})).json()['id']
         b=(await client.post('/api/notebooks',headers=owner,json={'name':'乙笔记本'})).json()['id']
         Path(os.environ['STATE_DIR'],'test-notebook.json').write_text(json.dumps([a,b]))
@@ -48,6 +50,7 @@ async def main():
         assert [v['id'] for v in (await client.get('/api/notebooks',headers=alice)).json()['notebooks']]==[s.DEMO_KB_ID]
         assert (await set_member('alice','viewer')).status_code==200
         assert (await set_member('bob','viewer')).status_code==200
+        assert (await set_member('unknown','viewer')).status_code==422
         assert (await set_member('owner','viewer')).status_code==422
         assert (await client.put(p+'/members/alice',headers={**owner,'origin':'https://attacker.test'},json={'role':'manager'})).status_code==403
         assert (await client.put(p+'/members/alice',headers=owner,json={'role':'manager','user_id':'owner'})).status_code==422
@@ -86,6 +89,22 @@ async def main():
         assert (await upload(alice,'owner-progress')).status_code==409
         assert (await set_member('alice','manager')).status_code==200
         assert (await set_member('carol','editor',alice)).status_code==200
+        assert (await client.patch(p,headers=alice,json={'name':'新中文名称','description':'新说明'})).status_code==200
+        assert (await client.patch(p,headers=bob,json={'name':'越权','description':''})).status_code==403
+        assert (await client.patch(p,headers=owner,json={'name':'x','description':'','owner_user_id':'bob'})).status_code==422
+        assert (await client.post(p+'/archive',headers=alice)).status_code==403
+        assert (await client.post('/api/notebooks/'+s.DEMO_KB_ID+'/archive',headers=owner)).status_code==403
+        assert (await client.post(p+'/archive',headers=owner)).status_code==200
+        assert (await client.get(p+'/documents',headers=alice)).status_code==403
+        assert (await client.post('/api/chat',headers=owner,json={'message':'x','knowledge_base_ids':[a]})).status_code in {400,403}
+        assert a not in [v['id'] for v in (await client.get('/api/notebooks',headers=owner)).json()['notebooks']]
+        assert (await client.get('/api/notebooks?include_archived=true',headers=alice)).status_code==403
+        archived=(await client.get('/api/notebooks?include_archived=true',headers=owner)).json()['notebooks']
+        assert next(v for v in archived if v['id']==a)['archived'] is True
+        assert (await client.post(p+'/restore',headers=owner)).status_code==200
+        assert (await client.get(p+'/documents',headers=alice)).status_code==200
+        assert next(v for v in (await client.get('/api/notebooks',headers=alice)).json()['notebooks'] if v['id']==a)['name']=='新中文名称'
+
         assert (await client.put('/api/notebooks/'+b+'/members/bob',headers=alice,json={'role':'manager'})).status_code==403
         # User+session+scope cannot reuse previous private history or user memory.
         s.runtime._runtime._histories[('alice',s._scoped_session('same',[a]))].append(s.ChatMessage('assistant','NOTEBOOK_A_PRIVATE_MARKER'))
@@ -118,6 +137,7 @@ assert s.auth_service.notebook_permissions(ctx,bob,a)==['read','query']
 assert 'import_document' in s.auth_service.notebook_permissions(ctx,carol,a)
 assert s.auth_service.notebook_permissions(ctx,alice,a)==[]
 assert s.auth_service.notebook_permissions(ctx,bob,b)==[]
+assert s.notebook_store.get_notebook(ctx,a)['name']=='新中文名称'
 s.data_service.close(ctx)
 """
 
@@ -126,5 +146,54 @@ class NotebookHTTPTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='rag-acl-http-') as directory:
             env=dict(os.environ,PYTHONPATH=str(ROOT/'apps/agent-server'),PUBLIC_DEMO='0',RAG_ADMIN_AUTH='proxy',RAG_ADMIN_PROXY_TOKEN=TOKEN,RAG_ADMIN_OWNER_ID='owner',RAG_ADMIN_ORIGIN=ORIGIN,LLM_PROVIDER='mock',OPENROUTER_API_KEY='',DEEPSEEK_API_KEY='',RAG_LLM_ENV_FILE='',RAG_EMBED='hash',STATE_DIR=directory,DB_PATH=str(Path(directory)/'memory.sqlite'),VECTOR_DB_PATH=str(Path(directory)/'vectors.sqlite'),INDEX_PATH=str(Path(directory)/'absent.json'),RAG_NOTEBOOKS_DIR=str(Path(directory)/'notebooks'))
             for code in [CHECKS,REOPEN]:
+                result=subprocess.run([sys.executable,'-c',code],cwd=ROOT,env=env,capture_output=True,text=True,timeout=90)
+                self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
+
+LEGACY_BOOT = r"""
+import os,json,sqlite3
+from pathlib import Path
+base=Path(os.environ['RAG_NOTEBOOKS_DIR'])/'notebook-legacy001'
+(base/'markdown-documents').mkdir(parents=True)
+(base/'markdown-documents'/'legacy.md').write_text('# 历史文档\n原有资料完整保留。',encoding='utf-8')
+(base/'notebook-metadata.json').write_text(json.dumps({'id':base.name,'name':'旧笔记本','description':'历史说明','created_at':'2026-10-10T00:00:00Z','documents':[{'markdown_file':'legacy.md','title':'原有资料'}]}),encoding='utf-8')
+db=sqlite3.connect(str(Path(os.environ['STATE_DIR'])/'state.sqlite'))
+db.execute('CREATE TABLE state(user_id TEXT NOT NULL,key TEXT NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(user_id,key))')
+db.execute('INSERT INTO state VALUES(?,?,?)',('__rag_notebook_acl__','notebook-members:'+base.name,json.dumps({'bob':'viewer'})))
+db.commit();db.close()
+import server as s
+ctx=s.BOOT_CONTEXT
+token=os.environ['RAG_ADMIN_PROXY_TOKEN']
+owner=s.auth_service.authenticate_proxy(ctx,token,'owner','admin')
+bob=s.auth_service.authenticate_proxy(ctx,token,'bob','user')
+book=s.data_service.get_notebook(ctx,base.name)
+assert book['legacy_migrated'] and book['name']=='旧笔记本' and not book['is_public']
+assert s.auth_service.notebook_permissions(ctx,bob,base.name)==['read','query']
+assert s.vector_store.document_chunks(base.name+'/legacy')
+s.auth_service.remove_member(ctx,owner,base.name,'bob')
+s.data_service.update_notebook(ctx,base.name,'数据库中的新名称','新说明')
+s.data_service.close(ctx)
+"""
+
+LEGACY_REOPEN = r"""
+import os
+from pathlib import Path
+import server as s
+ctx=s.BOOT_CONTEXT
+bob=s.auth_service.authenticate_proxy(ctx,os.environ['RAG_ADMIN_PROXY_TOKEN'],'bob','user')
+nb='notebook-legacy001'
+assert s.auth_service.notebook_permissions(ctx,bob,nb)==[]
+assert s.data_service.get_notebook(ctx,nb)['name']=='数据库中的新名称'
+assert (Path(os.environ['RAG_NOTEBOOKS_DIR'])/nb/'markdown-documents'/'legacy.md').is_file()
+assert s.vector_store.document_chunks(nb+'/legacy')
+assert len([b for b in s.data_service.list_notebooks(ctx) if b['id']==nb])==1
+s.data_service.close(ctx)
+"""
+
+class NotebookMigrationHTTPTests(unittest.TestCase):
+    def test_legacy_files_acl_migrate_once_and_sql_directory_is_authoritative(self):
+        with tempfile.TemporaryDirectory(prefix='rag-legacy-migration-') as directory:
+            env=dict(os.environ,PYTHONPATH=str(ROOT/'apps/agent-server'),PUBLIC_DEMO='0',RAG_ADMIN_AUTH='proxy',RAG_ADMIN_PROXY_TOKEN=TOKEN,RAG_ADMIN_OWNER_ID='owner',RAG_ADMIN_ORIGIN=ORIGIN,LLM_PROVIDER='mock',OPENROUTER_API_KEY='',DEEPSEEK_API_KEY='',RAG_LLM_ENV_FILE='',RAG_EMBED='hash',STATE_DIR=directory,DB_PATH=str(Path(directory)/'memory.sqlite'),VECTOR_DB_PATH=str(Path(directory)/'vectors.sqlite'),INDEX_PATH=str(Path(directory)/'absent.json'),RAG_NOTEBOOKS_DIR=str(Path(directory)/'notebooks'))
+            for code in [LEGACY_BOOT,LEGACY_REOPEN]:
                 result=subprocess.run([sys.executable,'-c',code],cwd=ROOT,env=env,capture_output=True,text=True,timeout=90)
                 self.assertEqual(result.returncode,0,result.stdout+result.stderr)
