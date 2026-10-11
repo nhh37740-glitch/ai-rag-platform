@@ -76,7 +76,10 @@ def restore_volume(target, archive_path, expected_digest):
                 if os.geteuid()==0: os.chown(target,member.uid,member.gid)
                 continue
             member.name=member.name[len('data/'):]
-            archive.extract(member, target, set_attrs=True, numeric_owner=True)
+            # Python 3.14 defaults to data_filter, which removes numeric owners.
+            # All members were already checked: canonical paths, regular files
+            # and directories only, with no links or special files.
+            archive.extract(member, target, set_attrs=True, numeric_owner=True, filter='fully_trusted')
 
 def environment(profile, container):
     labels=container['Config'].get('Labels') or {}
