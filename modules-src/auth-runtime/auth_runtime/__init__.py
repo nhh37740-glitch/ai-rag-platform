@@ -8,7 +8,7 @@ import secrets
 
 from core_specifications import AuthPrincipal, RequestContext
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 def _identity_valid(value: object) -> bool:
     return isinstance(value, str) and bool(_credential_bytes(value)) and value == value.strip() and not any(
@@ -46,11 +46,11 @@ class AuthRuntime:
         mode = "proxy" if self._configured else "guest"
         return f"AuthRuntime(mode={mode!r})"
 
-    def _admin_proof(self) -> str:
-        # Length-framed identity avoids ambiguous string concatenation. The
-        # signing key is generated per service and never included in a principal.
-        owner = self._owner_id.encode("utf-8")
-        payload = b"auth-runtime:admin:v1\0" + str(len(owner)).encode("ascii") + b":" + owner
+    def _identity_proof(self, user_id: str, role: str) -> str:
+        payload = b"auth-runtime:identity:v2\0"
+        for value in (user_id, role):
+            encoded = value.encode("utf-8")
+            payload += str(len(encoded)).encode("ascii") + b":" + encoded
         return hmac.new(self._signing_key, payload, hashlib.sha256).hexdigest()
 
     def guest(self, ctx: RequestContext) -> AuthPrincipal:
@@ -69,27 +69,34 @@ class AuthRuntime:
         # Compare the proxy proof even if other supplied identity fields fail.
         # Invalid UTF-8 input becomes an empty value, never an error containing it.
         proof_matches = hmac.compare_digest(self._proxy_token, _credential_bytes(proxy_token))
-        if not (self._configured and proof_matches and user_id == self._owner_id and role == "admin"):
+        valid_role = (role == "admin" and user_id == self._owner_id) or (
+            role == "user" and user_id != self._owner_id
+        )
+        if not (self._configured and proof_matches and _identity_valid(user_id) and valid_role):
             raise PermissionError("Authentication denied")
-        return AuthPrincipal(user_id=self._owner_id, role="admin", proof=self._admin_proof())
+        return AuthPrincipal(user_id=user_id, role=role, proof=self._identity_proof(user_id, role))
 
     def _validate_principal(self, principal: AuthPrincipal) -> bool:
-        """Return whether a validated principal is an administrator."""
         if type(principal) is not AuthPrincipal or not _identity_valid(principal.user_id):
             raise PermissionError("Invalid authentication principal")
         if principal.role == "guest" and principal.proof == "":
             return False
-        if principal.role == "admin":
-            proof_matches = hmac.compare_digest(
-                self._admin_proof().encode("ascii"), _credential_bytes(principal.proof)
-            )
-            if self._configured and principal.user_id == self._owner_id and proof_matches:
-                return True
+        valid_role = (principal.role == "admin" and principal.user_id == self._owner_id) or (
+            principal.role == "user" and principal.user_id != self._owner_id
+        )
+        if self._configured and valid_role and hmac.compare_digest(
+            self._identity_proof(principal.user_id, principal.role).encode("ascii"),
+            _credential_bytes(principal.proof),
+        ):
+            return True
         raise PermissionError("Invalid authentication principal")
+
+    def is_authenticated(self, ctx: RequestContext, principal: AuthPrincipal) -> bool:
+        return self._validate_principal(principal)
 
     def is_administrator(self, ctx: RequestContext, principal: AuthPrincipal) -> bool:
         """Validate a principal and return its cryptographically verified role."""
-        return self._validate_principal(principal)
+        return self._validate_principal(principal) and principal.role == "admin"
 
 
 __all__ = ["AuthRuntime"]

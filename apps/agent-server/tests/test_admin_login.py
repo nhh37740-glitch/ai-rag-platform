@@ -85,7 +85,7 @@ class AdminLoginTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.calls)
         headers = {"X-Rag-Proxy-Token": PROOF}
         self.assertEqual((await self.client.get("/verify", headers=headers)).status_code, 401)
-        for name in ["editor-session", "forged-owner-session", "renamed-session", "expired-session"]:
+        for name in ["renamed-session", "expired-session"]:
             denied = await self.client.get("/verify", headers={**headers, "Cookie": COOKIE + "=" + name})
             self.assertEqual(denied.status_code, 403)
             self.assertNotIn("x-rag-user-id", denied.headers)
@@ -96,6 +96,14 @@ class AdminLoginTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(verified.headers["x-rag-role"], "admin")
         self.assertNotIn(PROOF, verified.text)
         self.assertNotIn("owner-session", verified.text)
+
+    async def test_member_identity_is_verified_live_without_administrator_role(self):
+        for name in ["editor-session", "forged-owner-session"]:
+            response = await self.client.get("/verify", headers={"X-Rag-Proxy-Token": PROOF, "Cookie": COOKIE + "=" + name})
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(response.json()["administrator"])
+            self.assertEqual(response.headers["x-rag-role"], "user")
+            self.assertEqual(response.headers["x-rag-user-id"], "different-account")
 
     async def test_duplicate_cookies_and_proof_headers_are_rejected(self):
         duplicates = {"X-Rag-Proxy-Token": PROOF, "Cookie": COOKIE + "=owner-session; " + COOKIE + "=editor-session"}
@@ -111,8 +119,9 @@ class AdminLoginTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result.status_code, 403)
         self.assertFalse(self.calls)
         denied = await self.client.post("/login", json={"username": "editor", "password": PASSWORD}, headers=headers)
-        self.assertEqual(denied.status_code, 403)
-        self.assertNotIn("editor-session", denied.headers.get("set-cookie", ""))
+        self.assertEqual(denied.status_code, 200)
+        self.assertFalse(denied.json()["administrator"])
+        self.assert_cookie(denied, "editor-session")
         invalid = await self.client.post("/login", json={"username": "owner", "password": "private-input-sentinel"}, headers=headers)
         self.assertEqual(invalid.status_code, 401)
         self.assertNotIn("private-input-sentinel", invalid.text)

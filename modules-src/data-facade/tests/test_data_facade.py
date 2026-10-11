@@ -4,7 +4,7 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from core_specifications import DataServicePort, MemoryStorePort, RequestContext, StateStorePort, VectorStore
+from core_specifications import DataServicePort, MemoryStorePort, RequestContext, NotebookStorePort, StateStorePort, VectorStore
 from data_facade import DataService
 
 
@@ -23,14 +23,14 @@ class TestDataService(unittest.TestCase):
     def test_D01_initialize_idempotent_and_store_identity(self):
         self.assertIsInstance(self.data, DataServicePort)
         self.data.initialize(CTX)
-        first = (self.data.memory_store(CTX), self.data.vector_store(CTX), self.data.state_db(CTX))
+        first = (self.data.memory_store(CTX), self.data.vector_store(CTX), self.data.state_db(CTX), self.data.notebook_store(CTX))
         self.data.initialize(CTX)
-        second = (self.data.memory_store(OTHER), self.data.vector_store(OTHER), self.data.state_db(OTHER))
+        second = (self.data.memory_store(OTHER), self.data.vector_store(OTHER), self.data.state_db(OTHER), self.data.notebook_store(OTHER))
         for previous, current in zip(first, second):
             self.assertIs(previous, current)
-        for store, protocol in zip(first, (MemoryStorePort, VectorStore, StateStorePort)):
+        for store, protocol in zip(first, (MemoryStorePort, VectorStore, StateStorePort, NotebookStorePort)):
             self.assertIsInstance(store, protocol)
-        for name in ("memory.sqlite", "vectors.sqlite", "state.sqlite"):
+        for name in ("memory.sqlite", "vectors.sqlite", "state.sqlite", "notebook.sqlite"):
             self.assertTrue((self.path / name).is_file())
 
     def test_D02_persistence_after_reopen_and_user_state_isolation(self):
@@ -128,6 +128,20 @@ class TestDataService(unittest.TestCase):
         self.assertFalse(self.path.exists())
         with self.assertRaises(RuntimeError):
             self.data.initialize(CTX)
+
+
+    def test_D06_directory_business_methods_persist_and_archive(self):
+        self.data.notebook_store(CTX).register_user(CTX,"alice")
+        meta={"id":"book-a","owner_user_id":"alice","name":"测试目录","description":"","created_at":"2026-10-11","is_public":False}
+        self.data.create_notebook(CTX,meta)
+        self.data.update_notebook(CTX,"book-a","新名称","新说明")
+        self.data.set_notebook_archived(CTX,"book-a",True)
+        self.assertTrue(self.data.get_notebook(CTX,"book-a")['archived'])
+        self.assertEqual(self.data.list_notebooks(CTX)[0]['name'],"新名称")
+        self.data.close(CTX)
+        reopened=DataService(str(self.path));self.addCleanup(reopened.close,CTX)
+        reopened.set_notebook_archived(CTX,"book-a",False)
+        self.assertFalse(reopened.get_notebook(CTX,"book-a")['archived'])
 
 
 if __name__ == "__main__":

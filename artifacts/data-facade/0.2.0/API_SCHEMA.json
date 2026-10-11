@@ -1,0 +1,7 @@
+{
+  "module": "data_facade",
+  "version": "0.2.0",
+  "public_api": [
+    "DataService"
+  ]
+}

@@ -74,25 +74,30 @@ const state = {
 
 function permitted(permission) {
   const principal = state.principal;
-  if (!principal || !["admin", "guest"].includes(principal.role) || !Array.isArray(principal.permissions)) return false;
-  if (["create_notebook", "import_document", "write"].includes(permission) &&
-      (principal.role !== "admin" || principal.administrator !== true)) return false;
-  return principal.permissions.includes(permission);
+  if (!principal || !["admin", "user", "guest"].includes(principal.role)) return false;
+  if (["import_document", "write", "manage_members", "manage_notebook", "archive_notebook"].includes(permission)) {
+    return activeNotebook()?.permissions?.includes(permission) === true;
+  }
+  return principal.permissions?.includes(permission) === true;
 }
 
 function applyPermissions() {
   const principal = state.principal;
   const administrator = principal?.role === "admin" && principal.administrator === true;
-  $("workspace-mode-label").textContent = administrator ? "管理员工作区" : principal ? "游客 · 公开资料" : "身份未确认";
-  $("admin-identity").textContent = administrator ? Array.from(principal.user_id || "管理员")[0] : principal ? "客" : "…";
-  $("admin-identity").title = administrator ? `管理员：${principal.user_id}` : "游客只能阅读公开文档和提问";
-  $("admin-logout").hidden = !administrator;
-  $("admin-login-link").hidden = administrator;
+  $("workspace-mode-label").textContent = administrator ? "管理员工作区" : principal?.role === "user" ? "成员工作区" : principal ? "游客 · 公开资料" : "身份未确认";
+  $("admin-identity").textContent = principal?.role !== "guest" && principal ? Array.from(principal.user_id)[0] : principal ? "客" : "…";
+  $("admin-identity").title = principal?.role !== "guest" && principal ? `用户ID：${principal.user_id}（添加成员时使用）` : "游客只能阅读公开文档和提问";
+  $("admin-logout").hidden = !principal || principal.role === "guest";
+  $("admin-login-link").hidden = Boolean(principal && principal.role !== "guest");
   $("admin-login-link").href = new URL("admin/login/", new URL("../", window.location.href)).href;
   dom.toggleCreate.hidden = !permitted("create_notebook");
   dom.toggleCreate.disabled = !permitted("create_notebook");
   if (!permitted("create_notebook")) dom.createForm.hidden = true;
   dom.openUpload.hidden = !permitted("import_document");
+  $("open-members").hidden = !permitted("manage_members");
+  $("edit-notebook").hidden = !permitted("manage_notebook");
+  $("archive-notebook").hidden = !permitted("archive_notebook");
+  $("open-archives").hidden = !administrator;
   dom.studioNotes.closest(".notes-card").hidden = !permitted("write");
   dom.message.disabled = !permitted("query");
   dom.form.querySelector('button[type="submit"]').disabled = !permitted("query");
@@ -102,12 +107,12 @@ function applyPermissions() {
 
 async function apiFetch(path, options = {}) {
   const response = await fetch(apiURL(path), { credentials: "same-origin", cache: "no-store", ...options });
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     state.principal = null;
     state.deepseekKey = "";
     dom.keyConfigInput.value = "";
     applyPermissions();
-    setStatus(dom.notebookStatus, "权限验证失败，请重新登录管理员工作区。", "error");
+    setStatus(dom.notebookStatus, "登录已失效，请重新登录工作区。", "error");
   }
   return response;
 }
@@ -243,7 +248,7 @@ function renderNotebookList() {
 
     const meta = document.createElement("span");
     meta.className = "notebook-meta";
-    meta.textContent = `${notebook.document_count} 篇来源${notebook.writable ? "" : " · 内置"}`;
+    meta.textContent = `${notebook.document_count} 篇来源${notebook.writable ? "" : " · 只读"}`;
 
     copy.append(name, meta);
     const check = document.createElement("span");
@@ -401,7 +406,7 @@ function updateUploadState() {
   const notebook = activeNotebook();
   const writable = Boolean(permitted("import_document") && notebook && notebook.writable);
   dom.openUpload.disabled = !writable;
-  dom.openUpload.title = writable ? `添加来源到「${notebook.name}」` : permitted("import_document") ? "内置知识库不能添加来源" : "仅管理员可导入来源";
+  dom.openUpload.title = writable ? `添加来源到「${notebook.name}」` : permitted("import_document") ? "内置知识库不能添加来源" : "当前笔记本没有导入权限";
   dom.uploadLabel.textContent = writable ? `添加到「${notebook.name}」` : "选择本地文件";
   if (state.supported.length) dom.uploadFiles.accept = state.supported.join(",");
   if (!writable) closeUploadDialog();
@@ -474,6 +479,7 @@ async function setActiveNotebook(notebookId) {
   }
 
   state.activeId = notebookId;
+  applyPermissions();
   state.sourceDocuments = [];
   dom.sourceSearch.value = "";
   if (notebookId) sessionFor(notebookId);
@@ -527,7 +533,7 @@ async function loadNotebooks(preferredId = "") {
 async function send(question) {
   const text = question.trim();
   if (!text || !state.activeId || state.busy || !permitted("query")) return;
-  if (state.principal.role !== "admin" && Array.from(text).length > 1024) {
+  if (state.principal.role === "guest" && Array.from(text).length > 1024) {
     setStatus(dom.notebookStatus, "公开问题最多 1024 字。", "error");
     return;
   }
@@ -550,12 +556,12 @@ async function send(question) {
   try {
     const headers = { "Content-Type": "application/json" };
     if (canEnterWebKey() && state.deepseekKey) headers["X-DeepSeek-Api-Key"] = state.deepseekKey;
-    const administrator = state.principal.role === "admin" && state.principal.administrator === true;
-    const response = await apiFetch(administrator ? "/api/chat" : "/api/demo/chat", {
+    const authenticated = ["admin", "user"].includes(state.principal.role);
+    const response = await apiFetch(authenticated ? "/api/chat" : "/api/demo/chat", {
       method: "POST",
       headers,
       cache: "no-store",
-      body: JSON.stringify(administrator ? {
+      body: JSON.stringify(authenticated ? {
         message: text,
         session_id: sessionId,
         knowledge_base_ids: [notebookId],
@@ -829,6 +835,147 @@ dom.uploadForm.onsubmit = async (event) => {
     setUploading(false);
   }
 };
+
+$("admin-identity").onclick = async () => {
+  if (!state.principal || state.principal.role === "guest") return;
+  const userId = state.principal.user_id;
+  setStatus(dom.notebookStatus, `用户ID：${userId}`);
+  try { await navigator.clipboard.writeText(userId); setStatus(dom.notebookStatus, `用户ID已复制：${userId}`, "success"); } catch {}
+};
+
+// 笔记本成员以已登录账号的用户 ID 识别。
+async function loadMembers(notebookId) {
+  const response = await apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/members`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "成员加载失败");
+  const list = $("members-list");
+  list.replaceChildren();
+  const labels = {viewer: "查看者", editor: "编辑者", manager: "管理者"};
+  for (const member of payload.members) {
+    const row = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = `${member.user_id} · ${labels[member.role] || member.role} `;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "移除";
+    remove.onclick = async () => {
+      remove.disabled = true;
+      try {
+        const result = await apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/members/${encodeURIComponent(member.user_id)}`, {method: "DELETE"});
+        if (!result.ok) throw new Error("移除失败或权限已变更");
+        await loadNotebooks();
+        if (permitted("manage_members") && state.activeId === notebookId) await loadMembers(notebookId);
+        else $("members-dialog").close();
+      } catch (error) { $("members-status").textContent = error.message; }
+      finally { remove.disabled = false; }
+    };
+    row.append(label, remove);
+    list.append(row);
+  }
+  if (!payload.members.length) {
+    const row = document.createElement("li");
+    row.textContent = "尚未添加成员，仅管理员可访问。";
+    list.append(row);
+  }
+}
+$("open-members").onclick = async () => {
+  if (!permitted("manage_members")) return;
+  const notebookId = state.activeId;
+  $("members-dialog").dataset.notebookId = notebookId;
+  $("members-status").textContent = "请输入已登录过RAG的账号用户ID；同一用户在不同笔记本可有不同权限。";
+  $("members-dialog").showModal();
+  try { await loadMembers(notebookId); }
+  catch (error) { $("members-status").textContent = error.message; }
+};
+$("close-members").onclick = () => $("members-dialog").close();
+$("member-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const notebookId = $("members-dialog").dataset.notebookId;
+  if (notebookId !== state.activeId || !permitted("manage_members")) return;
+  const button = event.submitter;
+  if (button) button.disabled = true;
+  try {
+    const userId = $("member-user-id").value.trim();
+    const response = await apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/members/${encodeURIComponent(userId)}`, {
+      method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify({role: $("member-role").value}),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "成员设置失败");
+    $("members-status").textContent = "成员权限已保存。";
+    await loadMembers(notebookId);
+  } catch (error) { $("members-status").textContent = error.message; }
+  finally { if (button) button.disabled = false; }
+};
+
+// 笔记本目录操作由 DataService 业务接口保存；浏览器只发HTTP请求。
+$("edit-notebook").onclick = () => {
+  if (!permitted("manage_notebook")) return;
+  const book = activeNotebook();
+  $("edit-notebook-dialog").dataset.notebookId = book.id;
+  $("edit-notebook-name").value = book.name;
+  $("edit-notebook-description").value = book.description || "";
+  $("edit-notebook-status").textContent = "";
+  $("edit-notebook-dialog").showModal();
+};
+$("close-edit-notebook").onclick = () => $("edit-notebook-dialog").close();
+$("edit-notebook-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const id = $("edit-notebook-dialog").dataset.notebookId;
+  if (id !== state.activeId || !permitted("manage_notebook")) return;
+  const button = event.submitter;
+  if (button) button.disabled = true;
+  try {
+    const response = await apiFetch(`/api/notebooks/${encodeURIComponent(id)}`, {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:$("edit-notebook-name").value.trim(),description:$("edit-notebook-description").value.trim()})});
+    const data = await response.json();
+    if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "修改失败");
+    $("edit-notebook-dialog").close();
+    await loadNotebooks(id);
+  } catch (error) { $("edit-notebook-status").textContent = error.message; }
+  finally { if (button) button.disabled = false; }
+};
+$("archive-notebook").onclick = async () => {
+  if (!permitted("archive_notebook") || state.busy || state.uploading) return;
+  const id = state.activeId;
+  $("archive-notebook").disabled = true;
+  try {
+    const response = await apiFetch(`/api/notebooks/${encodeURIComponent(id)}/archive`, {method:"POST"});
+    if (!response.ok) throw new Error("归档失败或权限已变更");
+    await loadNotebooks(state.defaultIds[0]);
+    setStatus(dom.notebookStatus,"笔记本已归档，可在「已归档」中恢复。","success");
+  } catch (error) { setStatus(dom.notebookStatus,error.message,"error"); }
+  finally { $("archive-notebook").disabled = false; }
+};
+async function loadArchives() {
+  const response = await apiFetch("/api/notebooks?include_archived=true");
+  if (!response.ok) throw new Error("归档目录加载失败");
+  const books = (await response.json()).notebooks.filter(book => book.archived);
+  const list = $("archives-list");
+  list.replaceChildren();
+  $("archives-status").textContent = books.length ? "" : "暂无归档笔记本。";
+  for (const book of books) {
+    const row = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = `${book.name} · ${book.document_count} 篇来源 `;
+    const button = document.createElement("button");
+    button.type = "button"; button.textContent = "恢复";
+    button.onclick = async () => {
+      button.disabled = true;
+      try {
+        const result = await apiFetch(`/api/notebooks/${encodeURIComponent(book.id)}/restore`,{method:"POST"});
+        if (!result.ok) throw new Error("恢复失败或权限已变更");
+        await loadNotebooks(); await loadArchives();
+      } catch (error) { $("archives-status").textContent = error.message; }
+      finally { button.disabled = false; }
+    };
+    row.append(label,button); list.append(row);
+  }
+}
+$("open-archives").onclick = async () => {
+  if (state.principal?.role !== "admin") return;
+  $("archives-dialog").showModal();
+  try { await loadArchives(); } catch (error) { $("archives-status").textContent = error.message; }
+};
+$("close-archives").onclick = () => $("archives-dialog").close();
 
 // ---------------------------------------------------------------- 启动
 

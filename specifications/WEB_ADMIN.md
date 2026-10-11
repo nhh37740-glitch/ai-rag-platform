@@ -1,3 +1,7 @@
+# 当前补充说明
+
+2026-10-11 起，普通用户可通过真实 Media 会话登录，私人笔记本按 viewer/editor/manager 成员授权；固定 owner 仍是唯一全局管理员。下文原 owner 条款描述管理员认证基础，普通用户行为以末尾成员权限升级条款及 AUTH_INTERFACES.md 为准。
+
 # 管理员知识工作区 HTTP 契约
 
 管理员／游客业务权限与笔记本可见范围由独立编译模块 auth-facade/AuthService 提供；auth-runtime/AuthRuntime 负责身份及代理证明验证。apps 负责 HTTP 身份适配，笔记本、文档转换和检索由各自业务模块负责。公开 PUBLIC_DEMO 容器和私人数据卷保持隔离。
@@ -43,3 +47,21 @@ POST/PUT/PATCH/DELETE 等非安全方法及 GET /api/chat/stream 必须携带与
 服务器 Docker/Jenkins 在实际编译产物环境检查：未登录、普通账号、冒用身份/内部头、错误证明、重复认证头、跨站写入和 SSE 均拒绝；认证后的指定管理员可创建并导入文档，重启后元数据及范围检索仍有效。公开 API 继续拒绝创建、上传和私有读取，公开容器不能读取私有目录。真实 HTTPS 浏览器验证登录、创建、导入及检索，缺少凭据时如实显示 Mock/hash。
 
 入口 admin/login/ 重定向到无尾斜杠 admin/login，以使登录页的 auth/csrf 与 auth/login 相对路径保持一致。
+
+## 2026-10-11 成员权限升级
+
+可信 Media 会话允许其它真实用户登录，指定 owner UUID+username=owner 仍是唯一全局 admin。/verify 返回 X-Rag-User-Id 和 X-Rag-Role（admin 或 user），Nginx 必须清空客户端内部头后使用验证响应注入；现有代理已动态转发这两个响应头。身份无效/过期/伪造管理员仍拒绝。普通用户没有 ACL 时只看到公开资料。
+
+笔记本列表和 documents 返回 permissions/role，writable 按当前笔记本 import_document 权限计算。创建仍全局管理员限定；导入校验笔记本权限；问答及 SSE 校验所有选择范围并只向普通用户提供检索工具。内置公开知识库拒绝成员管理及写入。
+
+- GET /api/notebooks/{id}/members：manager/admin 可读取 [{user_id,role}]。
+- PUT /api/notebooks/{id}/members/{user_id}：JSON 必须仅包含 role，支持 viewer/editor/manager。
+- DELETE 同一路径：移除该笔记本授权。
+- /api/auth/session：role=guest/user/admin、全局权限与 allowed_notebook_ids；不是将 notebook manager 变成全局 admin。
+- 上传进度与私人 trace 绑定操作人和笔记本范围，只有原操作人/全局管理员可看，读取时重检当前笔记本权限；未知/其它人记录返回404。
+
+使用现有账号 userId（工作区身份栏可见）添加成员，不自动创建 Media 账号；成员管理变更同源检查与无缓存响应。普通用户不能通过 body.user_id/role、query.user_id 或内部头覆盖认证身份。网页按当前笔记本权限提供上传、成员设置、普通用户问答入口。
+
+### 关系表管理补充
+
+笔记本目录与成员权限来自 notebook.sqlite 的关系表；旧文件目录及旧 JSON ACL 仅作一次幂等迁移。添加成员需使用已登录过 RAG 工作区的 Media userId；未登记用户返回422，不自动创建其他项目账号。所有可信登录会同步登记用户，不保存密码/会话。界面应说明“请成员先登录一次并复制用户ID”。数据库模式与一致性接口见 DOMAIN_INTERFACES.md。

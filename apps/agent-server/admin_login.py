@@ -56,7 +56,7 @@ class LoginConfig:
 
 
 def create_app(config: LoginConfig, *, transport=None):
-    app = FastAPI(title="Owner login adapter", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="Notebook login adapter", docs_url=None, redoc_url=None, openapi_url=None)
     attempts: deque[float] = deque(maxlen=10)
 
     def error(message: str, status: int):
@@ -105,6 +105,17 @@ def create_app(config: LoginConfig, *, transport=None):
 
     def is_owner(value):
         return isinstance(value, dict) and value.get("userId") == config.owner_id and value.get("username") == config.owner_username
+
+    def valid_user(value):
+        if not isinstance(value, dict):
+            return False
+        user_id, username = value.get("userId"), value.get("username")
+        if not isinstance(user_id, str) or not 0 < len(user_id) <= 128 or any(
+            not (ch.isalnum() or ch in "@_.-") for ch in user_id
+        ) or not isinstance(username, str) or not username.strip():
+            return False
+        # Never downgrade the configured owner to an ordinary user on name mismatch.
+        return user_id != config.owner_id or is_owner(value)
 
     async def identity(req: Request):
         if not session(req):
@@ -183,11 +194,12 @@ def create_app(config: LoginConfig, *, transport=None):
         remote = await upstream(req, "POST", "/login", body=body, csrf=token)
         if remote.status_code != 200:
             return error("账号或密码不正确，或登录页面已过期。", 401)
-        if not is_owner(remote.json()):
+        value = remote.json()
+        if not valid_user(value):
             response = error("该账号没有知识工作区的管理权限。", 403)
             response.delete_cookie(COOKIE, path=PREFIX, secure=True, httponly=True, samesite="strict")
             return response
-        response = JSONResponse({"administrator": True, "redirect": PREFIX})
+        response = JSONResponse({"administrator": is_owner(value), "redirect": PREFIX})
         copy_session(response, remote)
         return response
 
@@ -208,11 +220,11 @@ def create_app(config: LoginConfig, *, transport=None):
         if len(values) != 1 or not hmac.compare_digest(values[0].encode(), config.proxy_token.encode()):
             return error("无权访问认证检查。", 403)
         if not session(req):
-            return error("请登录拥有者账号。", 401)
+            return error("请登录有效账号。", 401)
         value = await identity(req)
-        if not is_owner(value):
+        if not valid_user(value):
             return error("该会话没有知识工作区的管理权限。", 403)
-        return JSONResponse({"administrator": True}, headers={"X-Rag-User-Id": config.owner_id, "X-Rag-Role": "admin"})
+        return JSONResponse({"administrator": is_owner(value)}, headers={"X-Rag-User-Id": value["userId"], "X-Rag-Role": "admin" if is_owner(value) else "user"})
 
     return app
 

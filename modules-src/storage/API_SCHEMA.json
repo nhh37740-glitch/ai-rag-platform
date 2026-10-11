@@ -1,7 +1,7 @@
 {
   "package": "storage",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "facade": {
     "SqliteVectorStore": {
       "kind": "class",
@@ -170,6 +170,116 @@
         "vector_store": "VectorStore"
       },
       "returns": "Storage"
+    },
+    "NotebookStore": {
+      "kind": "class",
+      "init": {
+        "db_path": "str"
+      },
+      "methods": {
+        "configure_roles": {
+          "params": {
+            "ctx": "RequestContext",
+            "roles": "dict"
+          },
+          "returns": "None"
+        },
+        "register_user": {
+          "params": {
+            "ctx": "RequestContext",
+            "user_id": "str"
+          },
+          "returns": "None"
+        },
+        "list_users": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "list[dict]"
+        },
+        "create_notebook": {
+          "params": {
+            "ctx": "RequestContext",
+            "metadata": "dict"
+          },
+          "returns": "None"
+        },
+        "get_notebook": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str"
+          },
+          "returns": "dict|null"
+        },
+        "list_notebooks": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "list[dict]"
+        },
+        "migrate_notebook": {
+          "params": {
+            "ctx": "RequestContext",
+            "metadata": "dict",
+            "members": "list[dict]"
+          },
+          "returns": "None"
+        },
+        "membership_snapshot": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str"
+          },
+          "returns": "dict"
+        },
+        "role_permissions": {
+          "params": {
+            "ctx": "RequestContext",
+            "role": "str"
+          },
+          "returns": "list[str]"
+        },
+        "put_member": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str",
+            "user_id": "str",
+            "role": "str",
+            "expected_revision": "int"
+          },
+          "returns": "bool"
+        },
+        "delete_member": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str",
+            "user_id": "str",
+            "expected_revision": "int"
+          },
+          "returns": "bool"
+        },
+        "close": {
+          "params": {},
+          "returns": "None"
+        },
+        "update_notebook": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str",
+            "name": "str",
+            "description": "str"
+          },
+          "returns": "None"
+        },
+        "set_archived": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str",
+            "archived": "bool"
+          },
+          "returns": "None"
+        }
+      }
     }
   }
 }

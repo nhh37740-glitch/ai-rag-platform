@@ -15,7 +15,7 @@ class DataService:
     def close(self, ctx: RequestContext) -> None: ...
 ```
 
-目录可不存在，首次创建并初始化。默认 memory.sqlite、vectors.sqlite、state.sqlite；覆盖路径允许 :memory:。同实例多次取 store 返回同一对象，初始化幂等。关闭幂等，关闭后取 store 或 initialize 抛 RuntimeError。关闭后此前拿到的 store 也不可再访问；关闭释放 SQLite 连接，Windows 临时目录可以清理。
+目录可不存在，首次创建并初始化。默认 memory.sqlite、vectors.sqlite、state.sqlite、notebook.sqlite；覆盖路径允许 :memory:。同实例多次取 store 返回同一对象，初始化幂等。关闭幂等，关闭后取 store 或 initialize 抛 RuntimeError。关闭后此前拿到的 store 也不可再访问；关闭释放 SQLite 连接，Windows 临时目录可以清理。
 
 SQLite 向量实现位于 storage，数据库域不得 import rag_core。VectorStore.add 对一个 source_id 原子替换全部块，避免重启/重复入库膨胀；先验证块数与向量数量、非空一致维度、有限数值再提交。scope=None 为全部，scope=[] 为无文档。state_db 是按用户隔离的 JSON 键值门面，不暴露裸连接，get 缺键返回 None，set/delete 持久化。已有 vectors 表和 memory 表保持兼容。
 
@@ -67,7 +67,7 @@ class AgentService:
 
 | 编号 | 负责人 | 输入/操作 | 必须断言 |
 |---|---|---|---|
-| D01 | 数据库 | 临时目录，initialize 两次 | 无错，三个 store 身份稳定 |
+| D01 | 数据库 | 临时目录，initialize 两次 | 无错，四个 store 身份稳定 |
 | D02 | 数据库 | 写 memory/vector/state，close 后重建 | 内容持久化、用户 state 隔离 |
 | D03 | 数据库 | 同 source 重复 add；错误向量 | 原子替换，错误不破坏旧记录 |
 | D04 | 数据库 | []、未知 scope 与恶意 SQL 文本 | 无越界结果，参数化 SQL |
@@ -95,3 +95,38 @@ class AgentService:
 管理员／游客角色、操作权限和知识库可见范围由 auth-facade 的 AuthService 提供；管理员证明校验由 auth-runtime 的 AuthRuntime 提供。接口见 [AUTH_INTERFACES.md](AUTH_INTERFACES.md)。auth-facade 依赖共享类型和 auth-runtime，auth-runtime 依赖共享类型及标准库；两者不依赖 Agent、RAG、Data 业务实现。HTTP 集成调用 auth-facade；管理员身份来自经验证的 owner 登录，游客只读公开资料。
 
 DailyQueryQuota 通过注入的 StateStorePort 实施全站每日问答额度。DataService.state_db 返回的共享端口支持原子 increment_if_below，SQLite 事务位于 storage；额度业务不导入 data-facade 或 storage。
+
+## 2026-10-11 Agent 授权与语言
+
+AgentService.run 与 AgentRuntime.run 增加末尾可选 allow_write_tools: bool = True。False 时只向模型提供五个保留检索工具，并在执行时拒绝任何其它工具（即使模型伪造调用）。应用只为经验证的全局管理员授予 True。默认语言为简体中文，系统首条与每轮提示词一致；用户明确要求其它语言可以覆盖，工具/文档/历史不可以。
+
+应用为用户+客户端 session_id+本次笔记本集合派生内部 session_id，禁止跨范围复用历史。AgentRuntime 在知识库会话或只读运行中不读用户级记忆，知识库答案不写用户级记忆，避免通过记忆泄漏其它笔记本的内容。Data/RAG 现有共享端口签名不变。
+
+## NotebookStorePort 与关系表（2026-10-11）
+
+DataService.notebook_store(ctx: RequestContext) -> NotebookStorePort 提供独立 notebook.sqlite，生命周期与其它 owned stores 一致。AuthService 构造末尾 store 改为 NotebookStorePort | None，不再采用 StateStorePort 保存成员；DailyQueryQuota 仍使用 StateStorePort。
+
+共享端口：configure_roles(ctx, roles: dict)->None；register_user(ctx, user_id: str)->None；list_users(ctx)->list[dict]；create_notebook(ctx, metadata: dict)->None；get_notebook(ctx, notebook_id: str)->dict|None；list_notebooks(ctx)->list[dict]；migrate_notebook(ctx, metadata: dict, members: list[dict])->None；membership_snapshot(ctx, notebook_id: str)->dict；role_permissions(ctx, role: str)->list[str]；put_member(ctx, notebook_id: str, user_id: str, role: str, expected_revision: int)->bool；delete_member(ctx, notebook_id: str, user_id: str, expected_revision: int)->bool。
+
+metadata={id,owner_user_id,name,description,created_at,is_public}；读目录还包括 archived/acl_revision/legacy_migrated。成员快照={revision,is_public,archived,members:[{user_id,role}]}，从同一 SQL 快照读取。CAS False 表示版本已变化，调用方需重新授权再重试；非法参数/不存在笔记本、用户或角色为 ValueError。仓库不接受 HTTP 身份或做管理员权限判断。create_notebook 唯一冲突拒绝；migrate_notebook 仅导入未标记旧记录，事务内设置迁移标记，已产生成员修改时不覆盖。
+
+角色默认值由 auth-facade 经 configure_roles 注入；已有角色不重复覆盖，应用只查询 permission，不把 manager 误当全局管理员。roles/permissions/role_permissions 是有外键的关系表。用户只是现有认证ID本地登记，不存密码或会话。NotebookStore.close() 关闭底层连接；无具体连接向应用暴露。
+
+## 笔记本目录业务归属（2026-10-11）
+
+目录创建、读取、迁移、改名与归档统一归 data-facade，HTTP不得直接操作具体storage类。DataService新增以下共享业务方法；应用先通过auth-facade校验权限，再调用目录业务。
+
+```python
+    def create_notebook(self, ctx: RequestContext, metadata: dict) -> None: ...
+    def get_notebook(self, ctx: RequestContext, notebook_id: str) -> Optional[dict]: ...
+    def list_notebooks(self, ctx: RequestContext) -> list[dict]: ...
+    def migrate_notebook(self, ctx: RequestContext, metadata: dict, members: list[dict]) -> None: ...
+    def update_notebook(self, ctx: RequestContext, notebook_id: str, name: str, description: str) -> None: ...
+    def set_notebook_archived(self, ctx: RequestContext, notebook_id: str, archived: bool) -> None: ...
+```
+
+update_notebook(ctx,notebook_id,name,description)和set_notebook_archived(ctx,notebook_id,archived)由NotebookStorePort持久化；公开内置目录拒绝修改，归档采用标记不删除资产。数据字段校验由仓库契约保证，HTTP只处理请求/响应。
+
+## 模型配置业务接口
+
+agent-facade 0.3.0提供resolve_model_config(ctx: RequestContext, environment: dict[str,str], public: bool=False)->ModelConfiguration。共享不可变值对象保存provider/api_key/base_url/model，api_key不出现在repr，也不能序列化到网页。服务端既有环境配置、免费ID校验及mock/兼容DeepSeek选择统一由该业务函数决定；HTTP装配只传环境并使用结果，不自行定义免费选择策略。provider/model关系表与Web配置仍按MODEL_CONFIGURATION设计，待实现。

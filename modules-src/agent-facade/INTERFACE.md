@@ -10,7 +10,7 @@ class AgentService:
                  skill_dir: str = "", provider: LLMProviderPort | None = None,
                  max_tool_rounds: int = 10): ...
     async def run(self, ctx: RequestContext, user_input: str,
-                  knowledge_base_ids: list[str] | None = None) -> str: ...
+                  knowledge_base_ids: list[str] | None = None, allow_write_tools: bool = True) -> str: ...
     def register_tool(self, ctx: RequestContext, definition: ToolDef,
                       handler: Callable, context_aware: bool = False) -> None: ...
     def tool_definitions(self, ctx: RequestContext) -> list[ToolDef]: ...
@@ -24,3 +24,7 @@ provider 是只读属性，保留注入对象身份供请求级核查。空 key 
 run 拒绝空白输入；max_tool_rounds 至少为10。关闭幂等，关闭后 run/register_tool/tool_definitions/history 抛 RuntimeError。
 关闭仅释放本包自建的内存运行对象，不关闭注入的 data/rag/provider/tracing。
 保留 AgentRuntime 当前有限次检索提醒策略；严格检索成功保证和引用校验不属于本次接口重构。
+
+本次接口扩展以根目录 `specifications/DOMAIN_INTERFACES.md` 的2026-10-11条款为正式依据。
+
+0.3.0提供 resolve_model_config(ctx,environment,public=False)->ModelConfiguration，负责既有环境配置选择、免费模型ID校验、固定OpenRouter地址及凭据配置错误处理。api_key仅在服务器内存使用，repr隐藏，HTTP不得序列化整个对象。

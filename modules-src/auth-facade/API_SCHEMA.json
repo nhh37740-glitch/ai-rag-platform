@@ -1,13 +1,14 @@
 {
   "package": "auth_facade",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "facade": {
     "AuthService": {
       "kind": "class",
       "init": {
         "proxy_token": "str",
-        "owner_id": "str"
+        "owner_id": "str",
+        "store": "NotebookStorePort|null"
       },
       "methods": {
         "guest": {
@@ -41,6 +42,52 @@
             "public_ids": "list[str]"
           },
           "returns": "list[str]"
+        },
+        "notebook_permissions": {
+          "params": {
+            "ctx": "RequestContext",
+            "principal": "AuthPrincipal",
+            "notebook_id": "str",
+            "public": "bool"
+          },
+          "returns": "list[str]"
+        },
+        "authorize_notebook": {
+          "params": {
+            "ctx": "RequestContext",
+            "principal": "AuthPrincipal",
+            "notebook_id": "str",
+            "permission": "str",
+            "public": "bool"
+          },
+          "returns": "None"
+        },
+        "list_members": {
+          "params": {
+            "ctx": "RequestContext",
+            "principal": "AuthPrincipal",
+            "notebook_id": "str"
+          },
+          "returns": "list[dict]"
+        },
+        "set_member": {
+          "params": {
+            "ctx": "RequestContext",
+            "principal": "AuthPrincipal",
+            "notebook_id": "str",
+            "user_id": "str",
+            "role": "str"
+          },
+          "returns": "None"
+        },
+        "remove_member": {
+          "params": {
+            "ctx": "RequestContext",
+            "principal": "AuthPrincipal",
+            "notebook_id": "str",
+            "user_id": "str"
+          },
+          "returns": "None"
         }
       }
     },

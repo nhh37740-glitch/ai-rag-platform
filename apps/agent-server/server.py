@@ -43,7 +43,7 @@ runtime_boundary.assert_binary_runtime(PUBLISHED_MODULES)
 BASE = Path(__file__).resolve().parent
 ROOT = BASE.parents[1]
 KB_DIR = ROOT / "data" / "kb"
-USER_NOTEBOOKS_DIR = KB_DIR / "user-notebooks"
+USER_NOTEBOOKS_DIR = Path(os.environ.get("RAG_NOTEBOOKS_DIR", str(KB_DIR / "user-notebooks")))
 AGENT_FILES_DIR = ROOT / "data" / "agent-files"
 SKILL_DIR = ROOT / "skills"
 
@@ -116,13 +116,39 @@ def _authorize(req: Request | None, permission: str):
 
 def _allowed_notebooks(req: Request | None) -> list[str]:
     ctx, principal = _authorize(req, "read")
-    available = sorted(_available_notebook_ids()) if principal.role == "admin" and not PUBLIC_DEMO else [DEMO_KB_ID]
+    available = sorted(_available_notebook_ids()) if not PUBLIC_DEMO else [DEMO_KB_ID]
     return auth_service.allowed_notebooks(ctx, principal, available, [DEMO_KB_ID])
 
 
-def _authorize_notebook(req: Request | None, notebook_id: str) -> None:
+def _authorize_notebook(req: Request | None, notebook_id: str, permission: str = "read") -> None:
+    ctx, principal = _auth_identity(req)
     if notebook_id not in _allowed_notebooks(req):
         raise HTTPException(403, "当前身份无权访问该知识库")
+    try:
+        auth_service.authorize_notebook(ctx, principal, notebook_id, permission, notebook_id == DEMO_KB_ID)
+    except PermissionError:
+        raise HTTPException(403, "当前身份没有该笔记本的操作权限") from None
+
+
+def _notebook_permissions(req: Request | None, notebook_id: str) -> list[str]:
+    ctx, principal = _auth_identity(req)
+    return auth_service.notebook_permissions(ctx, principal, notebook_id, notebook_id == DEMO_KB_ID)
+
+
+def _scoped_session(raw: object, selected: list[str]) -> str:
+    if not isinstance(raw, str) or not 0 < len(raw) <= 128:
+        raise HTTPException(422, "session_id 必须为1-128个字符的文本")
+    return hashlib.sha256(json.dumps([raw, sorted(selected)], ensure_ascii=False).encode()).hexdigest()
+
+
+TRACE_ACCESS: dict[str, tuple[str, list[str]]] = {}
+
+
+def _record_trace_access(trace_id: str, user_id: str, selected: list[str]) -> None:
+    if len(TRACE_ACCESS) >= 2048:
+        TRACE_ACCESS.pop(next(iter(TRACE_ACCESS)))
+    TRACE_ACCESS[trace_id] = (user_id, list(selected))
+
 
 DEMO_KB_ID = "cmrc2018-demo" if PUBLIC_DEMO else os.environ.get("DEMO_KB_ID", "cmrc2018-demo")
 DEMO_KB_DIR = KB_DIR / DEMO_KB_ID
@@ -150,6 +176,15 @@ trace_store = make_trace_store()
 BOOT_CONTEXT = RequestContext("boot", "boot")
 data_service = DataService(str(STATE_DIR), memory_db_path=":memory:" if PUBLIC_DEMO else DB_PATH,
                            vector_db_path=VECTOR_DB_PATH)
+# Auth owns ACL decisions; Data supplies the relational repository port.
+notebook_store = data_service.notebook_store(BOOT_CONTEXT)
+NOTEBOOK_OWNER_ID = ADMIN_PROXY_CONFIG["owner_id"] if ADMIN_AUTH == "proxy" else "local" if ADMIN_AUTH == "local" else "__public__"
+notebook_store.register_user(BOOT_CONTEXT, NOTEBOOK_OWNER_ID)
+auth_service = AuthService(
+    ADMIN_PROXY_CONFIG["proxy_token"] if ADMIN_AUTH == "proxy" else _local_auth_token,
+    ADMIN_PROXY_CONFIG["owner_id"] if ADMIN_AUTH == "proxy" else "local" if ADMIN_AUTH == "local" else "",
+    notebook_store,
+)
 vector_store = data_service.vector_store(BOOT_CONTEXT)
 rag_service = RagService(vector_store, trace_store)
 
@@ -209,7 +244,7 @@ def _user_notebook_path(notebook_id: str) -> Path:
     return path
 
 
-def _read_user_notebook(notebook_dir: Path) -> dict:
+def _read_notebook_files(notebook_dir: Path) -> dict:
     metadata_path = notebook_dir / "notebook-metadata.json"
     if not metadata_path.is_file():
         return {}
@@ -218,6 +253,14 @@ def _read_user_notebook(notebook_dir: Path) -> dict:
     except (OSError, json.JSONDecodeError):
         return {}
     return metadata if metadata.get("id") == notebook_dir.name else {}
+
+
+def _read_user_notebook(notebook_dir: Path) -> dict:
+    record = data_service.get_notebook(BOOT_CONTEXT, notebook_dir.name)
+    if record is None:
+        return {}
+    assets = _read_notebook_files(notebook_dir)
+    return {**assets, **record, "documents": assets.get("documents", [])}
 
 
 def _write_user_notebook(notebook_dir: Path, metadata: dict) -> None:
@@ -244,7 +287,9 @@ def _create_user_notebook(name: str, description: str = "") -> tuple[Path, dict]
         "created_at": datetime.now(timezone.utc).isoformat(),
         "documents": [],
     }
+    metadata.update(owner_user_id=NOTEBOOK_OWNER_ID, is_public=False)
     _write_user_notebook(notebook_dir, metadata)
+    data_service.create_notebook(BOOT_CONTEXT, metadata)
     return notebook_dir, metadata
 
 
@@ -337,14 +382,40 @@ def _conversation_markdown(name: str, messages: list[ChatMessage]) -> str:
     return "\n".join(sections).rstrip() + "\n"
 
 
-def _list_user_notebooks() -> list[tuple[Path, dict]]:
-    if not USER_NOTEBOOKS_DIR.is_dir():
-        return []
+def _migrate_notebook_catalog() -> None:
+    manifest, _ = _load_demo_knowledge_base()
+    data_service.migrate_notebook(BOOT_CONTEXT, {
+        "id": DEMO_KB_ID, "owner_user_id": NOTEBOOK_OWNER_ID,
+        "name": manifest.get("name", DEMO_KB_ID), "description": "项目内置的公开中文演示知识库",
+        "created_at": "2026-10-11T00:00:00Z", "is_public": True,
+    }, [])
+    if PUBLIC_DEMO or not USER_NOTEBOOKS_DIR.is_dir():
+        return
+    legacy_ctx = RequestContext("migration", "migration", "__rag_notebook_acl__")
+    for path in sorted(USER_NOTEBOOKS_DIR.iterdir()):
+        if not path.is_dir(): continue
+        _user_notebook_path(path.name)
+        existing = data_service.get_notebook(BOOT_CONTEXT, path.name)
+        if existing and existing["legacy_migrated"]: continue
+        raw = _read_notebook_files(path)
+        if not raw: raise ValueError("Invalid legacy notebook metadata")
+        members = data_service.state_db(BOOT_CONTEXT).get(legacy_ctx, "notebook-members:" + path.name)
+        if members is None: members = {}
+        if not isinstance(members,dict) or any(role not in {"viewer","editor","manager"} for role in members.values()):
+            raise ValueError("Invalid legacy notebook roles")
+        if NOTEBOOK_OWNER_ID in members: raise ValueError("Legacy member cannot override owner")
+        data_service.migrate_notebook(BOOT_CONTEXT, {
+            **raw, "owner_user_id": NOTEBOOK_OWNER_ID, "is_public": False,
+        }, [{"user_id": uid, "role": role} for uid,role in members.items()])
+
+
+def _list_user_notebooks(include_archived: bool = False) -> list[tuple[Path, dict]]:
     notebooks = []
-    for notebook_dir in sorted(path for path in USER_NOTEBOOKS_DIR.iterdir() if path.is_dir()):
-        metadata = _read_user_notebook(notebook_dir)
-        if metadata:
-            notebooks.append((notebook_dir, metadata))
+    for record in data_service.list_notebooks(BOOT_CONTEXT):
+        if record["is_public"] or (record["archived"] and not include_archived): continue
+        path = _user_notebook_path(record["id"])
+        assets = _read_notebook_files(path)
+        notebooks.append((path, {**assets, **record, "documents": assets.get("documents", [])}))
     return notebooks
 
 
@@ -355,7 +426,14 @@ def _public_notebook(metadata: dict, writable: bool) -> dict:
         "description": metadata.get("description", ""),
         "document_count": len(metadata.get("documents", [])),
         "writable": writable,
+        "archived": bool(metadata.get("archived", False)),
     }
+
+
+def _notebook_response(metadata: dict, req: Request | None) -> dict:
+    permissions = _notebook_permissions(req, metadata["id"])
+    role = "manager" if "manage_members" in permissions else "editor" if "import_document" in permissions else "viewer"
+    return {**_public_notebook(metadata, "import_document" in permissions), "permissions": permissions, "role": role}
 
 
 def _available_notebook_ids() -> set[str]:
@@ -375,6 +453,8 @@ def _selected_notebook_ids(raw_ids, req: Request | None = None) -> list[str]:
         raise HTTPException(status_code=400, detail=f"未知知识库: {', '.join(sorted(unknown))}")
     if set(selected) - set(_allowed_notebooks(req)):
         raise HTTPException(403, "当前身份无权访问该知识库")
+    for notebook_id in selected:
+        _authorize_notebook(req, notebook_id, "query")
     return selected
 
 
@@ -431,6 +511,7 @@ def _load_kb() -> tuple[VectorStore, int]:
     return store, imported
 
 
+_migrate_notebook_catalog()
 vector_store, demo_kb_imported = _load_kb()
 
 
@@ -706,7 +787,9 @@ def demo() -> JSONResponse:
 
 
 @app.get("/api/notebooks")
-def list_notebooks(req: Request = None) -> JSONResponse:
+def list_notebooks(req: Request = None, include_archived: bool = False) -> JSONResponse:
+    if include_archived:
+        _authorize(req, "restore_notebook")
     allowed = set(_allowed_notebooks(req))
     manifest, documents = _load_demo_knowledge_base()
     built_in = {
@@ -714,11 +797,11 @@ def list_notebooks(req: Request = None) -> JSONResponse:
         "name": manifest.get("name", DEMO_KB_ID),
         "description": "项目内置的公开中文演示知识库",
         "document_count": len(documents),
-        "writable": False,
+        "writable": False, "permissions": ["read", "query"], "role": "viewer",
     }
     user_notebooks = (
-        [_public_notebook(metadata, True) for _, metadata in _list_user_notebooks() if metadata["id"] in allowed]
-        if not PUBLIC_DEMO and allowed - {DEMO_KB_ID} else []
+        [_notebook_response(metadata, req) for _, metadata in _list_user_notebooks(include_archived) if metadata["id"] in allowed or include_archived]
+        if not PUBLIC_DEMO and (allowed - {DEMO_KB_ID} or include_archived) else []
     )
     return JSONResponse(
         {
@@ -783,7 +866,8 @@ def notebook_documents(notebook_id: str, req: Request = None) -> JSONResponse:
         {
             "notebook_id": notebook_id,
             "name": metadata.get("name", notebook_id),
-            "writable": True,
+            "writable": "import_document" in _notebook_permissions(req, notebook_id),
+            "permissions": _notebook_permissions(req, notebook_id),
             "documents": items,
         }
     )
@@ -846,7 +930,81 @@ async def create_notebook(req: Request) -> JSONResponse:
         _, metadata = _create_user_notebook(name, description)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return JSONResponse(_public_notebook(metadata, True), status_code=201)
+    return JSONResponse(_notebook_response(metadata, req), status_code=201)
+
+
+@app.patch("/api/notebooks/{notebook_id}")
+async def update_notebook(notebook_id: str, req: Request) -> JSONResponse:
+    _authorize_notebook(req, notebook_id, "manage_notebook")
+    body = await req.json()
+    if not isinstance(body,dict) or set(body) != {"name","description"}:
+        raise HTTPException(422,"仅允许 name 和 description")
+    try:
+        data_service.update_notebook(_auth_identity(req)[0],notebook_id,body["name"],body["description"])
+    except ValueError:
+        raise HTTPException(422,"名称或说明无效") from None
+    return JSONResponse(_notebook_response(_read_user_notebook(_user_notebook_path(notebook_id)), req))
+
+
+def _archive_notebook(req: Request, notebook_id: str, archived: bool) -> JSONResponse:
+    ctx, _ = _authorize(req, "archive_notebook" if archived else "restore_notebook")
+    if notebook_id == DEMO_KB_ID:
+        raise HTTPException(403,"公开内置笔记本只读")
+    try:
+        data_service.set_notebook_archived(ctx,notebook_id,archived)
+    except ValueError:
+        raise HTTPException(404,"笔记本不存在") from None
+    return JSONResponse({"id":notebook_id,"archived":archived},headers={"Cache-Control":"no-store"})
+
+
+@app.post("/api/notebooks/{notebook_id}/archive")
+def archive_notebook(notebook_id: str, req: Request) -> JSONResponse:
+    return _archive_notebook(req,notebook_id,True)
+
+
+@app.post("/api/notebooks/{notebook_id}/restore")
+def restore_notebook(notebook_id: str, req: Request) -> JSONResponse:
+    return _archive_notebook(req,notebook_id,False)
+
+
+def _member_scope(req: Request, notebook_id: str):
+    _authorize_notebook(req, notebook_id, "manage_members")
+    if notebook_id == DEMO_KB_ID:
+        raise HTTPException(403, "公开内置笔记本不允许设置成员")
+    return _auth_identity(req)
+
+
+@app.get("/api/notebooks/{notebook_id}/members")
+def notebook_members(notebook_id: str, req: Request) -> JSONResponse:
+    ctx, principal = _member_scope(req, notebook_id)
+    return JSONResponse({"members": auth_service.list_members(ctx, principal, notebook_id)}, headers={"Cache-Control": "no-store"})
+
+
+@app.put("/api/notebooks/{notebook_id}/members/{user_id}")
+async def set_notebook_member(notebook_id: str, user_id: str, req: Request) -> JSONResponse:
+    ctx, principal = _member_scope(req, notebook_id)
+    body = await req.json()
+    if not isinstance(body, dict) or set(body) != {"role"}:
+        raise HTTPException(422, "仅允许提供 role: viewer/editor/manager")
+    try:
+        auth_service.set_member(ctx, principal, notebook_id, user_id, body["role"])
+    except ValueError:
+        raise HTTPException(422, "成员须先登录RAG登记；用户ID或角色无效") from None
+    except PermissionError:
+        raise HTTPException(403, "没有成员管理权限") from None
+    return JSONResponse({"updated": True}, headers={"Cache-Control": "no-store"})
+
+
+@app.delete("/api/notebooks/{notebook_id}/members/{user_id}")
+def remove_notebook_member(notebook_id: str, user_id: str, req: Request) -> JSONResponse:
+    ctx, principal = _member_scope(req, notebook_id)
+    try:
+        auth_service.remove_member(ctx, principal, notebook_id, user_id)
+    except ValueError:
+        raise HTTPException(422, "不能修改全局拥有者身份或无效的用户ID") from None
+    except PermissionError:
+        raise HTTPException(403, "没有成员管理权限") from None
+    return JSONResponse({"removed": True}, headers={"Cache-Control": "no-store"})
 
 
 @app.post("/api/notebooks/{notebook_id}/files")
@@ -856,8 +1014,8 @@ async def upload_notebook_files(
     files: list[UploadFile] = File(...),
     upload_id: str = "",
 ) -> JSONResponse:
-    _authorize(req, "import_document")
-    _authorize_notebook(req, notebook_id)
+    _, principal = _authorize(req, "authenticated")
+    _authorize_notebook(req, notebook_id, "import_document")
     try:
         notebook_dir = _user_notebook_path(notebook_id)
     except ValueError as exc:
@@ -866,7 +1024,13 @@ async def upload_notebook_files(
     if not metadata:
         raise HTTPException(status_code=404, detail="笔记本不存在")
 
-    progress = UPLOAD_PROGRESS.setdefault(upload_id, {}) if upload_id else None
+    if upload_id and (not re.fullmatch(r"[a-zA-Z0-9_-]{1,128}", upload_id)):
+        raise HTTPException(422, "无效的上传任务标识")
+    if upload_id in UPLOAD_PROGRESS:
+        raise HTTPException(409, "上传任务标识已使用")
+    progress = {"user_id": principal.user_id, "notebook_id": notebook_id} if upload_id else None
+    if upload_id:
+        UPLOAD_PROGRESS[upload_id] = progress
 
     def update(**fields) -> None:
         if progress is not None:
@@ -919,11 +1083,14 @@ async def upload_notebook_files(
 
 @app.get("/api/uploads/{upload_id}")
 def upload_status(upload_id: str, req: Request) -> JSONResponse:
-    _authorize(req, "write")
+    _, principal = _authorize(req, "authenticated")
     record = UPLOAD_PROGRESS.get(upload_id)
     if record is None:
         raise HTTPException(status_code=404, detail="没有这个上传任务")
-    return JSONResponse({"upload_id": upload_id, **record})
+    if principal.role != "admin" and record.get("user_id") != principal.user_id:
+        raise HTTPException(404, "没有这个上传任务")
+    _authorize_notebook(req, record["notebook_id"], "import_document")
+    return JSONResponse({"upload_id": upload_id, **{k: v for k, v in record.items() if k != "user_id"}})
 
 
 def _is_loopback_host(host: str) -> bool:
@@ -952,7 +1119,7 @@ def _web_key_origin_allowed(req: Request) -> bool:
 
 @app.post("/api/chat")
 async def chat(req: Request) -> JSONResponse:
-    _, principal = _authorize(req, "write")
+    _, principal = _authorize(req, "authenticated")
     api_key = req.headers.get("x-deepseek-api-key")
     if api_key is not None and not _web_key_origin_allowed(req):
         raise HTTPException(status_code=403, detail="个人 API Key 仅允许通过 HTTPS 或本机页面使用")
@@ -963,13 +1130,15 @@ async def chat(req: Request) -> JSONResponse:
     if not isinstance(message, str) or not message.strip():
         raise HTTPException(422, "message 必须为非空文本")
     knowledge_base_ids = _selected_notebook_ids(body.get("knowledge_base_ids"), req)
+    session_id = _scoped_session(session_id, knowledge_base_ids)
     trace_id = uuid.uuid4().hex
     ctx = RequestContext(trace_id=trace_id, request_id=trace_id, user_id=user_id, session_id=session_id)
     if api_key is not None and (not api_key.strip() or len(api_key) > 512):
         raise HTTPException(status_code=422, detail="无效的 API Key")
     _reserve_web_query(ctx)
+    _record_trace_access(trace_id, user_id, knowledge_base_ids)
     with request_provider.use_key(api_key.strip() if api_key else None):
-        answer = await runtime.run(ctx, message, knowledge_base_ids)
+        answer = await runtime.run(ctx, message, knowledge_base_ids, allow_write_tools=principal.role == "admin")
     return JSONResponse(
         {"answer": answer, "trace_id": trace_id, "knowledge_base_ids": knowledge_base_ids, "quota": _web_quota_status()},
         headers={"Cache-Control": "no-store"},
@@ -987,7 +1156,7 @@ def llm_config() -> JSONResponse:
 
 @app.get("/api/admin/session")
 def admin_session(req: Request) -> JSONResponse:
-    _, principal = _authorize(req, "write")
+    _, principal = _authorize(req, "authenticated")
     return JSONResponse(
         {
             "mode": ADMIN_AUTH,
@@ -1006,9 +1175,10 @@ async def chat_stream(
     user_id: str = "u",
     knowledge_base_ids: str = DEMO_KB_ID,
 ):
-    _, principal = _authorize(req, "write")
+    _, principal = _authorize(req, "authenticated")
     selected_ids = _selected_notebook_ids(knowledge_base_ids, req)
     user_id = principal.user_id
+    session_id = _scoped_session(session_id, selected_ids)
     if not message.strip():
         raise HTTPException(422, "message 必须为非空文本")
     _reserve_web_query(_auth_identity(req)[0])
@@ -1016,7 +1186,8 @@ async def chat_stream(
     async def gen():
         trace_id = uuid.uuid4().hex
         ctx = RequestContext(trace_id=trace_id, request_id=trace_id, user_id=user_id, session_id=session_id)
-        answer = await runtime.run(ctx, message, selected_ids)
+        _record_trace_access(trace_id, user_id, selected_ids)
+        answer = await runtime.run(ctx, message, selected_ids, allow_write_tools=principal.role == "admin")
         yield f"data: {json.dumps({'answer': answer, 'trace_id': trace_id, 'knowledge_base_ids': selected_ids, 'quota': _web_quota_status()}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")
@@ -1070,7 +1241,12 @@ def demo_document(document_id: str, req: Request, offset: int = Query(0, ge=0)) 
 def trace(trace_id: str, req: Request = None) -> JSONResponse:
     if PUBLIC_DEMO:
         return JSONResponse(public_demo.trace(trace_id), headers={"Cache-Control": "no-store"})
-    _authorize(req, "write")
+    _, principal = _authorize(req, "authenticated")
+    access = TRACE_ACCESS.get(trace_id)
+    if access is None or (principal.role != "admin" and access[0] != principal.user_id):
+        raise HTTPException(404, "没有这个问答记录")
+    for notebook_id in access[1]:
+        _authorize_notebook(req, notebook_id, "query")
     events = trace_store.get(trace_id)
     return JSONResponse([e.__dict__ for e in events])
 

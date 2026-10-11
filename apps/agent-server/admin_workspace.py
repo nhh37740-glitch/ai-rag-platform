@@ -1,4 +1,4 @@
-"""HTTP identity adapter for the owner verified by the login gateway."""
+"""HTTP identity adapter; notebook authorization belongs to AuthService."""
 from __future__ import annotations
 
 import uuid
@@ -84,20 +84,15 @@ class AdminWorkspaceBoundary:
                 )
             else:
                 principal = self.auth_service.guest(ctx)
-            permission = "read"
-            if not anonymous_public:
-                # The private UI, traces, progress and notebook data are admin-only.
-                permission = "write"
+            permission = "read" if anonymous_public else "authenticated"
             if scope["method"] == "POST" and scope["path"] == "/api/notebooks":
                 permission = "create_notebook"
-            elif scope["method"] == "POST" and scope["path"].endswith("/files"):
-                permission = "import_document"
             self.auth_service.authorize(ctx, principal, permission)
             if write and not same_origin:
                 raise PermissionError("Origin denied")
         except (PermissionError, ValueError):
             response = JSONResponse(
-                {"detail": "仅允许已登录的拥有者管理员访问知识工作区"},
+                {"detail": "请登录有效账号并使用已授权的笔记本"},
                 status_code=403, headers={"Cache-Control": "no-store"},
             )
             await response(scope, receive, send)

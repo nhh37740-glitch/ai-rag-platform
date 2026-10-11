@@ -77,6 +77,18 @@ pipeline {
                 archiveArtifacts artifacts: 'dist/*.zip,dist/*.zip.sha256,dist/*.manifest.json', fingerprint: true
             }
         }
+        stage('备份迁移前数据') {
+            when { expression { params.DeployDemo || params.DeployPublicDemo || params.DeployAdminWorkspace } }
+            steps {
+                sh '''set -eu
+                    targets=""
+                    [ "$DeployDemo" != true ] || targets="$targets private"
+                    [ "$DeployPublicDemo" != true ] || targets="$targets public"
+                    [ "$DeployAdminWorkspace" != true ] || targets="$targets admin"
+                    sudo python3 scripts/release_state.py backup --build "$BUILD_NUMBER" --targets $targets
+                '''
+            }
+        }
         stage('发布私有服务') {
             when { expression { params.DeployDemo } }
             steps { sh 'BUILD_NUMBER="$BUILD_NUMBER" sh scripts/deploy_compose.sh' }
@@ -95,6 +107,7 @@ pipeline {
         }
     }
     post {
+        unsuccessful { sh 'sudo python3 scripts/release_state.py restore --build "$BUILD_NUMBER"' }
         always { junit testResults: 'reports/*.xml', allowEmptyResults: true }
     }
 }
