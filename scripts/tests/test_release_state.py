@@ -5,6 +5,7 @@ import sqlite3
 import tarfile
 import io
 import os
+import stat
 import json
 from types import SimpleNamespace
 import pytest
@@ -39,6 +40,16 @@ def test_corrupt_snapshot_preserves_live_data(tmp_path):
     with archive.open('ab') as stream: stream.write(b'corruption')
     with pytest.raises(ValueError,match='checksum'): release.restore_volume(source,archive,checksum)
     assert (source/'live.md').read_text()=='Preserve me'
+
+def test_restore_keeps_original_permissions_with_python314_default_filter(tmp_path,monkeypatch):
+    monkeypatch.setattr(tarfile.TarFile,'extraction_filter',staticmethod(tarfile.data_filter))
+    source=tmp_path/'source';source.mkdir();document=source/'shared-state.txt'
+    document.write_text('Original shared state');document.chmod(0o660)
+    archive=tmp_path/'snapshot.tar';checksum=release.archive_volume(source,archive)
+    document.write_text('After release');document.chmod(0o600)
+    release.restore_volume(source,archive,checksum)
+    assert document.read_text()=='Original shared state'
+    assert stat.S_IMODE(document.stat().st_mode)==0o660
 
 @pytest.mark.parametrize('name,kind',[('../escape',tarfile.REGTYPE),('data/../../escape',tarfile.REGTYPE),
                                      ('data//escape',tarfile.REGTYPE),('data/./escape',tarfile.REGTYPE),('data',tarfile.REGTYPE),
