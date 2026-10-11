@@ -41,6 +41,7 @@ def test_corrupt_snapshot_preserves_live_data(tmp_path):
     assert (source/'live.md').read_text()=='Preserve me'
 
 @pytest.mark.parametrize('name,kind',[('../escape',tarfile.REGTYPE),('data/../../escape',tarfile.REGTYPE),
+                                     ('data//escape',tarfile.REGTYPE),('data/./escape',tarfile.REGTYPE),('data',tarfile.REGTYPE),
                                      ('data/link',tarfile.SYMTYPE),('data/device',tarfile.CHRTYPE)])
 def test_unsafe_archive_is_rejected_before_deleting_live_files(tmp_path,name,kind):
     source=tmp_path/'source';source.mkdir();(source/'live.md').write_text('Preserve me')

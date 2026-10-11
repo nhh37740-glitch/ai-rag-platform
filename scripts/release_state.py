@@ -50,6 +50,8 @@ def validate_member(member):
     name=PurePosixPath(member.name)
     if name.is_absolute() or '..' in name.parts or not name.parts or name.parts[0]!='data':
         raise ValueError('Unsafe snapshot path')
+    if member.name.rstrip('/')!=str(name) or (str(name)=='data' and not member.isdir()):
+        raise ValueError('Unsafe snapshot path')
     if not (member.isfile() or member.isdir()):
         raise ValueError('Snapshot contains links or special files; stop before release')
     return member
