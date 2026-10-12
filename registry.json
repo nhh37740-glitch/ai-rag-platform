@@ -3,9 +3,9 @@
   "modules": {
     "agent-facade": {
       "name": "agent_facade",
-      "version": "0.4.0",
-      "checksum": "213538dba3ef005aae17d474f0bff47d09b7d011a24c262938de041e57bb9b01",
-      "path": "artifacts/agent-facade/0.4.0",
+      "version": "0.5.0",
+      "checksum": "7e2b88bc9ded1a0dcaac282e9eacf6915b2a87dc854170fc52ce0e1367ce11e3",
+      "path": "artifacts/agent-facade/0.5.0",
       "status": "contract-only"
     },
     "agent-runtime": {
@@ -80,9 +80,9 @@
     },
     "rag-facade": {
       "name": "rag_facade",
-      "version": "0.2.0",
-      "checksum": "011d1b8bf81adc5164dffcbe4e35be053751a275fcc96e1b26e00d226a503e41",
-      "path": "artifacts/rag-facade/0.2.0",
+      "version": "0.3.0",
+      "checksum": "6a0b7ad483eee0cea1a0c04781a24ac727e4196b31188ca2f9ab8a2bed7ecbc4",
+      "path": "artifacts/rag-facade/0.3.0",
       "status": "contract-only"
     },
     "rag-tools": {

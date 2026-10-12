@@ -23,7 +23,7 @@ services:
     environment:
       STATE_DIR: /opt/agent/state
       RAG_DATABASE_PATH: /opt/agent/state/ragnotebook.sqlite
-      RAG_EMBED: ${RAG_EMBED:-hash}
+      RAG_EMBED: ${RAG_EMBED:-fastembed}
       BGE_MODEL: ${BGE_MODEL:-BAAI/bge-small-zh-v1.5}
       FASTEMBED_CACHE_PATH: /opt/agent/models/fastembed_cache
     volumes:

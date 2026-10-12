@@ -43,6 +43,18 @@ class FakeVectorStore:
         return list(self.documents.get(source_id, []))
 
 
+class FakeEmbeddingState:
+    def __init__(self, value=None):
+        self.value = value
+
+    def get_agent_data(self, ctx, data_type, name):
+        return {"content": self.value} if data_type == "rag_embedding" and name == "active" and self.value else None
+
+    def set_agent_data(self, ctx, data_type, name, content):
+        assert (data_type, name) == ("rag_embedding", "active")
+        self.value = content
+
+
 class RecordingTraceStore:
     def __init__(self):
         self.events = []
@@ -69,6 +81,22 @@ class TestRagFacade(unittest.TestCase):
         event = SpanEvent("owned-trace", "rag", 1, 2)
         rag.record(event)
         self.assertEqual(rag.get("owned-trace"), [event])
+
+    def test_embedding_model_change_rebuilds_existing_chunks_once(self):
+        self.store.add("selected/manual", ["已有资料分块"], [[0.5, 0.5]])
+        state = FakeEmbeddingState("hash:hash-v1")
+        rag = RagService(self.store, self.trace, embedding_state=state)
+        with patch.dict(os.environ, {"RAG_EMBED": "fastembed", "BGE_MODEL": "BAAI/bge-small-zh-v1.5"}):
+            with patch("rag_facade.embed", return_value=[[1.0, 0.0]]) as mock_embed:
+                first = rag.ensure_embedding_model(self.ctx)
+                second = rag.ensure_embedding_model(self.ctx)
+        self.assertEqual(first["model"], "fastembed:BAAI/bge-small-zh-v1.5")
+        self.assertEqual((first["reindexed_documents"], first["reindexed_chunks"], first["changed"]), (1, 1, True))
+        self.assertEqual(second["reindexed_chunks"], 0)
+        self.assertFalse(second["changed"])
+        self.assertEqual(state.value, "fastembed:BAAI/bge-small-zh-v1.5")
+        self.assertEqual(self.store.vectors["selected/manual"], [[1.0, 0.0]])
+        mock_embed.assert_called_once()
 
     def _seed(self):
         self.rag.ingest_markdown(self.ctx, "SQLite memory persist\n\n原子替换向量", "selected/guide")

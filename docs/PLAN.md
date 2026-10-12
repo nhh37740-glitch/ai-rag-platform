@@ -15,7 +15,7 @@
 - `auth-facade`：账号注册/登录、活动状态鉴权、项目管理员用户管理、笔记本成员权限、每日额度；`auth-runtime` 只做密码哈希与进程内登录凭据验证。
 - `data-facade`：唯一数据库入口；统一用户、笔记本、成员、文档分块和向量、会话历史、Agent 记忆/配置/技能/提示词及额度数据持久化。`storage` 与 `memory` 均归该业务模块，不由 Agent 间接借用。
 - `rag-facade`：文档解析、切分、嵌入、写入/删除和检索；HTTP 上传经其公开的统一入库 API。
-- `agent-facade`：问答执行和管理员 Provider/Model 目录、选择；密钥始终从服务器环境读取，不落数据库或前端。
+- `agent-facade`：问答执行和管理员 Provider/Model 目录、选择；密钥始终从服务器环境读取，不落数据库或前端。游客只能对当前活动 Provider 选择单次问答 Model，不会覆盖管理员设置。
 
 ### 首次数据库结构（首次创建后冻结）
 
@@ -32,11 +32,11 @@
 
 ### 账号、权限与额度
 
-首次空库启动时，使用服务器一次性 bootstrap 环境配置创建一个项目管理员和固定游客账号；不提供默认密码。普通用户可以公开注册。管理员禁用账号后，后续每个请求都检查 `is_active` 并立即拒绝；项目管理员权限与 notebook owner 权限分开。登录凭据只存在后端内存，过期时间默认 12 小时；退出撤销当前凭据，服务重启清空全部登录状态，不建登录会话表。游客身份固定且所有游客共用；将游客加入笔记本仅允许 `viewer`，会明确告知所有游客都能查看该笔记本。分享界面先查有效用户，再由笔记本 owner 选人和角色；被禁用用户不能登录或访问共享内容。全站每天最多 100 次问答，注册用户、游客和管理员共用，北京时间零点重置，SQLite 事务原子预占；游客问题和对话不入历史表。
+首次空库启动时，使用服务器一次性 bootstrap 环境配置创建一个项目管理员和固定游客账号；不提供默认密码。普通用户可以公开注册。管理员禁用账号后，后续每个请求都检查 `is_active` 并立即拒绝；项目管理员权限与 notebook owner 权限分开。登录凭据只存在后端内存，过期时间默认 12 小时；退出撤销当前凭据，服务重启清空全部登录状态，不建登录会话表。游客身份固定且所有游客共用；将游客加入笔记本仅允许 `viewer`，会明确告知所有游客都能查看该笔记本。分享界面先查有效用户，再由笔记本 owner 选人和角色；被禁用用户不能登录或访问共享内容。全站每天最多 100 次问答，注册用户、游客和管理员共用，北京时间零点重置，SQLite 事务原子预占；页面向游客显示共用剩余额度；游客问题和对话不入历史表。
 
 ### Web 接口与 Provider/Model
 
-RAGnotebook 提供同源的注册/登录/退出/当前用户、管理员用户列表与启停、笔记本与成员查询/改权、文件上传/进度、问答/历史、管理员 Provider/Model 查询与选择接口。所有私有端点在业务调用前先通过 `auth-facade` 鉴权；用户角色和 user_id 不接受前端自报。Provider/model 清单由后端基于已有 provider 能力与服务器凭据查询，管理员选择保存至 `agent_data`；切换立即影响新问答，不返回 API key。
+RAGnotebook 提供同源的注册/登录/退出/当前用户、管理员用户列表与启停、笔记本与成员查询/改权、文件上传/进度、问答/历史、管理员 Provider/Model 查询与选择、游客活动 Provider 模型目录与单次 Model 选择接口。所有私有端点在业务调用前先通过 `auth-facade` 鉴权；用户角色和 user_id 不接受前端自报。Provider/model 清单由后端基于已有 provider 能力与服务器凭据查询，管理员选择保存至 `agent_data`；切换立即影响新问答，不返回 API key。
 
 ### 服务器 Git、验收与发布
 
@@ -84,7 +84,7 @@ RAGnotebook 提供同源的注册/登录/退出/当前用户、管理员用户�
 
 - **接口规范**：`RequestContext(trace_id, request_id, user_id, session_id)` 贯穿所有模块；各模块公开 facade 用类型化签名写死，供三个中间包组合一级模块；集成侧只直调 AgentService/RagService/DataService。
 - **llm-gateway**：`LLMProvider.generate/stream/tool_call`；`DeepSeekProvider` 首个实现（`deepseek-chat` 函数调用，`deepseek-reasoner` 可选）；预留 OpenAI/Anthropic/Local。
-- **rag-core**：`retrieve(query, scope) -> RetrievalResult`（embed→按知识库 scope 过滤→retrieve→context build→Citations），对 MCP、Skill 与前端无感知；默认必须通过 FastEmbed 运行 `BAAI/bge-small-zh-v1.5`，运行库或模型不可用时立即报错，仅显式设置 `RAG_EMBED=hash` 才启用无模型的离线回退；查询改写和 rerank 保留为后续扩展点。
+- **rag-core**：`retrieve(query, scope) -> RetrievalResult`（embed→按知识库 scope 过滤→retrieve→context build→Citations），对 MCP、Skill 与前端无感知；部署默认使用 FastEmbed `BAAI/bge-small-zh-v1.5`，运行库或模型不可用时立即报错，仅显式设置 `RAG_EMBED=hash` 才启用无模型离线测试。RagService 将 embedding 标识存入现有 `agent_data`，模型改变时在启动阶段按数据库现有文本块重建向量；不新增表。查询改写和 rerank 保留为后续扩展点。
 - **rag-tools**（原 `rag-skill`）：RAG 工具模块，向 LLM 公布五个知识库检索工具——向量语义 `search_knowledge_base`、融合 `hybrid_search_knowledge_base`、词面 `keyword_search_knowledge_base`、列目录 `list_knowledge_documents`、分页读原文 `read_knowledge_document`。每次调用只能访问当前对话选中的知识库，`read_knowledge_document` 拒绝范围外 `source_id`；返回结构化引用并记录带 `tool` 字段的 `rag` span。`read_knowledge_document` **必须分页**：默认只返回 20 块，返回值带 `total_chunks`/`truncated`/`next_offset`，一次调用不可能取回整篇长文档。检索算法在 `rag-core`，工具定义与执行在本模块，提示词策略在 `skills/rag-retrieval/SKILL.md`。
 - **memory**：`SessionMemory`、`UserMemory` 两命名空间，`get/search/write/forget`；仅 memory 写库。
 - **tool-runtime + mcp-gateway**：`@tool` 函数与 MCP 工具归一为同一 `Tool`；工具可选接收 `RequestContext` 与当前对话运行上下文；mcp-gateway 负责 discovery/connect/list/call/materialize。

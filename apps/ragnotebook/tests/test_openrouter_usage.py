@@ -28,5 +28,6 @@ def test_site_quota_is_shared_and_stops_at_100():
                 assert exhausted.status_code == 429
                 assert exhausted.json()["detail"]["quota"]["remaining"] == 0
                 assert len(calls) == quota["remaining"]
-                assert all(user_id == "guest" and not session_id for user_id, session_id in calls)
+                assert all(user_id == "guest" and session_id for user_id, session_id in calls)
+                assert len({session_id for _, session_id in calls}) == len(calls)
     asyncio.run(scenario())

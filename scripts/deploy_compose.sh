@@ -98,8 +98,10 @@ SMOKE_CONTAINER=$(docker run -d --rm --read-only --tmpfs /tmp:size=32m \
     --tmpfs /opt/agent/data/kb/user-notebooks:uid=10001,gid=10001,mode=0700,size=8m \
     --tmpfs /opt/agent/data/agent-files:uid=10001,gid=10001,mode=0700,size=8m \
     --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 0.50 \
-    --env-file "$MODEL_ENV_FILE" -e PUBLIC_DEMO=0 -e RAG_EMBED=hash \
+    --env-file "$MODEL_ENV_FILE" -e PUBLIC_DEMO=0 -e RAG_EMBED=fastembed \
+    -e BGE_MODEL=BAAI/bge-small-zh-v1.5 -e FASTEMBED_CACHE_PATH=/opt/agent/models/fastembed_cache \
     -e STATE_DIR=/opt/agent/state -v "$SMOKE_VOLUME:/opt/agent/state" \
+    -v "${PROJECT}_model-cache:/opt/agent/models/fastembed_cache" \
     -e WEB_QUOTA_STATE_DIR=/opt/agent/web-quota -v ai-rag-web-quota:/opt/agent/web-quota \
     -p 127.0.0.1::8000 "$CANDIDATE")
 wait_for_health "$SMOKE_CONTAINER"

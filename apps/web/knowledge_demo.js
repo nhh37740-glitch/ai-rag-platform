@@ -62,6 +62,11 @@ const state = {
   uploading: false,
   sourceDocuments: [],
   principal: null,
+  guestModelProvider: "",
+  guestModelId: "",
+  guestModels: [],
+  guestModelLoading: false,
+  guestModelsLoaded: false,
 };
 
 function permitted(permission) {
@@ -76,6 +81,12 @@ function permitted(permission) {
 function applyPermissions() {
   const principal = state.principal;
   const administrator = principal?.role === "admin" && principal.administrator === true;
+  if (principal?.role !== "guest") {
+    state.guestModelProvider = "";
+    state.guestModelId = "";
+    state.guestModels = [];
+    state.guestModelsLoaded = false;
+  }
   $("workspace-mode-label").textContent = administrator ? "管理员" : principal?.role === "user" ? "已登录" : principal ? "游客 · 公开资料" : "身份未确认";
   $("admin-identity").textContent = principal?.role !== "guest" && principal ? Array.from(principal.user_id || "U")[0] : principal ? "客" : "…";
   $("admin-identity").title = principal?.role !== "guest" && principal ? `用户ID：${principal.user_id}` : "游客只能读取公开资料和提问";
@@ -83,6 +94,11 @@ function applyPermissions() {
   $("auth-open").hidden = Boolean(principal && principal.role !== "guest");
   $("open-admin-users").hidden = !administrator;
   $("open-model-admin").hidden = !administrator;
+  $("guest-model-picker").hidden = principal?.role !== "guest" || state.guestModels.length === 0;
+  updateWebQuota(state.webQuota);
+  if (principal?.role === "guest" && !state.guestModelsLoaded && !state.guestModelLoading) {
+    loadGuestModels().catch(() => { $("server-model-status").textContent = "游客模型目录暂不可用"; });
+  }
   dom.toggleCreate.hidden = !permitted("create_notebook");
   dom.toggleCreate.disabled = !permitted("create_notebook");
   if (!permitted("create_notebook")) dom.createForm.hidden = true;
@@ -108,8 +124,44 @@ function updateWebQuota(quota) {
   state.webQuota = quota;
   const label = $("web-quota");
   label.hidden = !quota;
-  if (quota) label.textContent = `全站今日剩余 ${quota.remaining}/${quota.limit} 次 · 北京时间零点恢复`;
+  if (quota) label.textContent = state.principal?.role === "guest"
+    ? `游客可用：全站今日剩余 ${quota.remaining}/${quota.limit} 次 · 北京时间零点恢复`
+    : `全站今日剩余 ${quota.remaining}/${quota.limit} 次 · 北京时间零点恢复`;
 }
+
+async function loadGuestModels(force = false) {
+  if (state.principal?.role !== "guest" || state.guestModelLoading) return;
+  if (state.guestModelsLoaded && !force) return;
+  state.guestModelLoading = true;
+  try {
+    const response = await apiFetch("/api/models/guest", { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "模型目录暂不可用");
+    if (state.principal?.role !== "guest") return;
+    const select = $("guest-model-choice");
+    const previous = state.guestModelProvider === payload.provider_id ? state.guestModelId : "";
+    state.guestModelProvider = payload.provider_id;
+    state.guestModels = payload.models || [];
+    select.replaceChildren();
+    for (const model of state.guestModels) {
+      const option = document.createElement("option");
+      option.value = model.id || model.model_id;
+      option.textContent = model.name || option.value;
+      select.append(option);
+    }
+    const preferred = state.guestModels.some((item) => (item.id || item.model_id) === previous)
+      ? previous : payload.default_model_id;
+    if (preferred && state.guestModels.some((item) => (item.id || item.model_id) === preferred)) select.value = preferred;
+    state.guestModelId = select.value || "";
+    $("guest-model-picker").hidden = state.principal?.role !== "guest" || state.guestModels.length === 0;
+    state.guestModelsLoaded = true;
+  } finally {
+    state.guestModelLoading = false;
+  }
+}
+
+$("guest-model-choice").onchange = () => { state.guestModelId = $("guest-model-choice").value; };
+$("guest-model-choice").onfocus = () => { loadGuestModels(true).catch(() => {}); };
 
 // ---------------------------------------------------------------- 小工具
 
@@ -150,7 +202,7 @@ function escapeHtml(value) {
 }
 
 function formatAnswer(text) {
-  return escapeHtml(text).replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+  return typeof renderMarkdown === "function" ? renderMarkdown(text) : escapeHtml(text);
 }
 
 function scrollToBottom() {
@@ -556,9 +608,16 @@ async function send(question) {
         session_id: sessionId,
         conversation_id: authenticated ? state.conversations.get(notebookId) || "" : "",
         knowledge_base_ids: [notebookId],
+        ...(state.principal.role === "guest" && state.guestModelId
+          ? { model_id: state.guestModelId, catalog_provider_id: state.guestModelProvider }
+          : {}),
       }),
     });
     const result = await response.json();
+    if (response.status === 409 && state.principal?.role === "guest") {
+      state.guestModelsLoaded = false;
+      await loadGuestModels(true);
+    }
     if (result.quota || result.detail?.quota) updateWebQuota(result.quota || result.detail.quota);
     if (!response.ok) throw new Error(result.detail?.message || (typeof result.detail === "string" ? result.detail : `请求失败（${response.status}）`));
     if (result.conversation_id) state.conversations.set(notebookId, result.conversation_id);
@@ -584,7 +643,8 @@ dom.form.onsubmit = (event) => {
   send(dom.message.value);
 };
 
-apiFetch("/api/llm/config", { cache: "no-store" })
+function refreshPublicStatus() {
+  return apiFetch("/api/llm/config", { cache: "no-store" })
   .then((response) => response.ok ? response.json() : Promise.reject())
   .then((config) => {
     state.modelProvider = config.provider;
@@ -592,6 +652,14 @@ apiFetch("/api/llm/config", { cache: "no-store" })
     $("server-model-status").textContent = `模型：${config.provider || "Mock"} · ${config.model || "默认"}`;
   })
   .catch(() => { $("server-model-status").textContent = "模型配置暂不可用"; });
+}
+
+refreshPublicStatus();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  refreshPublicStatus();
+  loadGuestModels(true).catch(() => {});
+});
 
 dom.message.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
@@ -921,7 +989,7 @@ $("auth-form").onsubmit = async (event) => {
     state.principal = null; state.conversationListLoaded = false; state.conversations.clear(); state.savedConversations = [];
     state.transcripts.clear(); state.sessions.clear(); state.drafts.clear();
     const sessionResponse = await apiFetch("/api/auth/session");
-    state.principal = await sessionResponse.json(); applyPermissions(); await loadNotebooks(state.activeId || "");
+    state.principal = await sessionResponse.json(); applyPermissions(); refreshPublicStatus(); await loadNotebooks(state.activeId || "");
   } catch (error) { $("auth-status").textContent = error.message; }
   finally { button.disabled = false; }
 };
@@ -933,7 +1001,7 @@ $("admin-logout").onclick = async () => {
     state.principal = null; state.conversationListLoaded = false; state.conversations.clear(); state.savedConversations = [];
     state.transcripts.clear(); state.sessions.clear(); state.drafts.clear();
     const session = await apiFetch("/api/auth/session"); state.principal = await session.json();
-    applyPermissions(); await loadNotebooks(state.defaultIds[0] || "cmrc2018-demo");
+    applyPermissions(); refreshPublicStatus(); await loadNotebooks(state.defaultIds[0] || "cmrc2018-demo");
   } catch (error) { setStatus(dom.notebookStatus, error.message, "error"); }
   finally { button.disabled = false; }
 };

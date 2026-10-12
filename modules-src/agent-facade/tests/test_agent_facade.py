@@ -226,6 +226,19 @@ class TestAgentService(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(restored.get_model_settings(self.ctx)["model_id"], "mock")
         self.assertIsInstance(restored.provider, MockProvider)
 
+    async def test_guest_model_override_is_scoped_and_bound_to_active_provider(self):
+        service = self.service(environment={"LLM_PROVIDER": "mock"})
+        service.update_model_settings(self.ctx, "mock", "mock")
+        default_provider = service.provider
+        answer = await service.run(self.ctx, "hello", model_id="mock", expected_provider_id="mock")
+        self.assertTrue(answer)
+        self.assertIs(service.provider, default_provider)
+        self.assertEqual(service.get_model_settings(self.ctx)["model_id"], "mock")
+        with self.assertRaisesRegex(ValueError, "Provider 已切换"):
+            await service.run(self.ctx, "hello", model_id="mock", expected_provider_id="deepseek")
+        with self.assertRaisesRegex(ValueError, "不在 Provider"):
+            await service.run(self.ctx, "hello", model_id="unknown", expected_provider_id="mock")
+
     def test_model_directory_hides_secrets_and_enforces_free_only(self):
         service = self.service(environment={
             "DEEPSEEK_API_KEY":"test-secret", "OPENROUTER_API_KEY":"test-openrouter-secret",

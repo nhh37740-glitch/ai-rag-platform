@@ -4,6 +4,7 @@ import re
 import json
 import os
 import threading
+import time
 from urllib.request import Request, urlopen
 from copy import deepcopy
 from typing import Callable
@@ -24,7 +25,7 @@ from llm_gateway import DeepSeekProvider, MockProvider
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 def resolve_model_config(ctx: RequestContext, environment: dict[str, str], public: bool = False) -> ModelConfiguration:
@@ -84,6 +85,7 @@ class AgentService:
         self._lock = threading.RLock()
         self._data = data
         self._environment = dict(os.environ if environment is None else environment)
+        self._catalog_cache: dict[str, tuple[float, list[dict]]] = {}
         self._tracing = tracing if tracing is not None else rag
         self._max_tool_rounds = max_tool_rounds
         self._provider = provider if provider is not None else make_provider()
@@ -133,6 +135,9 @@ class AgentService:
             except json.JSONDecodeError as exc:
                 raise ValueError("OPENROUTER_MODELS 必须是 JSON 数组") from exc
         else:
+            cached = self._catalog_cache.get(provider_id)
+            if cached and cached[0] > time.monotonic():
+                return deepcopy(cached[1])
             req = Request("https://openrouter.ai/api/v1/models", headers={"Authorization": "Bearer " + key})
             try:
                 with urlopen(req, timeout=8) as response:
@@ -151,6 +156,8 @@ class AgentService:
             if (mid.endswith(":free") or zero) and mid not in seen:
                 seen.add(mid)
                 result.append({"id": mid, "name": item.get("name") or mid})
+        if not raw:
+            self._catalog_cache[provider_id] = (time.monotonic() + 15, deepcopy(result))
         return result
 
     def _build_provider(self, provider_id, model_id, validate_catalog=True):
@@ -239,10 +246,23 @@ class AgentService:
         user_input: str,
         knowledge_base_ids: list[str] | None = None,
         allow_write_tools: bool = True,
+        model_id: str | None = None,
+        expected_provider_id: str | None = None,
     ) -> str:
         with self._lock:
             self._ensure_open()
             runtime = self._runtime
+            if model_id is None:
+                if expected_provider_id is not None:
+                    raise ValueError("expected_provider_id requires model_id")
+            else:
+                if not isinstance(model_id, str) or not model_id.strip():
+                    raise ValueError("model_id must be a non-empty string")
+                settings = self.get_model_settings(ctx)
+                provider_id = settings["provider_id"]
+                if expected_provider_id is not None and expected_provider_id != provider_id:
+                    raise ValueError("当前 Provider 已切换，请重新选择模型")
+                runtime = self._make_runtime(self._build_provider(provider_id, model_id))
         if not isinstance(user_input, str):
             raise TypeError("user_input must be a string")
         if not user_input.strip():

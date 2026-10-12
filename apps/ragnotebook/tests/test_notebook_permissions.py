@@ -22,6 +22,47 @@ async def _new_user(client, prefix):
     return response.json()["user"]
 
 
+def test_guest_model_is_limited_to_admins_active_provider_and_per_request():
+    async def scenario():
+        calls = []
+        async def fake_run(ctx, question, notebook_ids, **kwargs):
+            calls.append(kwargs)
+            return "answer"
+        with patch.object(s.runtime, "get_model_settings", return_value={"provider_id": "mock", "model_id": "mock"}), \
+             patch.object(s.runtime, "list_models", return_value=[{"id": "mock", "name": "Mock"}, {"id": "mock-alt", "name": "Mock Alt"}]), \
+             patch.object(s.runtime, "run", new=fake_run):
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=s.app), base_url=BASE_URL) as guest:
+                catalog = await guest.get("/api/models/guest")
+                assert catalog.status_code == 200, catalog.text
+                assert catalog.json()["provider_id"] == "mock"
+                assert [item["id"] for item in catalog.json()["models"]] == ["mock", "mock-alt"]
+                before = (await guest.get("/api/llm/config")).json()["quota"]["remaining"]
+                forbidden_provider = await guest.post("/api/chat", headers={"origin": ORIGIN}, json={
+                    "message": "provider override", "knowledge_base_ids": [s.DEMO_KB_ID],
+                    "provider_id": "deepseek",
+                })
+                assert forbidden_provider.status_code == 422, forbidden_provider.text
+                switched = await guest.post("/api/chat", headers={"origin": ORIGIN}, json={
+                    "message": "stale", "knowledge_base_ids": [s.DEMO_KB_ID],
+                    "model_id": "mock-alt", "catalog_provider_id": "deepseek",
+                })
+                assert switched.status_code == 409, switched.text
+                unknown = await guest.post("/api/chat", headers={"origin": ORIGIN}, json={
+                    "message": "invalid", "knowledge_base_ids": [s.DEMO_KB_ID],
+                    "model_id": "paid-or-unknown", "catalog_provider_id": "mock",
+                })
+                assert unknown.status_code == 422, unknown.text
+                assert (await guest.get("/api/llm/config")).json()["quota"]["remaining"] == before
+                response = await guest.post("/api/chat", headers={"origin": ORIGIN}, json={
+                    "message": "valid", "knowledge_base_ids": [s.DEMO_KB_ID],
+                    "model_id": "mock-alt", "catalog_provider_id": "mock",
+                })
+                assert response.status_code == 200, response.text
+                assert calls == [{"allow_write_tools": False, "model_id": "mock-alt", "expected_provider_id": "mock"}]
+                assert response.json()["quota"]["remaining"] == before - 1
+    asyncio.run(scenario())
+
+
 def test_owner_editor_viewer_guest_sharing_ingestion_and_conversations():
     async def scenario():
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=s.app), base_url=BASE_URL) as owner, \

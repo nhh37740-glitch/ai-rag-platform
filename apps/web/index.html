@@ -119,6 +119,9 @@
         </button>
         <div class="chat-heading"><h2>对话</h2><span id="current-summary" class="current-summary"></span></div>
         <div class="chat-actions">
+          <label id="guest-model-picker" class="guest-model-picker" hidden>
+            <span>本次回答模型</span><select id="guest-model-choice" aria-label="选择本次回答模型"></select>
+          </label>
           <span class="grounded-pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7"/></svg>基于来源</span>
           <button id="show-studio" class="icon-btn mobile-only" type="button" title="显示工作室">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM14 5v14"/></svg>
@@ -203,6 +206,7 @@
     </section>
   </div>
 
-  <script src="./static/knowledge_demo.js?v=notebook-db-20261011" defer></script>
+  <script src="./static/md-format.js?v=20261012" defer></script>
+  <script src="./static/knowledge_demo.js?v=guest-model-markdown-20261012" defer></script>
 </body>
 </html>

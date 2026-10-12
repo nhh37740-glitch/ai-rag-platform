@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from core_specifications import (
-    Citation, IngestResult, RequestContext, RetrievalResult, SpanEvent,
+    Citation, DataServicePort, IngestResult, RequestContext, RetrievalResult, SpanEvent,
     ToolCall, ToolDef, TraceStorePort, VectorStore,
 )
 from ingestion import SUPPORTED_EXTENSIONS, chunk, parse, to_markdown
@@ -16,7 +16,7 @@ from rag_core import DEFAULT_READ_CHUNKS, MAX_READ_CHUNKS, embed
 from rag_tools import RagTools
 from observability import make_trace_store
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __all__ = ["RagService"]
 
 _SEARCH_MODES = {
@@ -77,8 +77,12 @@ def _retrieval(payload: dict) -> RetrievalResult:
 class RagService:
     """RAG domain facade; all persistence is provided through VectorStore."""
 
-    def __init__(self, store: VectorStore, tracing: Optional[TraceStorePort] = None, top_k: int = 5) -> None:
+    def __init__(
+        self, store: VectorStore, tracing: Optional[TraceStorePort] = None, top_k: int = 5,
+        embedding_state: Optional[DataServicePort] = None,
+    ) -> None:
         self.store = store
+        self.embedding_state = embedding_state
         self.tracing = tracing if tracing is not None else make_trace_store()
         self.top_k = _integer(top_k, "top_k", 1, 20)
         self._tools = RagTools(store, self.tracing, self.top_k)
@@ -88,6 +92,34 @@ class RagService:
 
     def get(self, trace_id: str) -> List[SpanEvent]:
         return self.tracing.get(trace_id)
+
+    def ensure_embedding_model(self, ctx: RequestContext) -> dict:
+        """Rebuild persisted vectors when the configured embedding model changes."""
+        if self.embedding_state is None:
+            raise RuntimeError("embedding_state requires the DataService interface")
+        backend = os.environ.get("RAG_EMBED", "fastembed").strip().lower()
+        if backend == "fastembed":
+            model = os.environ.get("BGE_MODEL", "BAAI/bge-small-zh-v1.5").strip() or "BAAI/bge-small-zh-v1.5"
+        elif backend == "hash":
+            model = "hash-v1"
+        else:
+            raise ValueError(f"不支持的 RAG_EMBED 后端: {backend!r}")
+        signature = f"{backend}:{model}"
+        saved = self.embedding_state.get_agent_data(ctx, "rag_embedding", "active")
+        if saved and saved.get("content") == signature:
+            return {"model": signature, "reindexed_documents": 0, "reindexed_chunks": 0, "changed": False}
+        document_count = chunk_count = 0
+        for source_id, _ in self.store.list_documents():
+            chunks = self.store.document_chunks(source_id)
+            if not chunks:
+                continue
+            vectors = self.embed_texts(ctx, chunks)
+            self.store.add(source_id, chunks, vectors)
+            document_count += 1
+            chunk_count += len(chunks)
+        self.embedding_state.set_agent_data(ctx, "rag_embedding", "active", signature)
+        return {"model": signature, "reindexed_documents": document_count,
+                "reindexed_chunks": chunk_count, "changed": True}
 
     def tool_definitions(self, ctx: RequestContext) -> List[ToolDef]:
         return self._tools.tool_definitions()

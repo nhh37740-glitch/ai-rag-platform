@@ -1,4 +1,4 @@
-# AGENT 接口规范 0.4.0
+# AGENT 接口规范 0.5.0
 
 唯一共享类型来自 core_specifications。完整签名登记在 API_SCHEMA.json。
 
@@ -10,7 +10,8 @@ class AgentService:
                  skill_dir: str = "", provider: LLMProviderPort | None = None,
                  max_tool_rounds: int = 10, environment: dict[str, str] | None = None): ...
     async def run(self, ctx: RequestContext, user_input: str,
-                  knowledge_base_ids: list[str] | None = None, allow_write_tools: bool = True) -> str: ...
+                  knowledge_base_ids: list[str] | None = None, allow_write_tools: bool = True,
+                  model_id: str | None = None, expected_provider_id: str | None = None) -> str: ...
     def register_tool(self, ctx: RequestContext, definition: ToolDef,
                       handler: Callable, context_aware: bool = False) -> None: ...
     def tool_definitions(self, ctx: RequestContext) -> list[ToolDef]: ...
@@ -24,6 +25,8 @@ provider 是只读属性，保留注入对象身份供请求级核查。空 key 
 run 拒绝空白输入；max_tool_rounds 至少为10。关闭幂等，关闭后 run/register_tool/tool_definitions/history 抛 RuntimeError。
 未传 tracing 时使用 RagService 提供的追踪接口；关闭只释放 AgentRuntime，不关闭注入的 data/rag/provider/tracing。
 保留 AgentRuntime 当前有限次检索提醒策略；严格检索成功保证和引用校验不属于本次接口重构。
+
+0.5.0 的 `run(..., model_id, expected_provider_id)` 只为本次请求构造临时 Provider/Runtime；期望 Provider 必须仍是管理员当前选择，模型必须属于当前目录。此参数不写入 agent_data，全局模型默认值不会改变。
 
 本次接口扩展以根目录 `specifications/DOMAIN_INTERFACES.md` 的2026-10-11条款为正式依据。
 
@@ -42,4 +45,6 @@ AgentService 可选接收末尾参数 environment（服务端环境副本），�
 - update_model_settings(ctx: RequestContext, provider_id: str, model_id: str) -> dict
 AgentService 提供 list_model_providers(ctx, environment)、list_models(ctx, provider_id, environment)、get_model_settings(ctx)、update_model_settings(ctx, provider_id, model_id)。Provider 凭据仅从服务器环境读取，所有响应只包含配置状态，不含凭据。OpenRouter 目录读取当前上游模型目录，只返回标记免费或输入/输出价格均为零的模型；可用 OPENROUTER_MODELS(JSON数组) 提供当前目录快照。未知 Provider、无凭据 Provider 和非免费模型均拒绝。
 
-当前选择以 agent_data 的 (type='model_settings', name='active') 持久化。启动时恢复选择并从服务器环境重新取凭据。update 先校验目录与凭据，再写入 agent_data，随后替换 AgentRuntime；已开始的请求继续使用其开始时的 Runtime，新请求看到切换后的 Provider。并发更新由单一锁串行化。模型管理接口的管理员权限由 HTTP 路由鉴权。
+当前管理员选择以 agent_data 的 (type='model_settings', name='active') 持久化。启动时恢复选择并从服务器环境重新取凭据。update 先校验目录与凭据，再写入 agent_data，随后替换 AgentRuntime；已开始的请求继续使用其开始时的 Runtime，新请求看到切换后的 Provider。并发更新由单一锁串行化。模型管理接口的管理员权限由 HTTP 路由鉴权。
+
+`run(..., model_id, expected_provider_id)` 仅对本次运行使用该 Model；服务端始终从当前活动 Provider 构造模型，expected_provider_id 只用来拒绝旧目录选择，不能切换 Provider。每次运行重新验证模型目录，不写入全局模型设置；未提供这两个参数时沿用管理员的默认模型。

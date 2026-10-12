@@ -1,14 +1,15 @@
 {
   "package": "rag_facade",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "facade": {
     "RagService": {
       "kind": "class",
       "init": {
         "store": "VectorStore",
         "tracing": "TraceStorePort|null",
-        "top_k": "int=5"
+        "top_k": "int=5",
+        "embedding_state": "DataServicePort|null"
       },
       "methods": {
         "tool_definitions": {
@@ -102,6 +103,12 @@
             "trace_id": "str"
           },
           "returns": "List[SpanEvent]"
+        },
+        "ensure_embedding_model": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "dict"
         }
       }
     }

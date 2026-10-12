@@ -71,7 +71,8 @@ auth_service.initialize(
 )
 # The data facade supplies the VectorStore port to RagService. HTTP routes only
 # use RagService operations; they never call the store directly.
-rag_service = RagService(data_service.vector_store(BOOT_CONTEXT))
+rag_service = RagService(data_service.vector_store(BOOT_CONTEXT), embedding_state=data_service)
+rag_service.ensure_embedding_model(BOOT_CONTEXT)
 MODEL_CONFIG = resolve_model_config(BOOT_CONTEXT, dict(os.environ))
 provider = make_provider(MODEL_CONFIG.api_key, MODEL_CONFIG.base_url, MODEL_CONFIG.model)
 runtime = AgentService(data_service, rag_service, skill_dir=str(SKILL_DIR), provider=provider, environment=dict(os.environ))
@@ -609,6 +610,10 @@ async def chat(req: Request):
     _require_same_origin(req)
     ctx, principal = _identity(req)
     body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(422, "请求体必须为对象")
+    if "provider_id" in body:
+        raise HTTPException(422, "Provider 只能由管理员在模型设置中切换")
     message = body.get("message", "")
     if not isinstance(message, str) or not message.strip():
         raise HTTPException(422, "message 必须为非空文本")
@@ -626,13 +631,44 @@ async def chat(req: Request):
         existing_scope = _conversation_scope(conversation)
         if existing_scope != sorted(selected):
             raise HTTPException(409, "会话笔记本范围已变化，请新建会话")
-    ctx = RequestContext(ctx.trace_id, ctx.request_id, principal.user_id, conversation_id if persistent else "")
+    ctx = RequestContext(ctx.trace_id, ctx.request_id, principal.user_id,
+                         conversation_id if persistent else uuid.uuid4().hex)
+    model_id = body.get("model_id")
+    catalog_provider_id = body.get("catalog_provider_id")
+    if principal.role == "guest":
+        has_model_choice = "model_id" in body or "catalog_provider_id" in body
+        if has_model_choice and (
+            not isinstance(model_id, str) or not model_id.strip() or len(model_id) > 256
+            or not isinstance(catalog_provider_id, str) or not catalog_provider_id.strip()
+        ):
+            raise HTTPException(422, "游客模型选择无效，请重新选择当前 Provider 下的模型")
+        if has_model_choice:
+            settings = runtime.get_model_settings(ctx)
+            if catalog_provider_id != settings["provider_id"]:
+                raise HTTPException(409, "当前 Provider 已切换，请重新选择模型")
+            try:
+                available = runtime.list_models(ctx, settings["provider_id"], dict(os.environ))
+            except ValueError:
+                raise HTTPException(503, "当前 Provider 的模型目录暂不可用") from None
+            if model_id not in {item["id"] for item in available}:
+                raise HTTPException(422, "该模型不在当前 Provider 的可选目录中")
+    elif "model_id" in body or "catalog_provider_id" in body:
+        raise HTTPException(422, "只有游客可以指定本次问答模型")
     _reserve_query(ctx)
     trace_id = ctx.trace_id
     TRACE_ACCESS[trace_id] = (principal.user_id, selected)
     if len(TRACE_ACCESS) > 2048:
         TRACE_ACCESS.pop(next(iter(TRACE_ACCESS)))
-    answer = await runtime.run(ctx, message, selected, allow_write_tools=principal.role == "admin")
+    try:
+        answer = await runtime.run(
+            ctx, message, selected, allow_write_tools=principal.role == "admin",
+            model_id=model_id if principal.role == "guest" else None,
+            expected_provider_id=catalog_provider_id if principal.role == "guest" else None,
+        )
+    except ValueError as exc:
+        if "Provider" in str(exc) or "模型" in str(exc):
+            raise HTTPException(409, "当前模型目录已变化，请重新选择模型后重试") from None
+        raise
     if persistent:
         msgs = list((conversation or {}).get("messages", []))
         msgs.extend([{"role": "user", "content": message}, {"role": "assistant", "content": answer, "trace_id": trace_id}])
@@ -648,6 +684,21 @@ def llm_config(req: Request):
     providers = runtime.list_model_providers(ctx, dict(os.environ))
     selected = next((item for item in providers if item.get("id", item.get("provider_id")) == provider_id), {})
     return JSONResponse({"server_key_configured": bool(selected.get("configured", False)), "provider": provider_id, "model": settings.get("model_id", ""), "free_models_only": provider_id == "openrouter", "quota": auth_service.quota_status(ctx)}, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/models/guest")
+def guest_models(req: Request):
+    ctx, principal = _identity(req)
+    if principal.role != "guest":
+        raise HTTPException(403, "此接口仅供游客选择本次问答模型")
+    settings = runtime.get_model_settings(ctx)
+    try:
+        models = runtime.list_models(ctx, settings["provider_id"], dict(os.environ))
+    except ValueError:
+        raise HTTPException(503, "当前 Provider 的模型目录暂不可用") from None
+    return JSONResponse({"provider_id": settings["provider_id"],
+                         "default_model_id": settings["model_id"], "models": models},
+                        headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/models/providers")

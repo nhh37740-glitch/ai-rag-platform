@@ -16,7 +16,7 @@ DataServicePort：
 - 笔记本：create_notebook(ctx,metadata)、get_notebook(ctx,notebook_id)、list_notebooks(ctx,user_id)、update_notebook(ctx,notebook_id,name)、delete_notebook(ctx,notebook_id)。
 - 成员：membership_snapshot(ctx,notebook_id)、list_members(ctx,notebook_id)、put_member(ctx,notebook_id,user_id,role)、delete_member(ctx,notebook_id,user_id)。
 - 会话：save_conversation(ctx,conversation)、get_conversation(ctx,conversation_id,user_id)、list_conversations(ctx,user_id,notebook_id=None)、delete_conversation(ctx,conversation_id,user_id)。notebook_id 是排序 scope 的 JSON；None 表示该用户全部会话。
-- Agent数据：get_agent_data(ctx,type,name)、set_agent_data(ctx,type,name,content)、list_agent_data(ctx,type)；memory、state、模型选择均存 agent_data。
+- Agent数据：get_agent_data(ctx,type,name)、set_agent_data(ctx,type,name,content)、list_agent_data(ctx,type)；memory、state、模型选择和向量模型标识均存 agent_data。
 - close(ctx) 只关闭一次底层连接。
 
 AuthService 构造参数：data: DataServicePort、session_ttl_seconds=43200、daily_limit=100。公开入口：initialize(ctx,admin_username,admin_password)、register(ctx,username,password)、login(ctx,username,password)、authenticate_session(ctx,token)、logout(ctx,token)、guest(ctx)、authorize(ctx,principal,permission)、allowed_notebooks(ctx,principal,available_ids,public_ids=None)、notebook_permissions(ctx,principal,notebook_id)、authorize_notebook(ctx,principal,notebook_id,permission)、list_members(ctx,principal,notebook_id)、list_share_targets(ctx,principal,notebook_id)、set_member(ctx,principal,notebook_id,user_id,role)、remove_member(ctx,principal,notebook_id,user_id)、list_admin_users(ctx,principal)、set_user_active(ctx,principal,user_id,active)、quota_status(ctx)、reserve_query(ctx)。
@@ -53,7 +53,9 @@ SQLite 向量实现位于 storage，数据库域不得 import rag_core。VectorS
 
 ```python
 class RagService:
-    def __init__(self, store: VectorStore, tracing: TraceStorePort, top_k: int = 5): ...
+    def __init__(self, store: VectorStore, tracing: TraceStorePort | None = None,
+                 top_k: int = 5, embedding_state: DataServicePort | None = None): ...
+    def ensure_embedding_model(self, ctx: RequestContext) -> dict: ...
     def tool_definitions(self, ctx: RequestContext) -> list[ToolDef]: ...
     def execute_tool(self, ctx: RequestContext, call: ToolCall, knowledge_base_ids: list[str]) -> str: ...
     def search(self, ctx: RequestContext, query: str, knowledge_base_ids: list[str],
@@ -69,7 +71,7 @@ class RagService:
     def ingest_markdown(self, ctx: RequestContext, markdown: str, source_id: str) -> IngestResult: ...
 ```
 
-只接收注入的 VectorStore，不负责创建连接。search mode 仅 vector/hybrid/keyword；top_k 整数 1..20（bool 非整数），空查询 ValueError。知识库范围必须显式给出，[] 返回空结果；范围外 read 抛 ValueError，未知范围返回空结果。read 默认最多20块，上限100；offset 非负整数（bool 无效）。分页元数据沿用 rag-core/RagTools。source_id 必须为 `<knowledge_base_id>/<document_id>`，拒绝空值、路径穿越或与指定知识库不匹配。ingest 转 Markdown 并分块/向量化，返回共享 IngestResult；空文本不能入库。
+只接收注入的 VectorStore 和可选 DataServicePort，不负责创建连接。ensure_embedding_model 比较当前嵌入后端与 agent_data 中的模型标识；标识变化或首次缺失时，启动阶段用同库已有文本块重建向量，成功后才保存新标识，不新增表。search mode 仅 vector/hybrid/keyword；top_k 整数 1..20（bool 非整数），空查询 ValueError。知识库范围必须显式给出，[] 返回空结果；范围外 read 抛 ValueError，未知范围返回空结果。read 默认最多20块，上限100；offset 非负整数（bool 无效）。分页元数据沿用 rag-core/RagTools。source_id 必须为 `<knowledge_base_id>/<document_id>`，拒绝空值、路径穿越或与指定知识库不匹配。ingest 转 Markdown 并分块/向量化，返回共享 IngestResult；空文本不能入库。
 
 execute_tool 复用 rag-tools 的五个只读工具和 JSON 返回格式，参数中的 knowledge_base_ids/ctx/runtime_context 不得覆盖注入范围；未知工具 ValueError。每次执行保留含实际 tool/scope/source 的 rag span。typed search/list/read 也须记录 rag span；目录工具沿用现有 hit_count 计数，搜索和读取记录实际 hits。parse_document 复用 ingestion，支持 md/txt/docx/pdf，未知格式 ValueError。不得 import 数据库叶子或其他中间包。
 
@@ -83,7 +85,9 @@ class AgentService:
                  skill_dir: str = "", provider: LLMProviderPort | None = None,
                  max_tool_rounds: int = 10): ...
     async def run(self, ctx: RequestContext, user_input: str,
-                  knowledge_base_ids: list[str] | None = None) -> str: ...
+                  knowledge_base_ids: list[str] | None = None,
+                  allow_write_tools: bool = True, model_id: str | None = None,
+                  expected_provider_id: str | None = None) -> str: ...
     def register_tool(self, ctx: RequestContext, definition: ToolDef,
                       handler: Callable, context_aware: bool = False) -> None: ...
     def tool_definitions(self, ctx: RequestContext) -> list[ToolDef]: ...
@@ -91,7 +95,7 @@ class AgentService:
     async def aclose(self, ctx: RequestContext) -> None: ...
 ```
 
-中间包内部装配 AgentRuntime、ToolRegistry、SkillRegistry；接收接口对象，不 import memory/rag_core/rag_tools/ingestion/storage。装配时自动注册五个 RAG 工具，scope 只取当前 run 的运行上下文，忽略模型伪造的范围。额外工具通过 register_tool 添加；禁止替换五个保留 RAG 名称。history 返回副本，按 user/session 隔离。provider 可注入，默认 Mock；make_provider 非空 key 为 DeepSeek，空 key 为 Mock。aclose 幂等，释放自建资源，不关闭外部注入的 data/rag/provider；关闭后 run/register/history/tool_definitions 抛 RuntimeError。run 拒绝空输入；保持原有 max_tool_rounds>=10 约束。可读 provider 属性用于请求级适配核查。
+中间包内部装配 AgentRuntime、ToolRegistry、SkillRegistry；接收接口对象，不 import memory/rag_core/rag_tools/ingestion/storage。装配时自动注册五个 RAG 工具，scope 只取当前 run 的运行上下文，忽略模型伪造的范围。额外工具通过 register_tool 添加；禁止替换五个保留 RAG 名称。history 返回副本，按 user/session 隔离。provider 可注入，默认 Mock；make_provider 非空 key 为 DeepSeek，空 key 为 Mock。aclose 幂等，释放自建资源，不关闭外部注入的 data/rag/provider；关闭后 run/register/history/tool_definitions 抛 RuntimeError。run 拒绝空输入；保持原有 max_tool_rounds>=10 约束。model_id 仅为本次问答选择当前活动 Provider 下的模型，expected_provider_id 用于拒绝过期目录；不修改管理员保存的全局设置。可读 provider 属性用于请求级适配核查。
 
 ## 先定义的验收用例
 
