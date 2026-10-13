@@ -19,11 +19,11 @@ class AuthRuntime:
     def __init__(self): self._key=secrets.token_bytes(32); self._sessions={}
     def __repr__(self): return "AuthRuntime(process_local=True)"
     @staticmethod
-    def hash_password(password):
+    def hash_password(password:str) -> str:
         salt=secrets.token_bytes(16); digest=hashlib.scrypt(_password_bytes(password),salt=salt,n=_N,r=_R,p=_P,dklen=_KEY)
         return "scrypt$"+base64.urlsafe_b64encode(salt).decode()+"$"+base64.urlsafe_b64encode(digest).decode()
     @staticmethod
-    def verify_password(password,encoded):
+    def verify_password(password:str,encoded:str) -> bool:
         try:
             raw=_password_bytes(password); alg,salt_text,digest_text=encoded.split("$")
             salt=base64.urlsafe_b64decode(salt_text.encode("ascii")); expected=base64.urlsafe_b64decode(digest_text.encode("ascii"))
@@ -31,11 +31,11 @@ class AuthRuntime:
             actual=hashlib.scrypt(raw,salt=salt,n=_N,r=_R,p=_P,dklen=_KEY)
             return hmac.compare_digest(actual,expected)
         except (ValueError,TypeError,AttributeError,UnicodeEncodeError): return False
-    def issue_principal(self,ctx,user_id,role):
+    def issue_principal(self,ctx:RequestContext,user_id:str,role:str) -> AuthPrincipal:
         if not isinstance(user_id,str) or not user_id or not isinstance(role,str) or role not in {"admin","user","guest"}: raise ValueError("Invalid identity")
         proof=hmac.new(self._key,b"principal\\0"+role.encode()+b"\\0"+user_id.encode(),hashlib.sha256).hexdigest()
         return AuthPrincipal(user_id=user_id,role=role,proof=proof)
-    def validate_principal(self,ctx,principal):
+    def validate_principal(self,ctx:RequestContext,principal:AuthPrincipal) -> bool:
         if type(principal) is not AuthPrincipal or not isinstance(principal.role,str) or principal.role not in {"admin","user","guest"}: raise PermissionError("Authentication denied")
         try:
             expected=hmac.new(self._key,b"principal\\0"+principal.role.encode()+b"\\0"+principal.user_id.encode(),hashlib.sha256).hexdigest()
@@ -43,12 +43,12 @@ class AuthRuntime:
         except (AttributeError,TypeError,UnicodeEncodeError): valid=False
         if not valid: raise PermissionError("Authentication denied")
         return True
-    def issue_session(self,ctx,user_id,ttl_seconds):
+    def issue_session(self,ctx:RequestContext,user_id:str,ttl_seconds:int) -> str:
         if not isinstance(user_id,str) or not user_id or type(ttl_seconds) is not int or not 1<=ttl_seconds<=43200: raise ValueError("Invalid session")
         nonce=secrets.token_urlsafe(32); sig=hmac.new(self._key,b"session\\0"+user_id.encode()+b"\\0"+nonce.encode(),hashlib.sha256).hexdigest()
         token=nonce+"."+sig; self._sessions[hashlib.sha256(token.encode("ascii")).hexdigest()]=(user_id,time.monotonic()+ttl_seconds)
         return token
-    def resolve_session(self,ctx,token):
+    def resolve_session(self,ctx:RequestContext,token:str) -> str|None:
         if not isinstance(token,str) or len(token)>512: return None
         try:
             nonce,sig=token.split(".",1); key=hashlib.sha256(token.encode("ascii")).hexdigest(); row=self._sessions.get(key)
@@ -57,7 +57,7 @@ class AuthRuntime:
             if time.monotonic()>=expires or not hmac.compare_digest(expected,sig): self._sessions.pop(key,None); return None
             return user_id
         except (ValueError,UnicodeEncodeError): return None
-    def revoke_session(self,ctx,token):
+    def revoke_session(self,ctx:RequestContext,token:str) -> None:
         if isinstance(token,str):
             try: key=hashlib.sha256(token.encode("ascii")).hexdigest()
             except UnicodeEncodeError: return
