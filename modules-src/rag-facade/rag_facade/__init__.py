@@ -17,7 +17,7 @@ from rag_core import DEFAULT_READ_CHUNKS, MAX_READ_CHUNKS, embed
 from rag_tools import RagTools
 from observability import make_trace_store
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 __all__ = ["RagService"]
 
 _SEARCH_MODES = {
@@ -109,15 +109,13 @@ class RagService:
         saved = self.embedding_state.get_agent_data(ctx, "rag_embedding", "active")
         if saved and saved.get("content") == signature:
             return {"model": signature, "reindexed_documents": 0, "reindexed_chunks": 0, "changed": False}
-        document_count = chunk_count = 0
+        replacements = {}
         for source_id, _ in self.store.list_documents():
             chunks = self.store.document_chunks(source_id)
-            if not chunks:
-                continue
-            vectors = self.embed_texts(ctx, chunks)
-            self.store.add(source_id, chunks, vectors)
-            document_count += 1
-            chunk_count += len(chunks)
+            replacements[source_id] = (chunks, self.embed_texts(ctx, chunks))
+        self.embedding_state.replace_all_embeddings(ctx, replacements)
+        document_count = len(replacements)
+        chunk_count = sum(len(chunks) for chunks, _ in replacements.values())
         self.embedding_state.set_agent_data(ctx, "rag_embedding", "active", signature)
         return {"model": signature, "reindexed_documents": document_count,
                 "reindexed_chunks": chunk_count, "changed": True}

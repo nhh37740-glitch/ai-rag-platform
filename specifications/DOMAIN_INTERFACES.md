@@ -11,6 +11,7 @@ DataService 使用唯一 database_path。所有 store 共用同一 SQLite connec
 DataServicePort：
 
 - initialize(ctx)；memory_store(ctx)、vector_store(ctx)、state_db(ctx)、notebook_store(ctx)。
+- replace_all_embeddings(ctx,replacements) 原子替换全库向量；文本块与六张表结构不变。
 - 用户：get_user(ctx,user_id)、get_user_by_username(ctx,username)、create_user(ctx,user)、list_users(ctx,active_only=True)、set_user_active(ctx,user_id,active)。
 - 额度：reserve_site_quota(ctx,local_date,limit) 原子预占，超额返回 None；site_quota_used(ctx,local_date) 聚合全站用量。
 - 笔记本：create_notebook(ctx,metadata)、get_notebook(ctx,notebook_id)、list_notebooks(ctx,user_id)、update_notebook(ctx,notebook_id,name)、delete_notebook(ctx,notebook_id)。

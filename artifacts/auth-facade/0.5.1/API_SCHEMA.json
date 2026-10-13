@@ -1,0 +1,7 @@
+{
+  "module": "auth_facade",
+  "version": "0.5.1",
+  "public_api": [
+    "AuthService"
+  ]
+}

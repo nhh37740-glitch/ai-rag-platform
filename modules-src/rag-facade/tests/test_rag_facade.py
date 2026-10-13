@@ -25,6 +25,14 @@ class FakeVectorStore:
         self.documents[source_id] = list(chunks)
         self.vectors[source_id] = [list(vector) for vector in embeddings]
 
+    def replace_embeddings(self, replacements):
+        if set(replacements) != set(self.documents):
+            raise ValueError("rebuild must include every stored document")
+        for source_id, (chunks, vectors) in replacements.items():
+            if chunks != self.documents[source_id]:
+                raise ValueError("document changed during embedding rebuild")
+            self.vectors[source_id] = [list(vector) for vector in vectors]
+
     def search(self, embedding, top_k=5, scopes=None):
         self.search_scopes.append(scopes)
         hits = [
@@ -44,11 +52,15 @@ class FakeVectorStore:
 
 
 class FakeEmbeddingState:
-    def __init__(self, value=None):
+    def __init__(self, value=None, store=None):
         self.value = value
+        self.store = store
 
     def get_agent_data(self, ctx, data_type, name):
         return {"content": self.value} if data_type == "rag_embedding" and name == "active" and self.value else None
+
+    def replace_all_embeddings(self, ctx, replacements):
+        self.store.replace_embeddings(replacements)
 
     def set_agent_data(self, ctx, data_type, name, content):
         assert (data_type, name) == ("rag_embedding", "active")
@@ -84,7 +96,7 @@ class TestRagFacade(unittest.TestCase):
 
     def test_embedding_model_change_rebuilds_existing_chunks_once(self):
         self.store.add("selected/manual", ["已有资料分块"], [[0.5, 0.5]])
-        state = FakeEmbeddingState("hash:hash-v1")
+        state = FakeEmbeddingState("hash:hash-v1", self.store)
         rag = RagService(self.store, self.trace, embedding_state=state)
         with patch.dict(os.environ, {"RAG_EMBED": "fastembed", "BGE_MODEL": "BAAI/bge-small-zh-v1.5"}):
             with patch("rag_facade.embed", return_value=[[1.0, 0.0]]) as mock_embed:

@@ -17,9 +17,9 @@
     },
     "data-facade": {
       "name": "data_facade",
-      "version": "0.3.0",
-      "checksum": "cad8178e98349184c8a978bcdc5717c734927ee4de4ee4cfb279476fa5774486",
-      "path": "artifacts/data-facade/0.3.0",
+      "version": "0.3.1",
+      "checksum": "5e674103a9ffddc0d60ba219499f3478400f0492012c273e52936250d0be50a9",
+      "path": "artifacts/data-facade/0.3.1",
       "status": "contract-only"
     },
     "evaluation": {
@@ -80,9 +80,9 @@
     },
     "rag-facade": {
       "name": "rag_facade",
-      "version": "0.3.1",
-      "checksum": "f39e2310e19b5290ca5e27605f1e0ca264dedeb026f68a9cd57cc80df62a89d3",
-      "path": "artifacts/rag-facade/0.3.1",
+      "version": "0.3.2",
+      "checksum": "76f310e9ea1491f083b0f481dd54fe1f5142043b55d91efa9e643396fdda4b9c",
+      "path": "artifacts/rag-facade/0.3.2",
       "status": "contract-only"
     },
     "rag-tools": {
@@ -101,9 +101,9 @@
     },
     "storage": {
       "name": "storage",
-      "version": "0.5.0",
-      "checksum": "bedb9e61f859afa06dc8ffe5316a7af2767cfe304b04575d916725de19e4e535",
-      "path": "artifacts/storage/0.5.0",
+      "version": "0.5.1",
+      "checksum": "bb85d429ea87b8e96ddf9f8392244242fbd0f623c0dc9421c24fa4982a8d1731",
+      "path": "artifacts/storage/0.5.1",
       "status": "contract-only"
     },
     "tool-runtime": {
@@ -122,9 +122,9 @@
     },
     "auth-facade": {
       "name": "auth_facade",
-      "version": "0.5.0",
-      "checksum": "a945fd76f0b33193ec70d3b3b89c403f5b20346a62ad1832b2ebfede69a2b0db",
-      "path": "artifacts/auth-facade/0.5.0",
+      "version": "0.5.1",
+      "checksum": "44ce9e1cd9ac1ff7795a6963baa4c5c8685f1c7345d92060e8a1968db6ae238c",
+      "path": "artifacts/auth-facade/0.5.1",
       "status": "contract-only"
     }
   }

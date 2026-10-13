@@ -1,0 +1,10 @@
+{
+  "module": "storage",
+  "version": "0.5.1",
+  "public_api": [
+    "NotebookStore",
+    "SqliteVectorStore",
+    "StateStore",
+    "ensure_database_schema"
+  ]
+}

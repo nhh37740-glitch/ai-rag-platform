@@ -708,7 +708,7 @@
     "rag-facade": {
       "package": "rag_facade",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.3.0",
+      "version": "0.3.2",
       "facade": {
         "RagService": {
           "kind": "class",
@@ -824,7 +824,7 @@
     "data-facade": {
       "package": "data_facade",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "facade": {
         "DataService": {
           "kind": "class",
@@ -1040,6 +1040,13 @@
                 "ctx": "RequestContext"
               },
               "returns": "None"
+            },
+            "replace_all_embeddings": {
+              "params": {
+                "ctx": "RequestContext",
+                "replacements": "dict[str,tuple[list[str],list[list[float]]]]"
+              },
+              "returns": "None"
             }
           }
         }
@@ -1157,7 +1164,7 @@
     "storage": {
       "package": "storage",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "schema": {
         "tables": [
           "users",
@@ -1174,7 +1181,14 @@
           "init": {
             "connection": "sqlite3.Connection|str",
             "lock": "RLock|null"
-          }
+          },
+          "methods": [
+            "add",
+            "replace_embeddings",
+            "search",
+            "list_documents",
+            "document_chunks"
+          ]
         },
         "StateStore": {
           "init": {
@@ -1269,7 +1283,7 @@
     "auth-facade": {
       "package": "auth_facade",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "facade": {
         "AuthService": {
           "kind": "class",

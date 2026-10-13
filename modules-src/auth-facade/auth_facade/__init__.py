@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime,timedelta,timezone
 from auth_runtime import AuthRuntime
 from core_specifications import AuthPrincipal,DataServicePort,RequestContext
-__version__="0.5.0"
+__version__="0.5.1"
 _USER_NAME=re.compile(r"[A-Za-z0-9_.-]{3,64}")
 _NOTEBOOK_ID=re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 _PERMISSION_SET={"read","query","authenticated","create_notebook","manage_users","manage_models"}
@@ -67,7 +67,7 @@ class AuthService:
         user=self._data.get_user_by_username(ctx,username) if isinstance(username,str) else None
         encoded=user.get("password_hash") if isinstance(user,dict) else self._dummy_hash
         valid=self._runtime.verify_password(password,encoded) if isinstance(encoded,str) else False
-        if not valid or user.get("is_guest") or user.get("is_active") is not True: raise PermissionError("Authentication denied")
+        if not valid or not isinstance(user,dict) or user.get("is_guest") or user.get("is_active") is not True: raise PermissionError("Authentication denied")
         principal=self._principal(ctx,user); token=self._runtime.issue_session(ctx,user["id"],self._session_ttl)
         return principal,token
     def authenticate_session(self,ctx:RequestContext,token:str)->AuthPrincipal:

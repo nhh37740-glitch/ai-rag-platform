@@ -7,7 +7,7 @@ from typing import Optional
 from core_specifications import NotebookStorePort, MemoryStorePort, RequestContext, StateStorePort, VectorStore
 from memory import MemoryStore
 from storage import NotebookStore, SqliteVectorStore, StateStore, ensure_database_schema
-__version__="0.3.0"
+__version__="0.3.1"
 class DataService:
     """Owns one SQLite connection shared by the database-domain stores."""
     def __init__(self,database_path:str)->None:
@@ -32,6 +32,10 @@ class DataService:
         with self._lock: self.initialize(ctx); return self._memory
     def vector_store(self,ctx):
         with self._lock: self.initialize(ctx); return self._vectors
+    def replace_all_embeddings(self,ctx,replacements):
+        with self._lock:
+            self.initialize(ctx)
+            self._vectors.replace_embeddings(replacements)
     def state_db(self,ctx):
         with self._lock: self.initialize(ctx); return self._state
     def notebook_store(self,ctx):

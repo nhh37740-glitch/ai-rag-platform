@@ -1,3 +1,7 @@
+## 0.5.1 - 2026-10-13
+
+- Reject a missing login account even when dummy password verification succeeds.
+
 # auth-facade Changelog
 
 ## 0.5.0 — 2026-10-11

@@ -1,4 +1,4 @@
-# AuthService 接口规范 0.5.0
+# AuthService 接口规范 0.5.1
 
 本模块只依赖 DataServicePort、共享 AuthPrincipal/RequestContext 与 auth-runtime。普通用户身份、notebook ACL 与全站额度由本模块决策；SQLite 及事务由注入的 DataService 提供。
 

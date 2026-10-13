@@ -1,3 +1,7 @@
+## 0.3.2 - 2026-10-13
+
+- Build the complete new embedding set before a single atomic replacement.
+
 # rag-facade
 
 ## 0.2.0

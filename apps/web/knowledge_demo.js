@@ -885,7 +885,7 @@ async function loadMembers(notebookId) {
   if (!targetResponse.ok) throw new Error(typeof targetsPayload.detail === "string" ? targetsPayload.detail : "可分享账号加载失败");
   const targetSelect = $("member-user-id");
   targetSelect.replaceChildren();
-  for (const target of (targetsPayload.users || [])) { const option = document.createElement("option"); option.value = target.user_id; option.textContent = target.username || target.user_id; targetSelect.append(option); }
+  for (const target of (targetsPayload.users || [])) { const option = document.createElement("option"); option.value = target.id; option.textContent = target.username || target.id; targetSelect.append(option); }
   const list = $("members-list");
   list.replaceChildren();
   const labels = {viewer: "查看者", editor: "编辑者"};

@@ -4,7 +4,7 @@ import json, math, os, sqlite3, threading, uuid
 from datetime import datetime, timezone
 from typing import Any, List, Optional
 from core_specifications import MemoryEntry, MemoryStorePort, RequestContext, VectorStore
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 _SCHEMA = {
 "users": "id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, password_hash TEXT, is_admin INTEGER NOT NULL DEFAULT 0, is_guest INTEGER NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, quota_date TEXT, quota_used INTEGER NOT NULL DEFAULT 0",
 "notebooks": "id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL, created_at TEXT NOT NULL",
@@ -99,6 +99,26 @@ class SqliteVectorStore(_SqliteStore):
             with self._conn:
                 self._conn.execute("DELETE FROM documents WHERE document_id=?",(source_id,))
                 self._conn.executemany("INSERT INTO documents VALUES(?,?,?,?,?,?,?)",rows)
+    def replace_embeddings(self,replacements):
+        """Atomically replace vectors for the complete document collection."""
+        if not isinstance(replacements,dict): raise TypeError("replacements must be a dictionary")
+        with self._lock:
+            self._require_open()
+            stored={}
+            for row in self._conn.execute("SELECT id,document_id,chunk_index,content FROM documents ORDER BY document_id,chunk_index"):
+                stored.setdefault(row["document_id"],[]).append(row)
+            if set(replacements)!=set(stored): raise ValueError("rebuild must include every stored document")
+            updates=[]; dimension=None
+            for source_id,(chunks,embeddings) in replacements.items():
+                rows=stored[source_id]; texts=list(chunks); vectors=[_vector(value) for value in embeddings]
+                if len(texts)!=len(rows) or len(vectors)!=len(rows) or texts!=[row["content"] for row in rows]:
+                    raise ValueError("document changed during embedding rebuild")
+                for row,vector in zip(rows,vectors):
+                    if dimension is None: dimension=len(vector)
+                    elif len(vector)!=dimension: raise ValueError("embedding dimensions must match")
+                    updates.append((json.dumps(vector,allow_nan=False),row["id"]))
+            with self._conn:
+                self._conn.executemany("UPDATE documents SET embedding=? WHERE id=?",updates)
     def search(self,embedding,top_k=5,scopes=None):
         with self._lock:
             self._require_open(); _top_k(top_k); query=_vector(embedding)

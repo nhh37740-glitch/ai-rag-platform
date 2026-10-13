@@ -1,3 +1,7 @@
+## 0.7.1 - 2026-10-13
+
+- Add DataServicePort atomic full-collection embedding replacement for model changes.
+
 # 变更记录
 
 ## 0.7.0 — 2026-10-11
