@@ -81,7 +81,7 @@ class IssueFormatTests(unittest.TestCase):
         issue = example_issue()
         issue["body"] = issue["body"].replace("权限判断错误，某些账号无法使用。", "现" * 201)
         pr_guard.validate_issue_format(issue, 20)
-        self.assertTrue(any("201 visible characters" in err for err in pr_guard.FAIL))
+        self.assertTrue(any("201 字" in err for err in pr_guard.FAIL))
 
     def test_problem_multi_paragraph_fails(self):
         issue = example_issue()
@@ -89,7 +89,7 @@ class IssueFormatTests(unittest.TestCase):
             "权限判断错误，某些账号无法使用。", "登录页面空白。\n\n保存按钮无法使用。"
         )
         pr_guard.validate_issue_format(issue, 20)
-        self.assertTrue(any("one plain paragraph" in err for err in pr_guard.FAIL))
+        self.assertTrue(any("只能写一个自然段" in err for err in pr_guard.FAIL))
 
     def test_problem_list_fails(self):
         issue = example_issue()
@@ -97,7 +97,7 @@ class IssueFormatTests(unittest.TestCase):
             "权限判断错误，某些账号无法使用。", "- 登录页面空白。\n- 搜索没有结果。"
         )
         pr_guard.validate_issue_format(issue, 20)
-        self.assertTrue(any("one plain paragraph" in err for err in pr_guard.FAIL))
+        self.assertTrue(any("只能写一个自然段" in err for err in pr_guard.FAIL))
 
     def test_explicit_second_issue_fails(self):
         issue = example_issue()
@@ -105,7 +105,7 @@ class IssueFormatTests(unittest.TestCase):
             "权限判断错误，某些账号无法使用。", "登录页面空白，另一个问题是搜索没有结果。"
         )
         pr_guard.validate_issue_format(issue, 20)
-        self.assertTrue(any("another problem" in err for err in pr_guard.FAIL))
+        self.assertTrue(any("另一个问题" in err for err in pr_guard.FAIL))
 
     def test_hostile_language_fails(self):
         issue = example_issue()
@@ -113,7 +113,7 @@ class IssueFormatTests(unittest.TestCase):
             "权限判断错误，某些账号无法使用。", "这就是垃圾系统，根本不能用。"
         )
         pr_guard.validate_issue_format(issue, 20)
-        self.assertTrue(any("disparaging expression" in err for err in pr_guard.FAIL))
+        self.assertTrue(any("贬损或主观归责" in err for err in pr_guard.FAIL))
 
     def test_template_html_comments_do_not_count_as_content(self):
         issue = example_issue()
@@ -133,6 +133,16 @@ class IssueFormatTests(unittest.TestCase):
         pr_guard.validate_issue_format(issue, 20)
         self.assertEqual(pr_guard.FAIL, [])
 
+
+
+    def test_new_template_unedited_checklist_fails(self):
+        issue = example_issue()
+        issue["body"] = issue["body"].replace(
+            "- [ ] 禁用用户请求返回 403",
+            "- [ ] 定义可以由人直接观察到的修复结果。",
+        )
+        pr_guard.validate_issue_format(issue, 20)
+        self.assertTrue(any("## 验收标准" in err and "template" in err for err in pr_guard.FAIL))
 
 
 
