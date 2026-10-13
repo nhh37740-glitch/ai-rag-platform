@@ -14,8 +14,9 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    mem_limit: 512m
-    cpus: 0.50
+    mem_limit: 1g
+    memswap_limit: 2g
+    cpus: 1.00
     env_file:
       - ${RAG_MODEL_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
       - ${RAG_BOOTSTRAP_ENV_FILE:-/home/ubuntu/.config/ai-rag/bootstrap-admin.env}

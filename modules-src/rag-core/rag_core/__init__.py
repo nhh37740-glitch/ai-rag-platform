@@ -9,7 +9,7 @@ import numpy as np
 
 from core_specifications import Citation, RequestContext, RetrievalResult, VectorStore
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 DIM = 384
 SearchHit = Tuple[str, str, float]
@@ -34,6 +34,10 @@ def _tokens(text: str) -> List[str]:
 
 _FASTEMBED = "__unset__"
 _DEFAULT_MODEL = "BAAI/bge-small-zh-v1.5"
+
+# 单次推理的文本条数上限。分批后进程峰值内存只与批大小有关，与文档长度解耦；
+# 否则导入长文档时会一次性提交全部分块，容器内存被打满后进程被 OOM 杀死。
+EMBED_BATCH_SIZE = 32
 
 
 def _embed_hash(texts: List[str]) -> List[List[float]]:
@@ -71,7 +75,11 @@ def _embed_fastembed(texts: List[str]) -> List[List[float]]:
                 f"无法加载文本向量模型 {model_name}: {exc}"
             ) from exc
     try:
-        return [list(map(float, v)) for v in _FASTEMBED.embed(texts)]
+        vectors: List[List[float]] = []
+        for start in range(0, len(texts), EMBED_BATCH_SIZE):
+            batch = texts[start : start + EMBED_BATCH_SIZE]
+            vectors.extend(list(_FASTEMBED.embed(batch, batch_size=len(batch))))
+        return [list(map(float, v)) for v in vectors]
     except Exception as exc:
         model_name = os.environ.get("BGE_MODEL", _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
         raise RuntimeError(f"文本向量模型 {model_name} 推理失败: {exc}") from exc
