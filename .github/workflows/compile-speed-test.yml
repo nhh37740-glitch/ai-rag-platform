@@ -1,0 +1,86 @@
+name: compile-speed-test
+
+# 只用于测量：把 Jenkins「准备构建环境 + 编译模块并登记版本」两步放到 GitHub runner 上跑，
+# 对比 VPS（2 vCPU / 1.9 GB / legacy builder）与本 runner 的耗时。不发布、不部署。
+
+on:
+  push:
+    branches:
+      - ci/github-actions-compile-test
+  workflow_dispatch:
+
+jobs:
+  compile-speed:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Runner 规格
+        run: |
+          echo "CPU: $(nproc) 核"
+          free -h
+          df -h /
+          docker --version
+          docker buildx version || true
+
+      - name: 准备构建环境（docker build --target prepared）
+        run: |
+          start=$(date +%s)
+          docker build --target prepared --tag ai-rag-platform:prepared-ci .
+          end=$(date +%s)
+          echo "PREPARED_SECONDS=$((end - start))" >> "$GITHUB_ENV"
+          echo "准备构建环境耗时: $((end - start)) 秒"
+
+      - name: 编译模块并登记版本（docker build --target compiled）
+        run: |
+          start=$(date +%s)
+          docker build --target compiled --tag ai-rag-platform:compiled-ci .
+          end=$(date +%s)
+          echo "COMPILED_SECONDS=$((end - start))" >> "$GITHUB_ENV"
+          echo "编译模块耗时: $((end - start)) 秒"
+
+      - name: 打发布包（docker build --target builder）
+        run: |
+          start=$(date +%s)
+          docker build --target builder --tag ai-rag-platform:ci-ci .
+          end=$(date +%s)
+          echo "BUILDER_SECONDS=$((end - start))" >> "$GITHUB_ENV"
+          echo "打发布包耗时: $((end - start)) 秒"
+
+      - name: 产物清点
+        run: |
+          cid=$(docker create ai-rag-platform:compiled-ci)
+          docker cp "$cid:/opt/agent/artifacts/." ./artifacts-out/ || true
+          docker rm -f "$cid" >/dev/null
+          echo "编译出的模块目录数: $(find artifacts-out -name '__init__*.so' | wc -l)"
+          find artifacts-out -name '__init__*.so' | head -5
+          if [ -d dist ] || docker images --format '{{.Repository}}:{{.Tag}}' | grep -q 'ai-rag-platform:ci-ci'; then
+            cid2=$(docker create ai-rag-platform:ci-ci)
+            docker cp "$cid2:/opt/agent/dist/." ./dist-out/ || true
+            docker rm -f "$cid2" >/dev/null
+            ls -la dist-out || true
+          fi
+
+      - name: 汇总
+        run: |
+          echo "=== GitHub runner 耗时 ==="
+          echo "准备构建环境: ${PREPARED_SECONDS} 秒"
+          echo "编译模块:     ${COMPILED_SECONDS} 秒"
+          echo "打发布包:     ${BUILDER_SECONDS} 秒"
+          {
+            echo "## GitHub runner 编译测速"
+            echo ""
+            echo "| 阶段 | GitHub runner | VPS（第 26 次构建） |"
+            echo "|---|---|---|"
+            echo "| 准备构建环境 | ${PREPARED_SECONDS} 秒 | 279 秒 |"
+            echo "| 编译模块并登记版本 | ${COMPILED_SECONDS} 秒 | 243 秒 |"
+            echo "| 打发布包 | ${BUILDER_SECONDS} 秒 | 未跑到 |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 上传编译产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-artifacts
+          path: artifacts-out
+          if-no-files-found: warn
+          retention-days: 3
