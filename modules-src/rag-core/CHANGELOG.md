@@ -1,3 +1,9 @@
+## 0.5.2 - 2026-10-13
+
+- 修正 0.5.1 引入的启动崩溃：分批结果先转成 Python list 再累加，
+  避免 Cython 按 `List[List[float]]` 校验 ndarray 时抛
+  `TypeError: Expected list, got numpy.ndarray`（容器启动即失败）。
+
 ## 0.5.1 - 2026-10-13
 
 - 向量推理改为分批执行，单批上限 32 条；导入长文档不再一次性提交全部分块，

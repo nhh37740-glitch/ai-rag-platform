@@ -119,7 +119,7 @@
     "rag-core": {
       "package": "rag_core",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "constants": {
         "DEFAULT_READ_CHUNKS": 20,
         "MAX_READ_CHUNKS": 100
