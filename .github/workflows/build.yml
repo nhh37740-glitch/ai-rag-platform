@@ -1,0 +1,86 @@
+name: 主线构建
+
+# 主线每次提交（含 PR 合并）自动执行：编译 18 个模块 → 跑完整测试 → 产出发布包。
+# 与 Jenkins 作业 ai-rag-platform 的「准备构建环境 / 编译模块并登记版本 / 打发布包并归档」
+# 三步相同；发布包在 Actions 页面的 Artifacts 里下载。
+# 不部署、不切换线上服务。
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: master-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 环境信息
+        run: |
+          echo "提交: $GITHUB_SHA"
+          echo "CPU: $(nproc) 核"
+          free -h | head -2
+          df -h / | tail -1
+          docker --version
+          docker buildx version || true
+
+      - name: 准备构建环境
+        run: |
+          start=$(date +%s)
+          docker build --target prepared --tag "ai-rag-platform:prepared-$GITHUB_RUN_NUMBER" .
+          echo "PREPARED_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+
+      - name: 编译模块并登记版本
+        run: |
+          start=$(date +%s)
+          docker build --target compiled --tag "ai-rag-platform:compiled-$GITHUB_RUN_NUMBER" .
+          echo "COMPILED_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+
+      - name: 打发布包
+        run: |
+          start=$(date +%s)
+          docker build --target builder --tag "ai-rag-platform:ci-$GITHUB_RUN_NUMBER" .
+          echo "BUILDER_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+
+      - name: 取出产物
+        run: |
+          mkdir -p artifacts-out dist-out
+          cid=$(docker create "ai-rag-platform:compiled-$GITHUB_RUN_NUMBER")
+          docker cp "$cid:/opt/agent/artifacts/." ./artifacts-out/ || true
+          docker rm -f "$cid" >/dev/null
+          echo "编译出的模块数: $(find artifacts-out -name '__init__*.so' | wc -l)"
+          cid2=$(docker create "ai-rag-platform:ci-$GITHUB_RUN_NUMBER")
+          docker cp "$cid2:/opt/agent/dist/." ./dist-out/ || true
+          docker rm -f "$cid2" >/dev/null
+          ls -la dist-out
+
+      - name: 上传发布包
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-rag-platform-release-${{ github.run_number }}
+          path: |
+            dist-out/*
+            artifacts-out/**/checksum.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 汇总
+        run: |
+          {
+            echo "## 主线构建 ${{ github.run_number }}"
+            echo ""
+            echo "提交：\`$GITHUB_SHA\`"
+            echo ""
+            echo "| 阶段 | 耗时 |"
+            echo "|---|---|"
+            echo "| 准备构建环境 | ${PREPARED_SECONDS} 秒 |"
+            echo "| 编译模块并登记版本 | ${COMPILED_SECONDS} 秒 |"
+            echo "| 打发布包 | ${BUILDER_SECONDS} 秒 |"
+          } >> "$GITHUB_STEP_SUMMARY"
