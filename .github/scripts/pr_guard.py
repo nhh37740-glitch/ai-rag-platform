@@ -95,7 +95,7 @@ def verify_module_version(module, paths, pr):
             FAIL.append(module + ": new version must increase from " + oldp)
         if newp != current:
             FAIL.append(module + ": VERSION does not match pyproject.toml")
-        if not re.search(r"(?m)^#{1,3}\s+(?:\\[)?" + re.escape(newp) + r"\b", log):
+        if not re.search(r"(?m)^#{1,3}\s+\[?" + re.escape(newp) + r"(?:\]|\b)", log):
             FAIL.append(module + ": CHANGELOG missing a heading for " + newp)
     except (ValueError, TypeError, KeyError, AttributeError) as e:
         FAIL.append(module + ": invalid version metadata: " + str(e))
