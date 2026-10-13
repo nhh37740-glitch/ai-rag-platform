@@ -5,9 +5,9 @@ from typing import AsyncIterator, List, Optional, Protocol
 
 import httpx
 
-from core_specifications import ChatMessage, RequestContext, ToolCall, ToolDef
+from core_specifications import ChatMessage, ModelRequestError, RequestContext, ToolCall, ToolDef
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 
 class LLMProvider(Protocol):
@@ -63,19 +63,35 @@ class DeepSeekProvider:
         if tools:
             payload["tools"] = [{"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.parameters}} for t in tools]
             payload["tool_choice"] = "auto"
-        async with httpx.AsyncClient(timeout=60, transport=self.transport) as client:
-            r = await client.post(f"{self.base_url}/chat/completions", headers={"Authorization": f"Bearer {self.api_key}"}, json=payload)
-            r.raise_for_status()
-        data = r.json()
-        choice = data["choices"][0]["message"]
-        content = choice.get("content") or ""
-        tool_calls = []
-        for tc in choice.get("tool_calls") or []:
-            try:
+        try:
+            async with httpx.AsyncClient(timeout=60, transport=self.transport) as client:
+                r = await client.post(f"{self.base_url}/chat/completions", headers={"Authorization": f"Bearer {self.api_key}"}, json=payload)
+        except httpx.TimeoutException:
+            raise ModelRequestError("model_timeout", "模型响应超时，请稍后重试或选择其他模型。", 504) from None
+        except httpx.RequestError:
+            raise ModelRequestError("model_connection_failed", "暂时无法连接模型服务，请稍后重试。", 503) from None
+        if r.status_code == 429:
+            raise ModelRequestError("model_rate_limited", "所选免费模型当前限流，请稍后重试或选择其他模型。", 429)
+        if not r.is_success:
+            raise ModelRequestError("model_unavailable", "所选模型当前不可用或不支持此请求，请选择其他模型。", 503)
+        try:
+            data = r.json()
+            choice = data["choices"][0]["message"]
+            if not isinstance(choice, dict):
+                raise ValueError("message must be an object")
+            content = choice.get("content") or ""
+            if not isinstance(content, str):
+                raise ValueError("content must be text")
+            tool_calls = []
+            for tc in choice.get("tool_calls") or []:
                 args = json.loads(tc["function"]["arguments"] or "{}")
-            except json.JSONDecodeError:
-                args = {}
-            tool_calls.append(ToolCall(tc.get("id", ""), tc["function"]["name"], args))
+                if not isinstance(args, dict):
+                    raise ValueError("tool arguments must be an object")
+                tool_calls.append(ToolCall(tc.get("id", ""), tc["function"]["name"], args))
+            if not content and not tool_calls:
+                raise ValueError("empty model response")
+        except (ValueError, KeyError, IndexError, TypeError):
+            raise ModelRequestError("model_invalid_response", "模型返回了无效内容，请重试或选择其他模型。") from None
         return content, tool_calls
 
     async def stream(self, ctx, messages, tools=None) -> AsyncIterator[str]:

@@ -104,6 +104,20 @@ def main(argv: list[str] | None = None) -> None:
             raise RuntimeError(f"{pkg}: cythonize did not produce a compiled extension")
         for extension in compiled:
             shutil.copy2(extension, out / extension.name)
+        # Auxiliary importable modules must also be binary-delivered. Otherwise
+        # e.g. mcp_servers.github passes source tests but is absent at runtime.
+        for source in sorted((mod / pkg).rglob("*.py")):
+            if source == init or source.name == "__main__.py":
+                continue
+            subprocess.run([sys.executable, "-m", "Cython.Build.Cythonize", "-i", str(source)], cwd=ROOT, check=True)
+            matches = [source.with_name(source.stem + suffix) for suffix in importlib.machinery.EXTENSION_SUFFIXES]
+            extensions = [path for path in matches if path.is_file()]
+            if not extensions:
+                raise RuntimeError(f"{source}: cythonize did not produce a compiled extension")
+            destination = out / source.parent.relative_to(mod / pkg)
+            destination.mkdir(parents=True, exist_ok=True)
+            for extension in extensions:
+                shutil.copy2(extension, destination / extension.name)
         built += 1
     if skipped:
         print(f"skipped {skipped} unselected module(s)")

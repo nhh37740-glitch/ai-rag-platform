@@ -1,5 +1,9 @@
 ## 0.5.2 - 2026-10-13
 
+## 0.5.3 — 2026-10-13
+
+- 免费模型目录要求文本输入输出与工具调用能力；保留用户选定模型，不静默回退。
+
 - Restore administrator file creation and conversation-to-notebook tools through AgentService.
 
 ## 0.5.1 - 2026-10-13

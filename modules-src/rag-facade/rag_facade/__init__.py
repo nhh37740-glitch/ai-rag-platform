@@ -6,7 +6,7 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from core_specifications import (
     Citation, DataServicePort, IngestResult, RequestContext, RetrievalResult, SpanEvent,
@@ -17,7 +17,7 @@ from rag_core import DEFAULT_READ_CHUNKS, MAX_READ_CHUNKS, embed
 from rag_tools import RagTools
 from observability import make_trace_store
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 __all__ = ["RagService"]
 
 _SEARCH_MODES = {
@@ -173,6 +173,7 @@ class RagService:
 
     def ingest(
         self, ctx: RequestContext, path: str, knowledge_base_id: str, source_id: str = "",
+        progress: Optional[Callable[[dict], None]] = None,
     ) -> IngestResult:
         path = _text(path, "path")
         knowledge_base_id = _identifier(knowledge_base_id, "knowledge_base_id")
@@ -181,16 +182,31 @@ class RagService:
         source_id = _source(source_id or f"{knowledge_base_id}/{Path(path).stem}")
         if source_id.partition("/")[0] != knowledge_base_id:
             raise ValueError("source_id 与 knowledge_base_id 不匹配")
-        return self.ingest_markdown(ctx, self.parse_document(ctx, path), source_id)
+        if progress is not None:
+            progress({"stage": "解析文档", "done": 0, "total": 0, "unit": ""})
+        markdown = self.parse_document(ctx, path)
+        return self.ingest_markdown(ctx, markdown, source_id, progress)
 
-    def ingest_markdown(self, ctx: RequestContext, markdown: str, source_id: str) -> IngestResult:
+    def ingest_markdown(self, ctx: RequestContext, markdown: str, source_id: str,
+                        progress: Optional[Callable[[dict], None]] = None) -> IngestResult:
         start_ns = time.perf_counter_ns()
         scopes: List[str] = []
         try:
             source_id = _source(source_id)
             scopes = [source_id.partition("/")[0]]
+            if progress is not None:
+                progress({"stage": "分块", "done": 0, "total": 0, "unit": "", "characters": len(markdown)})
             chunks = self.split_text(ctx, markdown)
-            self.store.add(source_id, chunks, self.embed_texts(ctx, chunks))
+            vectors = []
+            if progress is not None:
+                progress({"stage": "建立向量索引", "done": 0, "total": len(chunks), "unit": "块"})
+            for start in range(0, len(chunks), 32):
+                vectors.extend(self.embed_texts(ctx, chunks[start:start + 32]))
+                if progress is not None:
+                    progress({"stage": "建立向量索引", "done": min(start + 32, len(chunks)), "total": len(chunks), "unit": "块"})
+            if progress is not None:
+                progress({"stage": "写入数据库", "done": 0, "total": 0, "unit": ""})
+            self.store.add(source_id, chunks, vectors)
             result = IngestResult(source_id, scopes[0], len(chunks))
         except Exception as error:
             self._record(ctx, "ingest_markdown", scopes, start_ns, error=error)

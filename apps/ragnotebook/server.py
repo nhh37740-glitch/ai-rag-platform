@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 
 from agent_facade import AgentService, make_provider, resolve_model_config
 from auth_facade import AuthService
-from core_specifications import RequestContext
+from core_specifications import ModelRequestError, RequestContext
 from data_facade import DataService
 from rag_facade import RagService
 
@@ -39,9 +39,12 @@ STATE_DIR = Path(os.environ.get("STATE_DIR", str(ROOT / "data")))
 SKILL_DIR = ROOT / "skills"
 SESSION_COOKIE = "ragnotebook_session"
 SESSION_TTL_SECONDS = 43200
+APP_VERSION = "0.9.0"
 PUBLIC_DEMO = os.environ.get("PUBLIC_DEMO", "0") == "1"
 TRACE_ACCESS: dict[str, tuple[str, list[str]]] = {}
 UPLOAD_PROGRESS: dict[str, dict] = {}
+ACTIVE_QUERIES: dict[str, int] = {}
+CHAT_TIMEOUT_SECONDS = 120
 SUPPORTED_EXTENSIONS = frozenset({".md", ".txt", ".docx", ".pdf"})
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
@@ -258,7 +261,7 @@ async def lifespan(app):
     data_service.close(BOOT_CONTEXT)
 
 
-app = FastAPI(title="RAGnotebook", lifespan=lifespan)
+app = FastAPI(title="RAGnotebook", version=APP_VERSION, lifespan=lifespan)
 
 
 @app.get("/")
@@ -277,7 +280,7 @@ def demo():
     settings = runtime.get_model_settings(BOOT_CONTEXT)
     provider_id = settings.get("provider_id", "mock")
     model_id = settings.get("model_id", "")
-    return JSONResponse({"public_demo": PUBLIC_DEMO, "read_only": PUBLIC_DEMO, "id": DEMO_KB_ID, "name": manifest.get("name", DEMO_KB_ID), "source": manifest.get("source", ""), "license": manifest.get("license", ""), "documents": len(docs), "questions": questions, "question_count": len(questions), "suggested_questions": suggestions, "imported": demo_kb_imported, "provider": provider_id, "model": model_id, "quota": auth_service.quota_status(BOOT_CONTEXT), "embedding": os.environ.get("RAG_EMBED", "fastembed").strip().lower()})
+    return JSONResponse({"version": APP_VERSION, "public_demo": PUBLIC_DEMO, "read_only": PUBLIC_DEMO, "id": DEMO_KB_ID, "name": manifest.get("name", DEMO_KB_ID), "source": manifest.get("source", ""), "license": manifest.get("license", ""), "documents": len(docs), "questions": questions, "question_count": len(questions), "suggested_questions": suggestions, "imported": demo_kb_imported, "provider": provider_id, "model": model_id, "quota": auth_service.quota_status(BOOT_CONTEXT), "embedding": os.environ.get("RAG_EMBED", "fastembed").strip().lower()})
 
 
 @app.get("/api/auth/session")
@@ -406,6 +409,39 @@ def share_targets(notebook_id: str, req: Request):
         raise HTTPException(403, "没有成员管理权限") from None
 
 
+def _require_notebook_idle(notebook_id: str) -> None:
+    if ACTIVE_QUERIES.get(notebook_id, 0) or any(
+        item.get("notebook_id") == notebook_id and item.get("state") == "running"
+        for item in UPLOAD_PROGRESS.values()
+    ):
+        raise HTTPException(409, "笔记本正在导入或回答问题，请完成后再删除。")
+
+
+@app.delete("/api/notebooks/{notebook_id}")
+async def delete_notebook(notebook_id: str, req: Request):
+    _require_same_origin(req)
+    ctx, _ = _authorize_notebook(req, notebook_id, "manage_notebook")
+    if notebook_id == DEMO_KB_ID:
+        raise HTTPException(403, "内置知识库不能删除")
+    _require_notebook_idle(notebook_id)
+    data_service.delete_notebook(ctx, notebook_id)
+    return JSONResponse({"deleted": True}, headers={"Cache-Control": "no-store"})
+
+
+@app.delete("/api/notebooks/{notebook_id}/documents")
+async def delete_document(notebook_id: str, req: Request, source_id: str):
+    _require_same_origin(req)
+    ctx, _ = _authorize_notebook(req, notebook_id, "import_document")
+    if notebook_id == DEMO_KB_ID:
+        raise HTTPException(403, "内置知识库来源不能删除")
+    _require_notebook_idle(notebook_id)
+    try:
+        data_service.delete_document(ctx, notebook_id, source_id)
+    except ValueError:
+        raise HTTPException(404, "当前笔记本没有该来源") from None
+    return JSONResponse({"deleted": True, "source_id": source_id}, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/api/notebooks/{notebook_id}/members")
 def list_members(notebook_id: str, req: Request):
     ctx, principal = _authorize_notebook(req, notebook_id, "manage_members")
@@ -460,7 +496,9 @@ async def upload_documents(notebook_id: str, req: Request, files: list[UploadFil
         raise HTTPException(422, "无效的上传任务标识")
     if upload_id in UPLOAD_PROGRESS:
         raise HTTPException(409, "上传任务标识已使用")
-    progress = {"user_id": principal.user_id, "notebook_id": notebook_id, "state": "running", "stage": "暂存文件", "done": 0, "total": len(files), "message": ""}
+    progress = {"user_id": principal.user_id, "notebook_id": notebook_id, "state": "running", "stage": "暂存文件", "done": 0, "total": len(files), "unit": "文件", "file": "", "file_index": 0, "file_total": len(files), "message": ""}
+    upload_id = upload_id or uuid.uuid4().hex
+    UPLOAD_PROGRESS[upload_id] = progress
     if upload_id:
         UPLOAD_PROGRESS[upload_id] = progress
 
@@ -482,24 +520,30 @@ async def upload_documents(notebook_id: str, req: Request, files: list[UploadFil
                     await upload.close()
                 if len(content) > MAX_UPLOAD_BYTES:
                     raise HTTPException(413, f"{original_name}: 文件不能超过 25 MB")
-                temporary_source = temporary_root / f"source-{index}{extension}"
+                staging_directory = temporary_root / str(index)
+                staging_directory.mkdir()
+                temporary_source = staging_directory / original_name
                 temporary_source.write_bytes(content)
-                staged.append((original_name, temporary_source))
+                staged.append((original_name, temporary_source, hashlib.sha256(content).hexdigest()))
 
             imported = []
             progress.update(stage="解析并入库", total=len(staged), done=0)
-            for index, (filename, temporary_source) in enumerate(staged, start=1):
+            for index, (filename, temporary_source, file_digest) in enumerate(staged, start=1):
                 safe_stem = re.sub(r"[^\w\u4e00-\u9fff-]+", "-", Path(filename).stem).strip("-_")[:60] or "document"
                 source_id = f"{notebook_id}/{safe_stem}-{uuid.uuid4().hex[:8]}"
+                progress.update(file=filename, file_index=index)
+                def report(event: dict) -> None:
+                    progress.update(event)
                 try:
-                    result = await asyncio.to_thread(rag_service.ingest, ctx, str(temporary_source), notebook_id, source_id)
+                    result = await asyncio.to_thread(rag_service.ingest, ctx, str(temporary_source), notebook_id, source_id, report)
                 except ValueError as exc:
                     raise HTTPException(422, f"{filename}: {exc}") from None
-                imported.append({"title": Path(filename).stem, "source_id": result.source_id, "chunks": result.chunk_count, "original_name": filename})
-                progress.update(done=index, message=f"已导入 {index}/{len(staged)} 篇来源")
+                byte_count = temporary_source.stat().st_size
+                imported.append({"title": Path(filename).stem, "source_id": result.source_id, "chunks": result.chunk_count, "original_name": filename, "bytes": byte_count, "characters": progress.get("characters", 0), "sha256": file_digest})
+                progress.update(stage="文件完成", done=index, total=len(staged), unit="文件", message=f"已导入 {index}/{len(staged)} 篇来源")
 
-        progress.update(state="done", stage="完成", done=len(staged), total=len(staged), message=f"已导入 {len(imported)} 篇来源")
-        return JSONResponse({"notebook_id": notebook_id, "imported": imported}, status_code=201)
+        progress.update(state="done", stage="完成", done=len(staged), total=len(staged), unit="文件", message=f"已导入 {len(imported)} 篇来源")
+        return JSONResponse({"notebook_id": notebook_id, "upload_id": upload_id, "imported": imported}, status_code=201)
     except HTTPException as exc:
         progress.update(state="error", stage="失败", message=str(exc.detail))
         raise
@@ -518,7 +562,7 @@ def upload_status(upload_id: str, req: Request):
     if record is None or (record["user_id"] != principal.user_id and principal.role != "admin"):
         raise HTTPException(404, "没有这个上传任务")
     _authorize_notebook(req, record["notebook_id"], "import_document")
-    return JSONResponse({"upload_id": upload_id, **{key: value for key, value in record.items() if key != "user_id"}})
+    return JSONResponse({"upload_id": upload_id, **{key: value for key, value in record.copy().items() if key != "user_id"}})
 
 
 def _conversation_scope(conversation: dict) -> list[str]:
@@ -612,6 +656,20 @@ def _web_key_allowed(req: Request) -> bool:
     return parsed.scheme == "https" or (parsed.scheme == "http" and host in {"localhost", "127.0.0.1", "::1"})
 
 
+async def _run_with_disconnect(req: Request, operation):
+    task = asyncio.create_task(operation)
+    try:
+        while not task.done():
+            await asyncio.wait({task}, timeout=0.25)
+            if not task.done() and await req.is_disconnected():
+                raise asyncio.CancelledError()
+        return await task
+    finally:
+        if not task.done():
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
 @app.post("/api/chat")
 async def chat(req: Request):
     _require_same_origin(req)
@@ -666,18 +724,34 @@ async def chat(req: Request):
     TRACE_ACCESS[trace_id] = (principal.user_id, selected)
     if len(TRACE_ACCESS) > 2048:
         TRACE_ACCESS.pop(next(iter(TRACE_ACCESS)))
+    def failure(code: str, message: str, status_code: int):
+        return JSONResponse({"detail": {"code": code, "message": message}, "trace_id": trace_id,
+                             "quota": auth_service.quota_status(ctx)}, status_code=status_code)
+    for notebook_id in selected:
+        ACTIVE_QUERIES[notebook_id] = ACTIVE_QUERIES.get(notebook_id, 0) + 1
     try:
-        answer = await runtime.run(
+        answer = await asyncio.wait_for(_run_with_disconnect(req, runtime.run(
             ctx, message, selected, allow_write_tools=principal.role == "admin",
             model_id=model_id if principal.role == "guest" else None,
             expected_provider_id=catalog_provider_id if principal.role == "guest" else None,
             history=conversation.get("messages", []) if persistent else None,
             memory_enabled=persistent,
-        )
+        )), timeout=CHAT_TIMEOUT_SECONDS)
+    except asyncio.TimeoutError:
+        return failure("chat_timeout", "问答超过等待时限，请重试或选择其他模型。", 504)
+    except ModelRequestError as exc:
+        return failure(exc.code, str(exc), exc.status_code)
     except ValueError as exc:
         if "Provider" in str(exc) or "模型" in str(exc):
-            raise HTTPException(409, "当前模型目录已变化，请重新选择模型后重试") from None
-        raise
+            return failure("model_catalog_changed", "当前模型目录已变化，请重新选择模型后重试", 409)
+        return failure("model_invalid_response", "模型处理失败，请重试或选择其他模型。", 502)
+    except Exception:
+        return failure("chat_failed", "问答处理失败，请重试；可通过记录编号排查。", 500)
+    finally:
+        for notebook_id in selected:
+            ACTIVE_QUERIES[notebook_id] -= 1
+            if not ACTIVE_QUERIES[notebook_id]:
+                del ACTIVE_QUERIES[notebook_id]
     if persistent:
         msgs = list((conversation or {}).get("messages", []))
         msgs.extend([{"role": "user", "content": message}, {"role": "assistant", "content": answer, "trace_id": trace_id}])

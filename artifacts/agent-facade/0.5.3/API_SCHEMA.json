@@ -1,0 +1,9 @@
+{
+  "module": "agent_facade",
+  "version": "0.5.3",
+  "public_api": [
+    "resolve_model_config",
+    "AgentService",
+    "make_provider"
+  ]
+}

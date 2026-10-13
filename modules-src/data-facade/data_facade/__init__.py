@@ -7,7 +7,7 @@ from typing import Optional
 from core_specifications import NotebookStorePort, MemoryStorePort, RequestContext, StateStorePort, VectorStore
 from memory import MemoryStore
 from storage import NotebookStore, SqliteVectorStore, StateStore, ensure_database_schema
-__version__="0.3.1"
+__version__ = "0.3.2"
 class DataService:
     """Owns one SQLite connection shared by the database-domain stores."""
     def __init__(self,database_path:str)->None:
@@ -147,6 +147,14 @@ class DataService:
     def delete_conversation(self,ctx:RequestContext,conversation_id:str,user_id:str) -> None:
         if user_id!=ctx.user_id: raise PermissionError("conversation belongs to another user")
         with self._lock,self._db(ctx): self._conn.execute("DELETE FROM conversations WHERE user_id=? AND id=?",(user_id,conversation_id))
+    def delete_document(self,ctx:RequestContext,notebook_id:str,source_id:str) -> None:
+        if not isinstance(notebook_id,str) or not notebook_id.strip() or not isinstance(source_id,str) or "/" not in source_id or source_id.partition("/")[0]!=notebook_id:
+            raise ValueError("Source does not belong to this notebook")
+        with self._lock:
+            conn=self._db(ctx)
+            with conn:
+                if not conn.execute("DELETE FROM documents WHERE notebook_id=? AND document_id=?",(notebook_id,source_id)).rowcount:
+                    raise ValueError("Source does not exist")
     def create_notebook(self,ctx:RequestContext,metadata:dict) -> dict:
         self.notebook_store(ctx).create_notebook(ctx,metadata)
         return self.notebook_store(ctx).get_notebook(ctx,metadata["id"])

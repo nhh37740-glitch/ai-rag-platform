@@ -1,5 +1,9 @@
 ## 0.3.1 - 2026-10-13
 
+## 0.3.2 — 2026-10-13
+
+- 增加笔记本范围内删除来源的公开业务接口，事务删除全部分块。
+
 - Expose atomic full-collection vector replacement through the business API.
 
 ## 0.3.0 - 2026-10-11

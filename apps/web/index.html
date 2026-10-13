@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7f8fc">
   <title>RAGnotebook</title>
-  <link rel="stylesheet" href="./static/knowledge_demo.css?v=notebook-db-20261011">
+  <link rel="stylesheet" href="./static/knowledge_demo.css?v=0.9.0">
 </head>
 <body>
   <header class="app-header">
@@ -103,11 +103,7 @@
         <div class="scope-note"><span class="scope-icon" aria-hidden="true">✓</span><span>当前笔记本的全部来源都会参与回答</span></div>
         <ul id="source-list" class="source-list"></ul>
 
-        <div id="upload-progress" class="progress" hidden>
-          <div class="progress-heading"><span>正在处理来源</span><span id="upload-percent">0%</span></div>
-          <div class="progress-track"><div id="upload-bar" class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div></div>
-          <p id="upload-progress-text" class="progress-text" aria-live="polite"></p>
-        </div>
+
         <p id="notebook-status" class="side-status" aria-live="polite"></p>
       </div>
     </aside>
@@ -149,6 +145,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
         </div>
+        <button id="cancel-chat" type="button" class="cancel-chat" hidden>取消等待</button>
         <p class="composer-hint">按 Enter 发送 · Shift + Enter 换行 · 回答会附带可核对的来源</p>
       </form>
     </main>
@@ -201,12 +198,17 @@
           <strong id="upload-label">选择本地文件</strong><span>支持 Markdown、TXT、Word 和 PDF，可同时选择多个文件</span>
           <input id="upload-files" type="file" multiple>
         </label>
+        <div id="upload-progress" class="progress" hidden>
+          <div class="progress-heading"><span>正在处理来源</span><span id="upload-percent">0%</span></div>
+          <div class="progress-track"><div id="upload-bar" class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div></div>
+          <p id="upload-progress-text" class="progress-text" aria-live="polite"></p>
+        </div>
         <button id="upload-submit" type="submit" class="primary-btn wide">转换并添加到笔记本</button>
       </form>
     </section>
   </div>
 
   <script src="./static/md-format.js?v=20261012" defer></script>
-  <script src="./static/knowledge_demo.js?v=guest-model-markdown-20261012" defer></script>
+  <script src="./static/knowledge_demo.js?v=0.9.0" defer></script>
 </body>
 </html>

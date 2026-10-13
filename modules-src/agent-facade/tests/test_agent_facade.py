@@ -1,4 +1,5 @@
 import asyncio
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -246,6 +247,12 @@ class TestAgentService(unittest.IsolatedAsyncioTestCase):
         })
         providers = service.list_model_providers(self.ctx, service._environment)
         self.assertNotIn("test-secret", repr(providers))
+        items = json.loads(service._environment["OPENROUTER_MODELS"])
+        for item in items:
+            item.update(architecture={"input_modalities": ["text"], "output_modalities": ["text"]}, supported_parameters=["tools"])
+            if item["id"].endswith(":free"):
+                item["pricing"] = {"prompt": "0", "completion": "0"}
+        service._environment["OPENROUTER_MODELS"] = json.dumps(items)
         ids = {item["id"] for item in service.list_models(self.ctx, "openrouter", service._environment)}
         self.assertTrue({"openrouter/free", "free/model:free", "zero/model"}.issubset(ids))
         self.assertNotIn("paid/model", ids)
@@ -260,6 +267,17 @@ class TestAgentService(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(service.history(self.ctx), [])
         with self.assertRaises(ValueError):
             self.service(max_tool_rounds=9)
+
+
+    def test_directory_excludes_paid_non_text_and_models_without_tools(self):
+        valid = {"id": "valid/chat:free", "pricing": {"prompt": "0.00000000", "completion": "0"},
+                 "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]}, "supported_parameters": ["tools"]}
+        catalog = [valid, dict(valid, id="music/free", architecture={"input_modalities": ["text"], "output_modalities": ["audio"]}),
+                   dict(valid, id="no-tools:free", supported_parameters=[]), dict(valid, id="unknown:free", architecture=None),
+                   dict(valid, id="paid:free", pricing={"prompt": "0.1", "completion": "0"}),
+                   dict(valid, id="request-fee:free", pricing={"prompt": "0", "completion": "0", "request": "0.1"})]
+        service = self.service(environment={"OPENROUTER_API_KEY": "test-secret", "OPENROUTER_MODELS": json.dumps(catalog)})
+        assert {item["id"] for item in service.list_models(self.ctx, "openrouter", service._environment)} == {"openrouter/free", "valid/chat:free"}
 
 
 class TestProviderFactory(unittest.TestCase):

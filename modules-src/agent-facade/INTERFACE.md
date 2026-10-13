@@ -54,3 +54,7 @@ AgentService 提供 list_model_providers(ctx, environment)、list_models(ctx, pr
 续聊由调用方提供已保存的 user/assistant 历史；游客使用 memory_enabled=False，不读写持久记忆。
 
 enable_write_tools 在私有应用启用管理员文件创建与会话入库工具；公开演示不启用。
+
+## 0.5.3 免费RAG目录
+
+目录只收录零prompt/completion/request价格、文本输入输出并声明tools支持的模型，外加openrouter/free自动免费路由。元数据不能证明实时可用性；实际失败由共享ModelRequestError报告，不静默替换用户指定模型。

@@ -5,6 +5,12 @@ const $ = (id) => document.getElementById(id);
 // Every browser request stays on this RAGnotebook HTTP origin.
 const apiURL = (path) => new URL(path.replace(/^\//, ""), window.location.href);
 
+async function readJSON(response) {
+  const text = await response.text();
+  try { return text ? JSON.parse(text) : {}; }
+  catch { throw new Error(`服务响应异常（HTTP ${response.status}），请稍后重试。`); }
+}
+
 const dom = {
   workspace: $("workspace"),
   notebookMenuToggle: $("notebook-menu-toggle"),
@@ -59,6 +65,7 @@ const state = {
   drafts: new Map(),
   supported: [],
   busy: false,
+  chatController: null,
   uploading: false,
   sourceDocuments: [],
   principal: null,
@@ -135,7 +142,7 @@ async function loadGuestModels(force = false) {
   state.guestModelLoading = true;
   try {
     const response = await apiFetch("/api/models/guest", { cache: "no-store" });
-    const payload = await response.json();
+    const payload = await readJSON(response);
     if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "模型目录暂不可用");
     if (state.principal?.role !== "guest") return;
     const select = $("guest-model-choice");
@@ -242,6 +249,47 @@ function loadStudioNotes() {
 
 // ---------------------------------------------------------------- 渲染
 
+function deleteButton(label, action) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "delete-resource";
+  button.textContent = "删除";
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.onclick = async () => {
+    if (state.busy || state.uploading) {
+      setStatus(dom.notebookStatus, "请等待当前问答或导入完成后再删除。", "error");
+      return;
+    }
+    button.disabled = true;
+    try { await action(); }
+    catch (error) { setStatus(dom.notebookStatus, error.message, "error"); }
+    finally { button.disabled = false; }
+  };
+  return button;
+}
+
+async function removeNotebook(notebook) {
+  if (!window.confirm(`删除笔记本“${notebook.name}”？其中所有来源、成员及关联对话会一起删除，无法恢复。`)) return;
+  const response = await apiFetch(`/api/notebooks/${encodeURIComponent(notebook.id)}`, { method: "DELETE" });
+  const result = await readJSON(response);
+  if (!response.ok) throw new Error(result.detail || "删除失败");
+  for (const map of [state.sessions, state.conversations, state.transcripts, state.drafts]) map.delete(notebook.id);
+  localStorage.removeItem(notesKey(notebook.id));
+  await loadNotebooks(notebook.id === state.activeId ? null : state.activeId);
+  setStatus(dom.notebookStatus, "笔记本已删除。", "success");
+}
+
+async function removeSource(document_) {
+  const notebookId = state.activeId;
+  if (!window.confirm(`删除来源“${document_.title}”？删除后此来源将不再参与检索，无法恢复。`)) return;
+  const response = await apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/documents?source_id=${encodeURIComponent(document_.source_id)}`, { method: "DELETE" });
+  const result = await readJSON(response);
+  if (!response.ok) throw new Error(result.detail || "删除失败");
+  await loadNotebooks(notebookId);
+  setStatus(dom.notebookStatus, "来源已删除。", "success");
+}
+
 function renderNotebookList() {
   dom.notebookList.replaceChildren();
   state.notebooks.forEach((notebook) => {
@@ -276,7 +324,14 @@ function renderNotebookList() {
         setStatus(dom.notebookStatus, error.message, "error")
       );
     };
-    dom.notebookList.append(button);
+    const row = document.createElement("div");
+    row.className = "notebook-row";
+    row.append(button);
+    if (notebook.permissions?.includes("manage_notebook") && notebook.id !== "cmrc2018-demo") {
+      const remove = deleteButton("删除笔记本", () => removeNotebook(notebook));
+      row.append(remove);
+    }
+    dom.notebookList.append(row);
   });
 }
 
@@ -335,6 +390,9 @@ function renderSources(documents = state.sourceDocuments) {
 
     copy.append(title, chunks);
     item.append(icon, copy);
+    if (permitted("import_document") && state.activeId !== "cmrc2018-demo") {
+      item.append(deleteButton(`删除来源 ${document_.title}`, () => removeSource(document_)));
+    }
     dom.sourceList.append(item);
   });
 }
@@ -448,12 +506,13 @@ function renderProgress(record) {
     dom.uploadBar.dataset.indeterminate = "false";
     dom.uploadBar.style.width = `${percent}%`;
     dom.uploadBar.setAttribute("aria-valuenow", String(percent));
-    dom.uploadProgressText.textContent = `${stage} ${done}/${total}（${percent}%）${message}`;
+    dom.uploadProgressText.textContent = `${record.file ? record.file + " · " : ""}${stage} ${done}/${total}${record.unit || ""}（${percent}%）${message}`;
   } else {
     dom.uploadPercent.textContent = "处理中";
     dom.uploadBar.dataset.indeterminate = "true";
+    dom.uploadBar.style.removeProperty("width");
     dom.uploadBar.removeAttribute("aria-valuenow");
-    dom.uploadProgressText.textContent = `${stage}${message}`;
+    dom.uploadProgressText.textContent = `${record.file ? record.file + " · " : ""}${stage}${message}`;
   }
 
   if (record.state === "error") dom.uploadProgressText.dataset.kind = "error";
@@ -465,7 +524,7 @@ function renderProgress(record) {
 async function loadSources(notebookId) {
   const response = await apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/documents`);
   if (!response.ok) throw new Error("来源列表加载失败");
-  const payload = await response.json();
+  const payload = await readJSON(response);
   if (state.activeId !== notebookId) return; // 用户已经切走，丢弃过期响应
   renderSources(payload.documents || []);
 }
@@ -476,7 +535,7 @@ async function loadSuggestions(notebookId) {
       `/api/notebooks/${encodeURIComponent(notebookId)}/suggestions`
     );
     if (!response.ok) throw new Error("示例问题加载失败");
-    const payload = await response.json();
+    const payload = await readJSON(response);
     if (state.activeId !== notebookId) return;
     const questions = payload.questions || [];
     // 示例问题必须来自当前笔记本自己的内容；没有就留空，不要套用别的语料。
@@ -493,7 +552,7 @@ async function restorePersistentConversation(notebookId) {
     if (!state.conversationListLoaded) {
       const response = await apiFetch("/api/conversations");
       if (!response.ok) throw new Error("会话列表加载失败");
-      const payload = await response.json();
+      const payload = await readJSON(response);
       state.savedConversations = payload.conversations || [];
       state.conversationListLoaded = true;
     }
@@ -547,7 +606,7 @@ async function setActiveNotebook(notebookId) {
 async function loadNotebooks(preferredId = "") {
   const response = await apiFetch("/api/notebooks");
   if (!response.ok) throw new Error("笔记本列表加载失败");
-  const payload = await response.json();
+  const payload = await readJSON(response);
 
   state.notebooks = payload.notebooks || [];
   state.defaultIds = payload.default_ids || [];
@@ -587,6 +646,11 @@ async function send(question) {
   const entries = transcriptFor(notebookId);
 
   state.busy = true;
+  const controller = new AbortController();
+  state.chatController = controller;
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 130000);
+  $("cancel-chat").hidden = false;
   entries.push({ role: "user", text });
   const pending = { role: "agent", text: "正在检索并组织回答…", pending: true };
   entries.push(pending);
@@ -600,6 +664,7 @@ async function send(question) {
     const headers = { "Content-Type": "application/json" };
     const authenticated = ["admin", "user"].includes(state.principal.role);
     const response = await apiFetch("/api/chat", {
+      signal: controller.signal,
       method: "POST",
       headers,
       cache: "no-store",
@@ -613,13 +678,16 @@ async function send(question) {
           : {}),
       }),
     });
-    const result = await response.json();
+    const result = await readJSON(response);
     if (response.status === 409 && state.principal?.role === "guest") {
       state.guestModelsLoaded = false;
       await loadGuestModels(true);
     }
     if (result.quota || result.detail?.quota) updateWebQuota(result.quota || result.detail.quota);
-    if (!response.ok) throw new Error(result.detail?.message || (typeof result.detail === "string" ? result.detail : `请求失败（${response.status}）`));
+    if (!response.ok) {
+      const message = result.detail?.message || (typeof result.detail === "string" ? result.detail : `请求失败（${response.status}）`);
+      throw new Error(message + (result.trace_id ? ` 记录编号：${result.trace_id}` : ""));
+    }
     if (result.conversation_id) state.conversations.set(notebookId, result.conversation_id);
     pending.pending = false;
     pending.text = result.answer || "(空回答)";
@@ -630,12 +698,17 @@ async function send(question) {
     loadNotebooks(notebookId).catch(() => {});
   } catch (error) {
     pending.pending = false;
-    pending.text = error.message || "连接中断，没有收到回答。";
+    pending.text = error.name === "AbortError" ? (timedOut ? "等待超时，请重试或选择其他模型。" : "已取消等待。") : error.message || "连接中断，没有收到回答。";
     renderTranscript();
   } finally {
+    clearTimeout(timer);
+    state.chatController = null;
+    $("cancel-chat").hidden = true;
     state.busy = false;
   }
 }
+
+$("cancel-chat").onclick = () => state.chatController?.abort();
 
 // ---------------------------------------------------------------- 事件绑定
 
@@ -646,7 +719,7 @@ dom.form.onsubmit = (event) => {
 
 function refreshPublicStatus() {
   return apiFetch("/api/llm/config", { cache: "no-store" })
-  .then((response) => response.ok ? response.json() : Promise.reject())
+  .then((response) => response.ok ? readJSON(response) : Promise.reject())
   .then((config) => {
     state.modelProvider = config.provider;
     updateWebQuota(config.quota);
@@ -788,7 +861,7 @@ dom.createForm.onsubmit = async (event) => {
         name,
       }),
     });
-    const result = await response.json();
+    const result = await readJSON(response);
     if (!response.ok) throw new Error(result.detail || "创建失败");
 
     dom.createForm.reset();
@@ -801,6 +874,23 @@ dom.createForm.onsubmit = async (event) => {
     setStatus(dom.notebookStatus, `创建失败：${error.message}`, "error");
   }
 };
+
+function uploadWithProgress(path, formData) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", apiURL(path));
+    xhr.withCredentials = true;
+    xhr.upload.onprogress = (event) => renderProgress({
+      stage: "上传文件", done: event.loaded, total: event.lengthComputable ? event.total : 0, unit: "字节",
+    });
+    xhr.upload.onload = () => renderProgress({ stage: "上传完成，等待解析", done: 0, total: 0 });
+    xhr.onerror = () => reject(new Error("上传连接中断，请重试。"));
+    xhr.ontimeout = () => reject(new Error("上传或处理超时，请重试。"));
+    xhr.timeout = 20 * 60 * 1000;
+    xhr.onload = () => resolve(new Response(xhr.responseText, { status: xhr.status, headers: { "Content-Type": xhr.getResponseHeader("Content-Type") || "text/plain" } }));
+    xhr.send(formData);
+  });
+}
 
 dom.uploadForm.onsubmit = async (event) => {
   event.preventDefault();
@@ -836,7 +926,7 @@ dom.uploadForm.onsubmit = async (event) => {
       if (settled) break;
       try {
         const response = await apiFetch(`/api/uploads/${encodeURIComponent(uploadId)}`);
-        if (response.ok) renderProgress(await response.json());
+        if (response.ok) renderProgress(await readJSON(response));
       } catch (error) {
         // 单次轮询失败无所谓，下一次继续。
       }
@@ -844,11 +934,11 @@ dom.uploadForm.onsubmit = async (event) => {
   })();
 
   try {
-    const response = await apiFetch(
+    const response = await uploadWithProgress(
       `/api/notebooks/${encodeURIComponent(notebookId)}/files?upload_id=${encodeURIComponent(uploadId)}`,
-      { method: "POST", body: formData }
+      formData
     );
-    const result = await response.json();
+    const result = await readJSON(response);
     if (!response.ok) throw new Error(result.detail || "导入失败");
 
     dom.uploadForm.reset();
@@ -880,8 +970,8 @@ $("admin-identity").onclick = async () => {
 // 笔记本成员以已登录账号的用户 ID 识别。
 async function loadMembers(notebookId) {
   const [response, targetResponse] = await Promise.all([apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/members`), apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/share-targets`)]);
-  const payload = await response.json();
-  const targetsPayload = await targetResponse.json();
+  const payload = await readJSON(response);
+  const targetsPayload = await readJSON(targetResponse);
   if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "成员加载失败");
   if (!targetResponse.ok) throw new Error(typeof targetsPayload.detail === "string" ? targetsPayload.detail : "可分享账号加载失败");
   const targetSelect = $("member-user-id");
@@ -938,7 +1028,7 @@ $("member-form").onsubmit = async (event) => {
     const response = await apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/members/${encodeURIComponent(userId)}`, {
       method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify({role: $("member-role").value}),
     });
-    const payload = await response.json();
+    const payload = await readJSON(response);
     if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "成员设置失败");
     $("members-status").textContent = "笔记本访问权限已保存。";
     await loadMembers(notebookId);
@@ -951,7 +1041,7 @@ $("member-form").onsubmit = async (event) => {
 apiFetch("/api/auth/session")
   .then(async (response) => {
     if (!response.ok) throw new Error("管理员会话已失效，请重新登录。");
-    const session = await response.json();
+    const session = await readJSON(response);
     state.principal = session;
     applyPermissions();
     await loadNotebooks();
@@ -984,13 +1074,13 @@ $("auth-form").onsubmit = async (event) => {
       if (!registered.ok) throw new Error(typeof registration.detail === "string" ? registration.detail : "注册失败");
     }
     const response = await apiFetch("/api/auth/login", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password})});
-    const payload = await response.json();
+    const payload = await readJSON(response);
     if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "登录失败");
     $("auth-dialog").close(); $("auth-password").value = "";
     state.principal = null; state.conversationListLoaded = false; state.conversations.clear(); state.savedConversations = [];
     state.transcripts.clear(); state.sessions.clear(); state.drafts.clear();
     const sessionResponse = await apiFetch("/api/auth/session");
-    state.principal = await sessionResponse.json(); applyPermissions(); refreshPublicStatus(); await loadNotebooks(state.activeId || "");
+    state.principal = await readJSON(sessionResponse); applyPermissions(); refreshPublicStatus(); await loadNotebooks(state.activeId || "");
   } catch (error) { $("auth-status").textContent = error.message; }
   finally { button.disabled = false; }
 };
@@ -1010,7 +1100,7 @@ $("admin-logout").onclick = async () => {
 apiFetch("/api/demo")
   .then((response) => {
     if (!response.ok) throw new Error("demo unavailable");
-    return response.json();
+    return readJSON(response);
   })
   .then((dataset) => {
     dom.demoStatus.textContent = `${dataset.name}：${dataset.imported}/${dataset.documents} 篇 · ${dataset.question_count} 个问题`;
@@ -1024,7 +1114,7 @@ applyPermissions();
 
 async function loadAdminUsers() {
   const response = await apiFetch("/api/admin/users");
-  const payload = await response.json();
+  const payload = await readJSON(response);
   if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "账号列表加载失败");
   const list = $("admin-users-list"); list.replaceChildren();
   for (const user of (payload.users || [])) {
@@ -1052,7 +1142,7 @@ $("close-admin-users").onclick = () => $("admin-users-dialog").close();
 async function loadModels(providerId = "") {
   const providerSelect = $("model-provider");
   if (!providerSelect.options.length) {
-    const response = await apiFetch("/api/models/providers"); const payload = await response.json();
+    const response = await apiFetch("/api/models/providers"); const payload = await readJSON(response);
     if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "Provider 列表加载失败");
     for (const provider of payload.providers || []) {
       const option = document.createElement("option"); option.value = provider.id || provider.provider_id; option.textContent = provider.name || option.value; providerSelect.append(option);
@@ -1060,12 +1150,12 @@ async function loadModels(providerId = "") {
   }
   if (providerId) providerSelect.value = providerId;
   const current = providerSelect.value;
-  const response = await apiFetch(`/api/models/${encodeURIComponent(current)}`); const payload = await response.json();
+  const response = await apiFetch(`/api/models/${encodeURIComponent(current)}`); const payload = await readJSON(response);
   if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "Model 列表加载失败");
   const modelSelect = $("model-choice"); modelSelect.replaceChildren();
   for (const model of payload.models || []) { const option = document.createElement("option"); option.value = model.id || model.model_id; option.textContent = model.name || option.value; modelSelect.append(option); }
   const settingsResponse = await apiFetch("/api/models/settings");
-  if (settingsResponse.ok) { const settings = await settingsResponse.json(); if (settings.provider_id === current) modelSelect.value = settings.model_id; }
+  if (settingsResponse.ok) { const settings = await readJSON(settingsResponse); if (settings.provider_id === current) modelSelect.value = settings.model_id; }
 }
 $("open-model-admin").onclick = async () => {
   if (state.principal?.role !== "admin") return;
@@ -1078,9 +1168,9 @@ $("model-admin-form").onsubmit = async (event) => {
   event.preventDefault(); const button = event.submitter; if (button) button.disabled = true;
   try {
     const response = await apiFetch("/api/models/settings", {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider_id:$("model-provider").value,model_id:$("model-choice").value})});
-    const payload = await response.json(); if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "模型设置未保存");
+    const payload = await readJSON(response); if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "模型设置未保存");
     $("model-admin-status").textContent = "已应用，后续问答将使用此模型。";
-    const configResponse = await apiFetch("/api/llm/config"); if (configResponse.ok) { const config = await configResponse.json(); state.modelProvider = config.provider; $("server-model-status").textContent = `模型：${config.provider || "Mock"} · ${config.model || "默认"}`; }
+    const configResponse = await apiFetch("/api/llm/config"); if (configResponse.ok) { const config = await readJSON(configResponse); state.modelProvider = config.provider; $("server-model-status").textContent = `模型：${config.provider || "Mock"} · ${config.model || "默认"}`; }
   } catch (error) { $("model-admin-status").textContent = error.message; }
   finally { if (button) button.disabled = false; }
 };
