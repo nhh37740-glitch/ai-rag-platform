@@ -41,6 +41,8 @@ python scripts/verify_compiled_runtime.py
 ```
 
 ## 提交与 PR 规范
+- 每次开始新版本前，先明确项目版本号，从当前 `master` 建独立分支；完成后通过 PR 合回 `master`。
+- 每个 RAG PR 按三级应用 `RAGnotebook` → 二级业务模块 → 本次实际修改的一级模块的顺序，说明用户可见功能、业务接口、各一级模块为该功能做的具体修改；只被调用而未修改的模块必须标为“沿用”，不得写成修改。
 - 使用 Conventional Commits：`feat:` `fix:` `docs:` `test:` `build:`。
 - 模块改动 = 根仓库一次提交 + bump `VERSION` + 更新 `CHANGELOG.md` + 在目标平台重建二进制与 `checksum`。
 - PR 描述需说明：模块实现什么、接口是否变化、如何运行、对应哪条岗位要求。
@@ -55,3 +57,11 @@ python scripts/verify_compiled_runtime.py
 - data-facade 是唯一持久化入口，六张关系表与所有向量/记忆/会话/Agent 数据共用一个 SQLite 文件。禁止创建多个 DB 文件、额外 schema 表或自动迁移。确有必要改表时，先获用户确认并更新冻结方案。
 - 用户本地注册；单次初始化管理员与固定游客。笔记本 owner 是资源所有者，不是全局管理员；成员角色仅 editor/viewer。登录令牌仅进程内，服务重启后重新登录。访客聊天不持久化；全站每日额度100次。
 - 改实现前先读 `docs/PLAN.md` 和 `specifications/DOMAIN_INTERFACES.md`；签名/Schema 先登记，再改实现、对应单测、版本、CHANGELOG 与工件索引。源码改动仅在服务器独立 Git 分支进行，按当前业务任务与用户授权推进；视频平台项目不属于本仓库任务。
+
+## Code Review Rules
+
+### 应用调用边界
+- 检查 `RAGnotebook` HTTP/Web 代码是否绕过四个 facade 的公开接口直接调用一级模块、SQLite 或向量存储。安全做法是通过归属业务模块的公开接口完成操作。
+
+### 单库与权限
+- 检查改动是否新增第二个数据库文件、额外业务表或自动迁移，或让游客历史持久化、禁用账号通过鉴权。安全做法是保持已冻结六表结构、统一 data-facade 存储，并在每次请求中复核账号有效状态。
