@@ -12,7 +12,7 @@ GUEST_USER_ID = "guest"
 PASSWORD = "acceptance-password-123"
 
 
-def _novel(chapters=80, paragraphs=8):
+def _novel(chapters=120, paragraphs=16):
     """生成足够长的中文文本，覆盖「一个文档很多分块」的导入路径。"""
     lines = ["# 银河争霸战", ""]
     for index in range(1, chapters + 1):
