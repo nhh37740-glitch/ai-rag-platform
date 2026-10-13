@@ -1,7 +1,13 @@
 import tempfile
 import unittest
+import threading
+import time
+import types
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
+import numpy as np
+import rag_core
 
 from core_specifications import RequestContext
 from rag_core import (
@@ -21,6 +27,57 @@ from rag_core import (
 
 
 class TestRagCore(unittest.TestCase):
+    def test_concurrent_lazy_model_and_batches_are_serialized(self):
+        barrier = threading.Barrier(4)
+        state = {"constructed": 0, "active": 0, "peak": 0, "batches": []}
+
+        class FakeModel:
+            def __init__(self, **kwargs):
+                state["constructed"] += 1
+                self.kwargs = kwargs
+                time.sleep(0.02)
+
+            def embed(self, texts, batch_size):
+                state["batches"].append((len(texts), batch_size))
+                state["active"] += 1
+                state["peak"] = max(state["peak"], state["active"])
+                try:
+                    time.sleep(0.005)
+                    for text in texts:
+                        yield np.array([float(text)], dtype=np.float32)
+                finally:
+                    state["active"] -= 1
+
+        def run():
+            barrier.wait(timeout=5)
+            return rag_core._embed_fastembed([str(i) for i in range(19)])
+
+        with patch.object(rag_core, "_FASTEMBED", "__unset__"):
+            with patch.dict("sys.modules", {"fastembed": types.SimpleNamespace(TextEmbedding=FakeModel)}):
+                with ThreadPoolExecutor(max_workers=4) as pool:
+                    results = list(pool.map(lambda _: run(), range(4)))
+                self.assertEqual(rag_core._FASTEMBED.kwargs["threads"], 1)
+        self.assertEqual(state["constructed"], 1)
+        self.assertEqual(state["peak"], 1)
+        self.assertEqual(sorted(state["batches"]), [(3, 8)] * 4 + [(8, 8)] * 8)
+        self.assertEqual(results, [[[float(i)] for i in range(19)]] * 4)
+
+    def test_failed_lazy_inference_releases_lock_and_keeps_error(self):
+        class FakeModel:
+            fail = True
+            def embed(self, texts, batch_size):
+                if self.fail:
+                    raise ValueError("inference failed")
+                yield np.array([1.0])
+
+        model = FakeModel()
+        with patch.object(rag_core, "_FASTEMBED", model):
+            with self.assertRaisesRegex(RuntimeError, "inference failed"):
+                rag_core._embed_fastembed(["first"])
+            model.fail = False
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                self.assertEqual(pool.submit(rag_core._embed_fastembed, ["retry"]).result(timeout=5), [[1.0]])
+
     def test_embed_retrieve(self):
         with patch.dict("os.environ", {"RAG_EMBED": "hash"}):
             store = InMemoryVectorStore()

@@ -119,7 +119,7 @@
     "rag-core": {
       "package": "rag_core",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.5.2",
+      "version": "0.5.3",
       "constants": {
         "DEFAULT_READ_CHUNKS": 20,
         "MAX_READ_CHUNKS": 100
@@ -127,7 +127,10 @@
       "embedding": {
         "default_backend": "fastembed",
         "default_model": "BAAI/bge-small-zh-v1.5",
-        "fallback": "disabled; hash requires explicit RAG_EMBED=hash"
+        "fallback": "disabled; hash requires explicit RAG_EMBED=hash",
+        "batch_size": 8,
+        "threads": 1,
+        "concurrency": "process-local serialized initialization and batch inference"
       },
       "facade": {
         "RagClient": {

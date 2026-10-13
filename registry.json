@@ -87,9 +87,9 @@
     },
     "rag-core": {
       "name": "rag_core",
-      "version": "0.5.2",
-      "checksum": "445a3e57814800db169b09da8fbd6dde6362097a8f0beea1251241529762c0a6",
-      "path": "artifacts/rag-core/0.5.2",
+      "version": "0.5.3",
+      "checksum": "b5e83709afd4ef4d347ef2e9a08bd2e477cb49c9ac3302b41a1701874fd50346",
+      "path": "artifacts/rag-core/0.5.3",
       "status": "published"
     },
     "rag-facade": {

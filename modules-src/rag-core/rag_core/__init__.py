@@ -3,13 +3,14 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import threading
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
 from core_specifications import Citation, RequestContext, RetrievalResult, VectorStore
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 DIM = 384
 SearchHit = Tuple[str, str, float]
@@ -35,9 +36,9 @@ def _tokens(text: str) -> List[str]:
 _FASTEMBED = "__unset__"
 _DEFAULT_MODEL = "BAAI/bge-small-zh-v1.5"
 
-# 单次推理的文本条数上限。分批后进程峰值内存只与批大小有关，与文档长度解耦；
-# 否则导入长文档时会一次性提交全部分块，容器内存被打满后进程被 OOM 杀死。
-EMBED_BATCH_SIZE = 32
+# 限制模型工作内存；文本与输出向量仍随文档长度增长。
+EMBED_BATCH_SIZE = 8
+_FASTEMBED_LOCK = threading.RLock()
 
 
 def _embed_hash(texts: List[str]) -> List[List[float]]:
@@ -57,13 +58,33 @@ def _embed_hash(texts: List[str]) -> List[List[float]]:
 
 def _embed_fastembed(texts: List[str]) -> List[List[float]]:
     global _FASTEMBED
+    with _FASTEMBED_LOCK:
+        _initialize_fastembed()
+    try:
+        vectors = []
+        for start in range(0, len(texts), EMBED_BATCH_SIZE):
+            batch = texts[start : start + EMBED_BATCH_SIZE]
+            # embed 返回惰性生成器，必须在锁内消费；批次间允许查询插入。
+            with _FASTEMBED_LOCK:
+                vectors.extend([
+                    [float(value) for value in vector]
+                    for vector in _FASTEMBED.embed(batch, batch_size=EMBED_BATCH_SIZE)
+                ])
+        return vectors
+    except Exception as exc:
+        model_name = os.environ.get("BGE_MODEL", _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
+        raise RuntimeError(f"文本向量模型 {model_name} 推理失败: {exc}") from exc
+
+
+def _initialize_fastembed() -> None:
+    global _FASTEMBED
     if _FASTEMBED == "__unset__":
         model_name = os.environ.get("BGE_MODEL", _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
         cache_dir = os.environ.get("FASTEMBED_CACHE_PATH", "").strip() or None
         try:
             from fastembed import TextEmbedding
 
-            _FASTEMBED = TextEmbedding(model_name=model_name, cache_dir=cache_dir)
+            _FASTEMBED = TextEmbedding(model_name=model_name, cache_dir=cache_dir, threads=1)
         except ModuleNotFoundError as exc:
             raise RuntimeError(
                 "RAG 默认需要 fastembed，但当前 Python 环境未安装它；"
@@ -74,18 +95,6 @@ def _embed_fastembed(texts: List[str]) -> List[List[float]]:
             raise RuntimeError(
                 f"无法加载文本向量模型 {model_name}: {exc}"
             ) from exc
-    try:
-        # 逐批推理；每批结果先转成 Python list，不能把 ndarray 直接 extend 进
-        # 带类型标注的列表——Cython 会按 List[List[float]] 校验并抛
-        # 「Expected list, got numpy.ndarray」。
-        vectors = []
-        for start in range(0, len(texts), EMBED_BATCH_SIZE):
-            batch = texts[start : start + EMBED_BATCH_SIZE]
-            vectors.extend([[float(value) for value in vector] for vector in _FASTEMBED.embed(batch)])
-        return vectors
-    except Exception as exc:
-        model_name = os.environ.get("BGE_MODEL", _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
-        raise RuntimeError(f"文本向量模型 {model_name} 推理失败: {exc}") from exc
 
 
 def embed(texts: List[str]) -> List[List[float]]:

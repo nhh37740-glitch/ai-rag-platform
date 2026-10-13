@@ -186,5 +186,5 @@ def test_embedding_runs_in_bounded_batches():
     finally:
         rag_core._FASTEMBED = original
     assert len(vectors) == 100
-    assert fake.batches == [32, 32, 32, 4]
+    assert fake.batches == [8] * 12 + [4]
     assert all(0 < size <= rag_core.EMBED_BATCH_SIZE for size in fake.batches)

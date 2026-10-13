@@ -331,11 +331,15 @@ storage 新增 NotebookStore，data-facade 通过 NotebookStorePort 暴露固定
 
 - 应用：笔记本 owner 可确认后删除笔记本，清理来源、成员及关联会话；owner/editor 可删除来源，viewer/guest 不可。内置 CMRC 禁止删除。删除正在导入或问答使用的笔记本返回 409，避免导入复活来源。所有写入保持同源与服务端鉴权。
 - data-facade：公开 delete_document(ctx, notebook_id, source_id)，按笔记本与来源精确删除全部分块；沿用 storage 的笔记本事务删除，无新增表或数据库。
-- rag-facade：ingest / ingest_markdown 增加可选 progress 回调，报告解析、分块、32块分批向量进度、入库与完成；全量向量成功后才原子写入。rag-core 的已修复分批推理沿用。
+- rag-facade：ingest / ingest_markdown 增加可选 progress 回调，报告解析、分块、32块分批向量进度、入库与完成；全量向量成功后才原子写入。rag-core 将单次模型批次降为8，固定单线程推理，并串行化模型初始化及每批推理，避免并发导入/问答叠加模型工作内存。回调仍按32块报告。
 - agent-facade：免费目录同时要求文本输入/输出与 tools 支持，不以目录数量作为可用性证明；不静默替换用户选定模型。llm-gateway 将限流、不可用、超时与畸形返回转为不含凭据的稳定错误。
 - HTTP/Web：错误统一 JSON 并带 trace_id；单次问答总时限120秒，页面130秒取消等待，提供主动取消。上传弹窗内展示真实传输字节进度；后端解析/向量分块进度单独展示，不能把上传100%当作入库完成。长文档响应记录字节、字符、分块数量。
 - 验收：删除 owner/editor/viewer/guest、跨笔记本及 CMRC 保护、删除后不再检索及重启；导入中进度可查询、失败原子性、真实上传《银河争霸战.txt》完整字数/分块证据；上游429/无效JSON/不支持工具返回结构化错误，超时取消释放问答锁；浏览器删除确认、可见上传进度和重试。源码、编译产物、接口签名与应用回归分别记录，不以 Mock 证明真实模型可用；至少10个具体模型的线上结果单独记录。
 
-三级应用0.9.0；实际修改的二级模块为 data-facade、rag-facade、agent-facade，一级模块 llm-gateway；共享 specifications 随接口更新。auth-facade、storage、rag-core、agent-runtime 等标为沿用。服务器发布须在二进制验收通过后进行。
+三级应用0.9.0；实际修改的二级模块为 data-facade、rag-facade、agent-facade，一级模块 llm-gateway、rag-core；共享 specifications 随接口更新。auth-facade、storage、agent-runtime 等标为沿用。服务器发布须在二进制验收通过后进行。
 
 本轮二进制回归发现既有 compile_extension_modules 只交付包入口，遗漏 mcp_servers.github，导致 binary leaf 无法收集。构建入口同时编译并交付辅助可导入模块（不修改 MCP 实现），不复制源码或降低运行边界。
+
+### 真实账号长文档失败的补充诊断
+
+真实文件2065431字节、解析后698629字符、1650块。0.8.1线上一次导入在14.35秒后返回Nginx 502，恢复后该账号笔记本仍无来源，尚未取得容器OOM/退出日志。0.9.0低内存候选保持BGE模型与向量维度不变；批次8、模型threads=1，初始化与每批生成器消费共用进程锁。该修改控制推理并发，不宣称进程总内存与文档长度无关，也不以假模型证明1GB容器可用。真实BGE权重CDN在云网络被拒绝，待网络配置发布后进行限额实测；线上验收尚未完成。

@@ -6,7 +6,7 @@
 
 - 三级应用 RAGnotebook 0.9.0：删除HTTP/Web入口、确认和权限，弹窗上传进度、XHR传输进度、问答总时限和取消、非JSON响应处理；只调用四facade。
 - 二级 agent-facade 0.5.3：免费文本及工具能力筛选。一级 llm-gateway 0.1.2：脱敏的稳定错误；agent-runtime及其余Agent一级模块沿用。
-- 二级 rag-facade 0.3.3：解析/分块/32块向量进度回调，完成全部推理后原子写入。一级rag-core、rag-tools、ingestion沿用。
+- 二级 rag-facade 0.3.3：解析/分块/32块向量进度回调，完成全部推理后原子写入。一级rag-core 0.5.3：8条模型批次、threads=1、串行模型初始化和批次推理；rag-tools、ingestion沿用。
 - 二级 data-facade 0.3.2：来源范围删除。一级storage、memory沿用，六表结构不变。auth-facade沿用owner/editor/viewer权限，无新增管理员越权。
 - specifications 0.8.0：delete_document、progress与ModelRequestError契约。构建脚本补交付既有辅助模块mcp_servers.github，无MCP实现改动。
 
@@ -18,9 +18,9 @@ CPython3.11.17 / Linux x86_64，按仓库编译脚本生成18个模块入口与M
 
 | 检查 | 通过 | 失败/跳过 |
 |---|---:|---|
-| source leaf | 106 | 0 |
+| source leaf | 108 | 0 |
 | source facade | 49 | 0 |
-| binary leaf | 106 | 0 |
+| binary leaf | 108 | 0 |
 | binary facade | 49 | 0 |
 | binary scripts/integration | 23 | 1跳过：真实模型仅由独立凭据构建阶段启用 |
 | binary specification（严格签名、元数据） | 12 | 0 |
@@ -62,3 +62,13 @@ python scripts/build_release_bundle.py
 ```
 
 流水线真实模型门禁仍由Jenkins现有凭据独立执行，不能用Mock替代。用户提供的真实小说不进入Git或发布包。
+
+## user 账号真实导入失败与低内存候选
+
+以用户授权的普通账号上传同一真实附件，写入既有私人笔记本；14.35秒后返回Nginx HTML 502，随后的来源列表及进度请求也返回502。服务恢复后两个既有笔记本仍无来源，原已成功的trace变为404。确认上传未完成，但无服务器日志，尚不能区分OOM、进程崩溃及其他中断。没有重复上传加压，也未保存账号密码、令牌或附件正文。
+
+rag-core 0.5.3控制默认模型批次和并发；新增并发惰性初始化只构造一次、惰性向量生成器消费最大并发1、批次上限8、输出顺序及ndarray转换、失败后另一线程继续调用的回归。此处是候选缓解措施，不能据此宣称OOM已经确认或已修复。
+
+真实BGE的配置/词表文件已取得，但ONNX权重下载重定向至us.aws.cdn.hf.co，被云代理拒绝HTTP CONNECT。所需域名已追加到环境网络配置草稿，须在环境设置保存并发布后才可重新下载；不关闭TLS或校验。1CPU/1GB独立容器对真实1650块的资源验收仍未执行。线上仍为0.8.1，SSH接入及容器退出日志仍不可得。
+
+补充改动后的重跑：source leaf108/facade49、binary leaf108/facade49、binary app16全部通过；严格specification初次发现根Schema缺少模块embedding约束字段，同步后12项通过。编译边界检查及新发行ZIP重新校验；前述真实浏览器/独立ZIP运行属于补充改动前的验证，未据此声称新BGE资源验收通过。
