@@ -88,7 +88,7 @@ def setUpModule() -> None:
     if STATIC_ONLY or (missing and not STRICT):
         return
 
-    app_directory = str(ROOT / "apps" / "agent-server")
+    app_directory = str(ROOT / "apps" / "ragnotebook")
     if app_directory not in sys.path:
         sys.path.insert(0, app_directory)
     runtime_boundary = importlib.import_module("runtime_boundary")
