@@ -664,6 +664,8 @@ async def chat(req: Request):
             ctx, message, selected, allow_write_tools=principal.role == "admin",
             model_id=model_id if principal.role == "guest" else None,
             expected_provider_id=catalog_provider_id if principal.role == "guest" else None,
+            history=conversation.get("messages", []) if persistent else None,
+            memory_enabled=persistent,
         )
     except ValueError as exc:
         if "Provider" in str(exc) or "模型" in str(exc):
@@ -732,9 +734,12 @@ async def update_model_settings(req: Request):
 
 @app.get("/api/trace/{trace_id}")
 def trace(trace_id: str, req: Request):
-    _, principal = _authorize(req, "authenticated", required=True)
+    _, principal = _identity(req)
     access = TRACE_ACCESS.get(trace_id)
-    if access is None or (principal.role != "admin" and access[0] != principal.user_id):
+    # The random trace_id in the chat response is the guest's short-lived capability.
+    if access is None or (principal.role == "guest" and access[0] != "guest") or (
+        principal.role != "guest" and principal.role != "admin" and access[0] != principal.user_id
+    ):
         raise HTTPException(404, "没有这个问答记录")
     for notebook_id in access[1]:
         _authorize_notebook(req, notebook_id, "query")

@@ -626,6 +626,7 @@ async function send(question) {
     pending.traceId = result.trace_id || "";
     renderTranscript();
     scrollToBottom();
+    if (authenticated) state.conversationListLoaded = false;
     loadNotebooks(notebookId).catch(() => {});
   } catch (error) {
     pending.pending = false;

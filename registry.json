@@ -3,17 +3,17 @@
   "modules": {
     "agent-facade": {
       "name": "agent_facade",
-      "version": "0.5.0",
-      "checksum": "7e2b88bc9ded1a0dcaac282e9eacf6915b2a87dc854170fc52ce0e1367ce11e3",
-      "path": "artifacts/agent-facade/0.5.0",
+      "version": "0.5.1",
+      "checksum": "d1a7afebff5cbf9243e5ff94a928a01689967c66a11e24adca5e6e69a87323c6",
+      "path": "artifacts/agent-facade/0.5.1",
       "status": "contract-only"
     },
     "agent-runtime": {
       "name": "agent_runtime",
-      "version": "0.5.0",
-      "checksum": "0dee01e0c1d3eee863a5c0526f4ff114b0b1fe07e330d398ed6c4faa53d1a874",
-      "path": "artifacts/agent-runtime/0.5.0",
-      "status": "published"
+      "version": "0.5.1",
+      "checksum": "2a91ead7e955d5db9338fa9b6440fdab2dba88636a21e4c3382d4cbab15d61b8",
+      "path": "artifacts/agent-runtime/0.5.1",
+      "status": "contract-only"
     },
     "data-facade": {
       "name": "data_facade",

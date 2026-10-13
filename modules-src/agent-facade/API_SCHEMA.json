@@ -1,7 +1,7 @@
 {
   "package": "agent_facade",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "facade": {
     "make_provider": {
       "kind": "function",
@@ -32,7 +32,9 @@
             "knowledge_base_ids": "list[str]|null",
             "allow_write_tools": "bool",
             "model_id": "str|null",
-            "expected_provider_id": "str|null"
+            "expected_provider_id": "str|null",
+            "history": "list[dict]|null",
+            "memory_enabled": "bool"
           },
           "returns": "str",
           "async": true

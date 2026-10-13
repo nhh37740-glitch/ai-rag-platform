@@ -1,3 +1,7 @@
+## 0.5.1 - 2026-10-13
+
+- Allow caller-provided history and memory-free guest execution.
+
 # Changelog
 
 ## [0.4.0]

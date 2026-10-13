@@ -531,7 +531,7 @@
     "agent-runtime": {
       "package": "agent_runtime",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "notes": "已选择知识库时每个问题至少检索一次：未检索就想收尾会被打回（最多 MAX_RETRIEVAL_REMINDERS 次）并记录 retrieval_guard span；工具循环每轮只执行一次知识库检索；系统提示词按 search → hybrid → keyword → list → read 的顺序引导回退。",
       "facade": {
         "AgentRuntime": {
@@ -551,7 +551,9 @@
                 "ctx": "RequestContext",
                 "user_input": "str",
                 "knowledge_base_ids": "list[str]|null",
-                "allow_write_tools": "bool"
+                "allow_write_tools": "bool",
+                "history": "list[ChatMessage]|null",
+                "memory_enabled": "bool"
               },
               "returns": "str"
             },
@@ -1055,7 +1057,7 @@
     "agent-facade": {
       "package": "agent_facade",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "facade": {
         "make_provider": {
           "kind": "function",
@@ -1086,7 +1088,9 @@
                 "knowledge_base_ids": "list[str]|null",
                 "allow_write_tools": "bool",
                 "model_id": "str|null",
-                "expected_provider_id": "str|null"
+                "expected_provider_id": "str|null",
+                "history": "list[dict]|null",
+                "memory_enabled": "bool"
               },
               "returns": "str",
               "async": true

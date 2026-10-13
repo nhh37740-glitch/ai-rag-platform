@@ -1,4 +1,4 @@
-# AGENT 接口规范 0.5.0
+# AGENT 接口规范 0.5.1
 
 唯一共享类型来自 core_specifications。完整签名登记在 API_SCHEMA.json。
 
@@ -11,7 +11,8 @@ class AgentService:
                  max_tool_rounds: int = 10, environment: dict[str, str] | None = None): ...
     async def run(self, ctx: RequestContext, user_input: str,
                   knowledge_base_ids: list[str] | None = None, allow_write_tools: bool = True,
-                  model_id: str | None = None, expected_provider_id: str | None = None) -> str: ...
+                  model_id: str | None = None, expected_provider_id: str | None = None,
+                  history: list[dict] | None = None, memory_enabled: bool = True) -> str: ...
     def register_tool(self, ctx: RequestContext, definition: ToolDef,
                       handler: Callable, context_aware: bool = False) -> None: ...
     def tool_definitions(self, ctx: RequestContext) -> list[ToolDef]: ...
@@ -48,3 +49,5 @@ AgentService 提供 list_model_providers(ctx, environment)、list_models(ctx, pr
 当前管理员选择以 agent_data 的 (type='model_settings', name='active') 持久化。启动时恢复选择并从服务器环境重新取凭据。update 先校验目录与凭据，再写入 agent_data，随后替换 AgentRuntime；已开始的请求继续使用其开始时的 Runtime，新请求看到切换后的 Provider。并发更新由单一锁串行化。模型管理接口的管理员权限由 HTTP 路由鉴权。
 
 `run(..., model_id, expected_provider_id)` 仅对本次运行使用该 Model；服务端始终从当前活动 Provider 构造模型，expected_provider_id 只用来拒绝旧目录选择，不能切换 Provider。每次运行重新验证模型目录，不写入全局模型设置；未提供这两个参数时沿用管理员的默认模型。
+
+续聊由调用方提供已保存的 user/assistant 历史；游客使用 memory_enabled=False，不读写持久记忆。

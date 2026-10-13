@@ -25,7 +25,7 @@ from llm_gateway import DeepSeekProvider, MockProvider
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 
 def resolve_model_config(ctx: RequestContext, environment: dict[str, str], public: bool = False) -> ModelConfiguration:
@@ -248,7 +248,18 @@ class AgentService:
         allow_write_tools: bool = True,
         model_id: str | None = None,
         expected_provider_id: str | None = None,
+        history: list[dict] | None = None,
+        memory_enabled: bool = True,
     ) -> str:
+        if type(memory_enabled) is not bool:
+            raise TypeError("memory_enabled must be boolean")
+        if history is not None:
+            if not isinstance(history, list):
+                raise TypeError("history must be a list")
+            if any(not isinstance(item, dict) or item.get("role") not in {"user", "assistant"}
+                   or not isinstance(item.get("content"), str) for item in history):
+                raise ValueError("history contains invalid messages")
+            history = [ChatMessage(item["role"], item["content"]) for item in history[-40:]]
         with self._lock:
             self._ensure_open()
             runtime = self._runtime
@@ -267,7 +278,7 @@ class AgentService:
             raise TypeError("user_input must be a string")
         if not user_input.strip():
             raise ValueError("user_input must not be empty")
-        return await runtime.run(ctx, user_input, knowledge_base_ids, allow_write_tools)
+        return await runtime.run(ctx, user_input, knowledge_base_ids, allow_write_tools, history, memory_enabled)
 
     def register_tool(
         self,

@@ -1,3 +1,7 @@
+## 0.5.1 - 2026-10-13
+
+- Accept persisted conversation history and disable all memory reads/writes for guest requests.
+
 # agent-facade
 
 ## 0.4.0 — 2026-10-11
