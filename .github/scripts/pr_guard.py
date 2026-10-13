@@ -74,29 +74,31 @@ def validate_problem_description(contents, number):
     readable = re.sub(r"\s+", " ", contents).strip()
     if len(readable) > MAX_PROBLEM_CHARS:
         FAIL.append(
-            f"Issue #{number}: '## 问题' has {len(readable)} visible characters; "
-            f"maximum is {MAX_PROBLEM_CHARS}. Keep one observable phenomenon only."
+            f"Issue #{number}：『问题』为 {len(readable)} 字，超出 {MAX_PROBLEM_CHARS} 字上限。"
+            "请只描述一个能观察到的现象。"
         )
     paragraphs = [p for p in re.split(r"\n\s*\n", contents) if p.strip()]
     if len(paragraphs) > 1 or re.search(r"(?m)^\s*(?:[-*+]\s+|\d+[.)]\s+|#{1,6}\s+)", contents):
         FAIL.append(
-            f"Issue #{number}: '## 问题' must be one plain paragraph, not multiple "
-            "paragraphs, checklists or headings. Split independent problems into separate Issues."
+            f"Issue #{number}：『问题』只能写一个自然段，禁止分段、清单或小标题。"
+            "不同问题现象请分开创建 Issue。"
         )
     if re.search(r"另一个问题|另外一个问题|第二个问题|第三个问题", contents):
         FAIL.append(
-            f"Issue #{number}: '## 问题' mentions another problem; "
-            "create one Issue per phenomenon."
+            f"Issue #{number}：『问题』包含另一个问题，请拆分为不同 Issue。"
         )
 
 
 
 ISSUE_TEMPLATE_PLACEHOLDERS = {
-    "问题": "只描述一个问题，并提供复现步骤。",
-    "影响": "描述影响范围、用户行为和优先级。",
-    "验收标准": "- [ ] 定义可以机器/人工验证的完成条件。",
-    "涉及模块": "写明预期涉及的模块和跨模块原因。",
-    "作者": "填写负责人及使用的 AI 工具（如适用）。",
+    "问题": ("只描述一个问题，并提供复现步骤。",),
+    "影响": ("描述影响范围、用户行为和优先级。",),
+    "验收标准": (
+        "- [ ] 定义可以机器/人工验证的完成条件。",
+        "- [ ] 定义可以由人直接观察到的修复结果。",
+    ),
+    "涉及模块": ("写明预期涉及的模块和跨模块原因。",),
+    "作者": ("填写负责人及使用的 AI 工具（如适用）。",),
 }
 
 
@@ -127,7 +129,7 @@ def validate_issue_format(issue, number):
             continue
         end = headers[index + 1].start() if index + 1 < len(headers) else len(body)
         contents = re.sub(r"<!--.*?-->", "", body[match.end():end], flags=re.S).strip()
-        if not contents or contents == ISSUE_TEMPLATE_PLACEHOLDERS[name]:
+        if not contents or contents in ISSUE_TEMPLATE_PLACEHOLDERS[name]:
             FAIL.append(
                 f"Issue #{number}: '## {name}' is empty or still contains only the template text"
             )
@@ -144,9 +146,8 @@ def validate_issue_format(issue, number):
     flagged = HOSTILE_EXPRESSIONS.search(clean_body)
     if flagged:
         FAIL.append(
-            f"Issue #{number}: contains subjective or disparaging expression "
-            f"'{flagged.group()}'. Do not demonize people or software; "
-            "rewrite as a neutral, observable fact."
+            f"Issue #{number}：发现贬损或主观归责词语「{flagged.group()}」。"
+            "请只描述客观现象，不要黑化人或系统。"
         )
 
 
