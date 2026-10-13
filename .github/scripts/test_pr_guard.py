@@ -71,5 +71,70 @@ class IssueFormatTests(unittest.TestCase):
         self.assertTrue(any("order" in error for error in pr_guard.FAIL))
 
 
+    def test_problem_up_to_200_visible_chars_passes(self):
+        issue = example_issue()
+        issue["body"] = issue["body"].replace("权限判断错误，某些账号无法使用。", "现" * 200)
+        pr_guard.validate_issue_format(issue, 20)
+        self.assertEqual(pr_guard.FAIL, [])
+
+    def test_problem_201_characters_fails(self):
+        issue = example_issue()
+        issue["body"] = issue["body"].replace("权限判断错误，某些账号无法使用。", "现" * 201)
+        pr_guard.validate_issue_format(issue, 20)
+        self.assertTrue(any("201 visible characters" in err for err in pr_guard.FAIL))
+
+    def test_problem_multi_paragraph_fails(self):
+        issue = example_issue()
+        issue["body"] = issue["body"].replace(
+            "权限判断错误，某些账号无法使用。", "登录页面空白。\n\n保存按钮无法使用。"
+        )
+        pr_guard.validate_issue_format(issue, 20)
+        self.assertTrue(any("one plain paragraph" in err for err in pr_guard.FAIL))
+
+    def test_problem_list_fails(self):
+        issue = example_issue()
+        issue["body"] = issue["body"].replace(
+            "权限判断错误，某些账号无法使用。", "- 登录页面空白。\n- 搜索没有结果。"
+        )
+        pr_guard.validate_issue_format(issue, 20)
+        self.assertTrue(any("one plain paragraph" in err for err in pr_guard.FAIL))
+
+    def test_explicit_second_issue_fails(self):
+        issue = example_issue()
+        issue["body"] = issue["body"].replace(
+            "权限判断错误，某些账号无法使用。", "登录页面空白，另一个问题是搜索没有结果。"
+        )
+        pr_guard.validate_issue_format(issue, 20)
+        self.assertTrue(any("another problem" in err for err in pr_guard.FAIL))
+
+    def test_hostile_language_fails(self):
+        issue = example_issue()
+        issue["body"] = issue["body"].replace(
+            "权限判断错误，某些账号无法使用。", "这就是垃圾系统，根本不能用。"
+        )
+        pr_guard.validate_issue_format(issue, 20)
+        self.assertTrue(any("disparaging expression" in err for err in pr_guard.FAIL))
+
+    def test_template_html_comments_do_not_count_as_content(self):
+        issue = example_issue()
+        issue["body"] = issue["body"].replace(
+            "权限判断错误，某些账号无法使用。",
+            "<!-- 在这里写现象，不能把注释当作提交的内容。 -->"
+        )
+        pr_guard.validate_issue_format(issue, 20)
+        self.assertTrue(any("empty" in err and "## 问题" in err for err in pr_guard.FAIL))
+
+    def test_one_observable_problem_remains_valid(self):
+        issue = example_issue()
+        issue["body"] = issue["body"].replace(
+            "权限判断错误，某些账号无法使用。",
+            "在笔记本页面点击保存后，按钮持续显示加载中，内容没有保存。"
+        )
+        pr_guard.validate_issue_format(issue, 20)
+        self.assertEqual(pr_guard.FAIL, [])
+
+
+
+
 if __name__ == "__main__":
     unittest.main()
