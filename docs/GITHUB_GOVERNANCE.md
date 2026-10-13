@@ -1,0 +1,23 @@
+# GitHub PR 强制门禁设置
+
+本 PR 先以预览方式安装 GitHub Actions 工作流。PR Guard **从默认主分支检出脚本**，不会执行 PR 代码，也不使用 PR 的 Dockerfile/工作流。工作流合入 master 后才能触发稳定的检查。此 PR 不直接修改 Rulesets、Branch Protection 或 Jenkins。
+
+## 仓库所有者需要手动设置
+
+1. 先审阅并合并本 PR；启用 Actions，创建下一个 `ai/<Issue>-...` PR，确认 `pr-guard` 运行成功。
+2. Settings → Rules → Rulesets，针对 `master` 创建/更新分支规则：Require a pull request before merging、Block force pushes、Restrict deletions；避免允许 AI 使用的账号或 Token 获得 bypass 权限。
+3. Require status checks to pass：加入 `pr-guard`。若有独立且稳定上报 PR commit 状态的测试 CI，一并设为必过；不能把 Jenkins 只在 master 上执行的 Job 直接加入 PR 必过，否则 PR 可能永久 Pending。
+4. Require conversation resolution before merging；条件允许时启用 Restrict updates / restrict who can push，注意个人仓库不要开启无法由本人满足的审批条件。
+5. 为了避免检查器被绕过，保护 `.github/workflows/**`、`.github/scripts/**` 及本文件的审批路径；单人仓库 GitHub 不能形成独立双人审批，需将 AI 写入身份与管理员身份分开。
+
+## 实际执行检查
+- 恰好一个 `Fixes #N` 等关闭关联，且号码必须是 Issue。
+- 分支名称 `ai/N-description`，PR 标题 Conventional Commit。
+- PR 必须有目的、问题、改动、验证、作者。
+- 跨多个模块必须说明原因；超过 20 个文件必须解释。
+- 改模块实现 .py：同时修改模块 `pyproject.toml`、`VERSION`、`CHANGELOG.md`，新 X.Y.Z 版本递增且一致。
+
+## 边界与后续
+- 该工作流不执行 PR 源码，**不等于**已经验证模块行为和架构依赖。现有 `scripts/check_module_dependencies.py` 必须另由可信 PR 测试 Job 执行并设为必过，不能复用只在 master 上运行的 Jenkins Job。
+- GitHub 的状态检查不能阻止直接在本地写代码；它只阻止合入。分支创建时命名限制需要仓库 Ruleset。
+- 本次不启用自动合并、自动 Tag、自动删除镜像和部署，避免未经验证的副作用。
