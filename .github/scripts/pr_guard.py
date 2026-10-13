@@ -62,6 +62,35 @@ def issue_number(body):
 
 
 ISSUE_SECTIONS = ("问题", "影响", "验收标准", "涉及模块", "作者")
+MAX_PROBLEM_CHARS = 200
+# 仅拦截高确定性的辱骂/臆测性归责；客观性与“同一问题”的语义仍需人审。
+HOSTILE_EXPRESSIONS = re.compile(
+    r"脑残|傻逼|蠢货|废物|垃圾代码|垃圾系统|烂透了|一坨屎|故意坑人|毫无能力"
+)
+
+
+def validate_problem_description(contents, number):
+    """One concise, observable phenomenon; length counts visible characters."""
+    readable = re.sub(r"\s+", " ", contents).strip()
+    if len(readable) > MAX_PROBLEM_CHARS:
+        FAIL.append(
+            f"Issue #{number}: '## 问题' has {len(readable)} visible characters; "
+            f"maximum is {MAX_PROBLEM_CHARS}. Keep one observable phenomenon only."
+        )
+    paragraphs = [p for p in re.split(r"\n\s*\n", contents) if p.strip()]
+    if len(paragraphs) > 1 or re.search(r"(?m)^\s*(?:[-*+]\s+|\d+[.)]\s+|#{1,6}\s+)", contents):
+        FAIL.append(
+            f"Issue #{number}: '## 问题' must be one plain paragraph, not multiple "
+            "paragraphs, checklists or headings. Split independent problems into separate Issues."
+        )
+    if re.search(r"另一个问题|另外一个问题|第二个问题|第三个问题", contents):
+        FAIL.append(
+            f"Issue #{number}: '## 问题' mentions another problem; "
+            "create one Issue per phenomenon."
+        )
+
+
+
 ISSUE_TEMPLATE_PLACEHOLDERS = {
     "问题": "只描述一个问题，并提供复现步骤。",
     "影响": "描述影响范围、用户行为和优先级。",
@@ -97,17 +126,30 @@ def validate_issue_format(issue, number):
         if name not in ISSUE_SECTIONS:
             continue
         end = headers[index + 1].start() if index + 1 < len(headers) else len(body)
-        contents = body[match.end():end].strip()
+        contents = re.sub(r"<!--.*?-->", "", body[match.end():end], flags=re.S).strip()
         if not contents or contents == ISSUE_TEMPLATE_PLACEHOLDERS[name]:
             FAIL.append(
                 f"Issue #{number}: '## {name}' is empty or still contains only the template text"
             )
+        if name == "问题" and contents:
+            validate_problem_description(contents, number)
         if name == "验收标准" and not re.search(
             r"(?m)^\s*[-*]\s*\[[ xX]\]\s+\S+", contents
         ):
             FAIL.append(
                 f"Issue #{number}: '## 验收标准' must include at least one '- [ ] ...' checkbox"
             )
+
+    clean_body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
+    flagged = HOSTILE_EXPRESSIONS.search(clean_body)
+    if flagged:
+        FAIL.append(
+            f"Issue #{number}: contains subjective or disparaging expression "
+            f"'{flagged.group()}'. Do not demonize people or software; "
+            "rewrite as a neutral, observable fact."
+        )
+
+
 
 
 def changed_modules(paths):
