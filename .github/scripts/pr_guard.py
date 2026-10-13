@@ -61,6 +61,55 @@ def issue_number(body):
     return int(matches[0])
 
 
+ISSUE_SECTIONS = ("问题", "影响", "验收标准", "涉及模块", "作者")
+ISSUE_TEMPLATE_PLACEHOLDERS = {
+    "问题": "只描述一个问题，并提供复现步骤。",
+    "影响": "描述影响范围、用户行为和优先级。",
+    "验收标准": "- [ ] 定义可以机器/人工验证的完成条件。",
+    "涉及模块": "写明预期涉及的模块和跨模块原因。",
+    "作者": "填写负责人及使用的 AI 工具（如适用）。",
+}
+
+
+def validate_issue_format(issue, number):
+    """检查关联 Issue 正文，而非只检查 PR 是否填写 Fixes #N。"""
+    if not (issue.get("title") or "").strip():
+        FAIL.append(f"Issue #{number}: title cannot be empty")
+    body = issue.get("body") or ""
+    headers = list(re.finditer(r"(?m)^##\s+([^\r\n]+?)\s*$", body))
+    names = [match.group(1).strip() for match in headers]
+    for required in ISSUE_SECTIONS:
+        count = names.count(required)
+        if count != 1:
+            FAIL.append(
+                f"Issue #{number}: expected exactly one '## {required}' heading; "
+                f"found {count}. Edit the Issue body to match .github/ISSUE_TEMPLATE/problem.md"
+            )
+    if all(names.count(key) == 1 for key in ISSUE_SECTIONS):
+        ordered = [names.index(key) for key in ISSUE_SECTIONS]
+        if ordered != sorted(ordered):
+            FAIL.append(
+                f"Issue #{number}: headings must appear in this order: "
+                + " → ".join(ISSUE_SECTIONS)
+            )
+    for index, match in enumerate(headers):
+        name = match.group(1).strip()
+        if name not in ISSUE_SECTIONS:
+            continue
+        end = headers[index + 1].start() if index + 1 < len(headers) else len(body)
+        contents = body[match.end():end].strip()
+        if not contents or contents == ISSUE_TEMPLATE_PLACEHOLDERS[name]:
+            FAIL.append(
+                f"Issue #{number}: '## {name}' is empty or still contains only the template text"
+            )
+        if name == "验收标准" and not re.search(
+            r"(?m)^\s*[-*]\s*\[[ xX]\]\s+\S+", contents
+        ):
+            FAIL.append(
+                f"Issue #{number}: '## 验收标准' must include at least one '- [ ] ...' checkbox"
+            )
+
+
 def changed_modules(paths):
     return {parts[1] for path in paths if (parts := path.split("/")) and
             len(parts) >= 3 and parts[0] == "modules-src"}
@@ -113,6 +162,8 @@ def main():
             issue = get(API + "/issues/" + str(n))
             if "pull_request" in issue:
                 FAIL.append("Linked number must refer to an Issue, not a PR")
+            else:
+                validate_issue_format(issue, n)
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 FAIL.append("Linked Issue does not exist")
