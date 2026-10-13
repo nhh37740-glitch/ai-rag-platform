@@ -24,7 +24,7 @@ def test_guest_uses_single_app_and_only_reads_shared_cmrc_notebook():
             info = await client.get("/api/demo")
             assert info.status_code == 200
             assert info.json()["question_count"] == 99
-            assert "public_demo" not in info.json() and "read_only" not in info.json()
+            assert info.json()["public_demo"] is s.PUBLIC_DEMO and info.json()["read_only"] is s.PUBLIC_DEMO
             assert (await client.get("/api/admin/users")).status_code == 403
             assert (await client.get("/api/models/providers")).status_code == 403
             assert (await client.post("/api/demo/chat", json={"question": "legacy"})).status_code == 404

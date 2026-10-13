@@ -63,7 +63,7 @@ def main():
             raise AssertionError("disabled account retained a valid session")
 
         rag = RagService(data.vector_store(ctx))
-        rag.ingest_markdown(ctx, "# API\n\nAPI authentication uses a server-managed session.", notebook_id)
+        rag.ingest_markdown(ctx, "# API\n\nAPI authentication uses a server-managed session.", f"{notebook_id}/api-doc")
         result = rag.search(ctx, "API authentication", [notebook_id], mode="keyword")
         assert result.citations and result.citations[0].source_id.startswith(notebook_id + "/")
 
