@@ -1,7 +1,7 @@
 {
   "package": "rag_facade",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "facade": {
     "RagService": {
       "kind": "class",

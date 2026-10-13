@@ -1,4 +1,4 @@
-# rag-facade 0.3.0
+# rag-facade 0.3.1
 
 `RagService` 提供文档解析、切分、嵌入、入库、检索和追踪读取。它依赖 VectorStore 端口、`ingestion`、`rag-core`、`rag-tools` 与 `observability`。持久化由 `data-facade` 提供。
 

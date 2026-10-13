@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from pathlib import Path
@@ -16,7 +17,7 @@ from rag_core import DEFAULT_READ_CHUNKS, MAX_READ_CHUNKS, embed
 from rag_tools import RagTools
 from observability import make_trace_store
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __all__ = ["RagService"]
 
 _SEARCH_MODES = {
