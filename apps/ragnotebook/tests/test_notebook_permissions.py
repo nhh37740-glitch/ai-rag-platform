@@ -58,7 +58,7 @@ def test_guest_model_is_limited_to_admins_active_provider_and_per_request():
                     "model_id": "mock-alt", "catalog_provider_id": "mock",
                 })
                 assert response.status_code == 200, response.text
-                assert calls == [{"allow_write_tools": False, "model_id": "mock-alt", "expected_provider_id": "mock"}]
+                assert calls == [{"allow_write_tools": False, "model_id": "mock-alt", "expected_provider_id": "mock", "history": None, "memory_enabled": False}]
                 assert response.json()["quota"]["remaining"] == before - 1
     asyncio.run(scenario())
 
