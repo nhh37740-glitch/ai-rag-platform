@@ -5,7 +5,6 @@ BUILD_NUMBER=${BUILD_NUMBER:?Jenkins BUILD_NUMBER is required}
 PROJECT=ai-rag
 IMAGE=ai-rag-platform:local
 CANDIDATE="ai-rag-platform:candidate-${BUILD_NUMBER}"
-BACKUP="ai-rag-platform:rollback-${BUILD_NUMBER}"
 MODEL_ENV_FILE=${RAG_MODEL_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
 BOOTSTRAP_ENV_FILE=${RAG_BOOTSTRAP_ENV_FILE:-/home/ubuntu/.config/ai-rag/bootstrap-admin.env}
 STATE_VOLUME_NAME=${RAG_STATE_VOLUME_NAME:-ai-rag-ragnotebook-state}
@@ -47,48 +46,6 @@ show_logs() {
     compose logs --tail=100 agent || true
 }
 
-rollback_or_stop() {
-    show_logs
-    if [ -z "$OLD_IMAGE_ID" ]; then
-        echo "No previously deployed image exists; stopping the failed first deployment." >&2
-        compose stop agent || true
-        docker image rm "$CANDIDATE" || true
-        return 1
-    fi
-
-    echo "Restoring the previous image $OLD_IMAGE_ID." >&2
-    if ! docker image tag "$BACKUP" "$IMAGE"; then
-        echo "Could not restore the previous image tag; preserved backup $BACKUP." >&2
-        return 1
-    fi
-    MODEL_ENV_FILE=$OLD_MODEL_ENV_FILE
-    [ -z "$OLD_STATE_VOLUME" ] || STATE_VOLUME_NAME=$OLD_STATE_VOLUME
-    if compose up -d --no-build --force-recreate && wait_for_health; then
-        docker image rm "$CANDIDATE" >/dev/null 2>&1 || true
-        docker image rm "$BACKUP" >/dev/null 2>&1 || true
-        echo "Previous image restored and healthy; named data volumes were left intact." >&2
-        return 1
-    fi
-    show_logs
-    echo "Rollback container did not become healthy; preserved $BACKUP for recovery." >&2
-    return 1
-}
-
-OLD_CONTAINER_ID=$(compose ps -q agent 2>/dev/null || true)
-OLD_MODEL_ENV_FILE=$MODEL_ENV_FILE
-OLD_STATE_VOLUME=
-if [ -n "$OLD_CONTAINER_ID" ]; then
-    OLD_IMAGE_ID=$(docker inspect --format '{{.Image}}' "$OLD_CONTAINER_ID")
-    OLD_STATE_VOLUME=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/opt/agent/state"}}{{.Name}}{{end}}{{end}}' "$OLD_CONTAINER_ID")
-    previous_model_env=$(docker inspect --format '{{index .Config.Labels "dev-knowledge.model-env-file"}}' "$OLD_CONTAINER_ID")
-    [ -z "$previous_model_env" ] || OLD_MODEL_ENV_FILE=$previous_model_env
-else
-    OLD_IMAGE_ID=$(docker image inspect --format '{{.Id}}' "$IMAGE" 2>/dev/null || true)
-fi
-if [ -n "$OLD_IMAGE_ID" ]; then
-    docker image tag "$OLD_IMAGE_ID" "$BACKUP"
-fi
-
 # Build the candidate under a separate tag. A build failure cannot move the
 # active Compose tag or disturb the currently running service.
 if ! docker build --target runtime --tag "$CANDIDATE" .; then
@@ -113,18 +70,30 @@ PORT=$(docker port "$SMOKE_CONTAINER" 8000/tcp | sed -n 's/.*://p')
 sudo python3 scripts/smoke_model_config.py "http://127.0.0.1:$PORT" "$MODEL_ENV_FILE"
 docker rm -f "$SMOKE_CONTAINER" >/dev/null
 SMOKE_CONTAINER=
-if ! docker image tag "$CANDIDATE" "$IMAGE"; then
-    rollback_or_stop
+docker image tag "$CANDIDATE" "$IMAGE"
+
+if ! compose up -d --no-build --force-recreate || ! wait_for_health || \
+    ! sudo python3 scripts/smoke_model_config.py http://127.0.0.1:18080 "$MODEL_ENV_FILE"; then
+    show_logs
+    compose stop agent || true
+    echo "Unified RAGnotebook deployment failed; no old service was restored. Data volumes were preserved." >&2
     exit 1
 fi
 
-if compose up -d --no-build --force-recreate && wait_for_health && \
-    sudo python3 scripts/smoke_model_config.py http://127.0.0.1:18080 "$MODEL_ENV_FILE"; then
-    docker image rm "$CANDIDATE" >/dev/null 2>&1 || true
-    echo "Candidate image is healthy; rollback image and named data volumes were retained."
-    exit 0
+# Route the existing RAG web URL to this service before removing its old
+# upstreams. The gateway script checks and reloads only the RAG route.
+if ! sudo python3 scripts/switch_rag_gateway.py; then
+    echo "Unified service is healthy, but RAG gateway switch failed; legacy containers remain." >&2
+    exit 1
 fi
 
-echo "Candidate deployment failed its Compose or health check; rolling back." >&2
-rollback_or_stop
-exit 1
+# The new application serves guest and admin traffic in one process. Retire
+# only the three former RAG containers; Docker volumes are never removed here.
+for legacy in ai-rag-public-agent-1 ai-rag-admin-agent-1 ai-rag-admin-login-1; do
+    if docker container inspect "$legacy" >/dev/null 2>&1; then
+        docker rm -f "$legacy" >/dev/null
+    fi
+done
+
+docker image rm "$CANDIDATE" >/dev/null 2>&1 || true
+echo "Unified RAGnotebook is healthy; legacy RAG containers removed and data volumes preserved."

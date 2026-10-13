@@ -34,4 +34,4 @@ Docker/Jenkins 构建还会编译 Cython 扩展、验证二进制加载边界并
 
 ## 部署
 
-服务器首次启动需私有的 `/home/ubuntu/.config/ai-rag/bootstrap-admin.env`，包含 `RAG_BOOTSTRAP_ADMIN_USERNAME` 和 `RAG_BOOTSTRAP_ADMIN_PASSWORD`，权限为 0600；Compose 和候选容器均显式加载它。凭据不提交到 Git。新版本使用新的命名数据卷保存六表数据库，旧卷保留供回滚。游客直接使用同一 RAGnotebook 服务和统一问答 API。旧的独立公开演示与双服务管理员发布入口不再由 Jenkins 发布。
+服务器首次启动需私有的 `/home/ubuntu/.config/ai-rag/bootstrap-admin.env`，包含 `RAG_BOOTSTRAP_ADMIN_USERNAME` 和 `RAG_BOOTSTRAP_ADMIN_PASSWORD`，权限为 0600；Compose 和候选容器均显式加载它。凭据不提交到 Git。新版本使用新的命名数据卷保存六表数据库，旧卷保留但不导入新版，也不恢复旧容器。游客直接使用同一 RAGnotebook 服务和统一问答 API。旧的独立公开演示与双服务管理员容器在统一服务及网页路由健康后移除。
