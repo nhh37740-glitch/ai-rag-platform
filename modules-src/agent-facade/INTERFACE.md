@@ -1,4 +1,4 @@
-# AGENT 接口规范 0.5.1
+# AGENT 接口规范 0.5.2
 
 唯一共享类型来自 core_specifications。完整签名登记在 API_SCHEMA.json。
 
@@ -13,6 +13,7 @@ class AgentService:
                   knowledge_base_ids: list[str] | None = None, allow_write_tools: bool = True,
                   model_id: str | None = None, expected_provider_id: str | None = None,
                   history: list[dict] | None = None, memory_enabled: bool = True) -> str: ...
+    def enable_write_tools(self, ctx: RequestContext, files_dir: str) -> None: ...
     def register_tool(self, ctx: RequestContext, definition: ToolDef,
                       handler: Callable, context_aware: bool = False) -> None: ...
     def tool_definitions(self, ctx: RequestContext) -> list[ToolDef]: ...
@@ -51,3 +52,5 @@ AgentService 提供 list_model_providers(ctx, environment)、list_models(ctx, pr
 `run(..., model_id, expected_provider_id)` 仅对本次运行使用该 Model；服务端始终从当前活动 Provider 构造模型，expected_provider_id 只用来拒绝旧目录选择，不能切换 Provider。每次运行重新验证模型目录，不写入全局模型设置；未提供这两个参数时沿用管理员的默认模型。
 
 续聊由调用方提供已保存的 user/assistant 历史；游客使用 memory_enabled=False，不读写持久记忆。
+
+enable_write_tools 在私有应用启用管理员文件创建与会话入库工具；公开演示不启用。

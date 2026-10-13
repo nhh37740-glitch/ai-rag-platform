@@ -39,6 +39,7 @@ STATE_DIR = Path(os.environ.get("STATE_DIR", str(ROOT / "data")))
 SKILL_DIR = ROOT / "skills"
 SESSION_COOKIE = "ragnotebook_session"
 SESSION_TTL_SECONDS = 43200
+PUBLIC_DEMO = os.environ.get("PUBLIC_DEMO", "0") == "1"
 TRACE_ACCESS: dict[str, tuple[str, list[str]]] = {}
 UPLOAD_PROGRESS: dict[str, dict] = {}
 SUPPORTED_EXTENSIONS = frozenset({".md", ".txt", ".docx", ".pdf"})
@@ -76,6 +77,8 @@ rag_service.ensure_embedding_model(BOOT_CONTEXT)
 MODEL_CONFIG = resolve_model_config(BOOT_CONTEXT, dict(os.environ))
 provider = make_provider(MODEL_CONFIG.api_key, MODEL_CONFIG.base_url, MODEL_CONFIG.model)
 runtime = AgentService(data_service, rag_service, skill_dir=str(SKILL_DIR), provider=provider, environment=dict(os.environ))
+if not PUBLIC_DEMO:
+    runtime.enable_write_tools(BOOT_CONTEXT, str(STATE_DIR / "agent-files"))
 
 
 def _ctx(req: Request | None = None, *, user_id: str = "guest", session_id: str = "") -> RequestContext:
@@ -274,7 +277,7 @@ def demo():
     settings = runtime.get_model_settings(BOOT_CONTEXT)
     provider_id = settings.get("provider_id", "mock")
     model_id = settings.get("model_id", "")
-    return JSONResponse({"id": DEMO_KB_ID, "name": manifest.get("name", DEMO_KB_ID), "source": manifest.get("source", ""), "license": manifest.get("license", ""), "documents": len(docs), "questions": questions, "question_count": len(questions), "suggested_questions": suggestions, "imported": demo_kb_imported, "provider": provider_id, "model": model_id, "quota": auth_service.quota_status(BOOT_CONTEXT), "embedding": os.environ.get("RAG_EMBED", "fastembed").strip().lower()})
+    return JSONResponse({"public_demo": PUBLIC_DEMO, "read_only": PUBLIC_DEMO, "id": DEMO_KB_ID, "name": manifest.get("name", DEMO_KB_ID), "source": manifest.get("source", ""), "license": manifest.get("license", ""), "documents": len(docs), "questions": questions, "question_count": len(questions), "suggested_questions": suggestions, "imported": demo_kb_imported, "provider": provider_id, "model": model_id, "quota": auth_service.quota_status(BOOT_CONTEXT), "embedding": os.environ.get("RAG_EMBED", "fastembed").strip().lower()})
 
 
 @app.get("/api/auth/session")
@@ -286,6 +289,8 @@ def auth_session(req: Request):
 
 @app.post("/api/auth/register")
 async def register(req: Request):
+    if PUBLIC_DEMO:
+        raise HTTPException(403, "公开演示只允许游客访问")
     _require_same_origin(req)
     body = await req.json()
     try:
@@ -297,6 +302,8 @@ async def register(req: Request):
 
 @app.post("/api/auth/login")
 async def login(req: Request):
+    if PUBLIC_DEMO:
+        raise HTTPException(403, "公开演示只允许游客访问")
     _require_same_origin(req)
     body = await req.json()
     try:

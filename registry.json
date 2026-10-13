@@ -3,9 +3,9 @@
   "modules": {
     "agent-facade": {
       "name": "agent_facade",
-      "version": "0.5.1",
-      "checksum": "d1a7afebff5cbf9243e5ff94a928a01689967c66a11e24adca5e6e69a87323c6",
-      "path": "artifacts/agent-facade/0.5.1",
+      "version": "0.5.2",
+      "checksum": "5472076372b6a74f26686764a5cb82ded8501be92c16b3ae46e55f84e753f30c",
+      "path": "artifacts/agent-facade/0.5.2",
       "status": "contract-only"
     },
     "agent-runtime": {

@@ -7,6 +7,8 @@ IMAGE=ai-rag-platform:local
 CANDIDATE="ai-rag-platform:candidate-${BUILD_NUMBER}"
 BACKUP="ai-rag-platform:rollback-${BUILD_NUMBER}"
 MODEL_ENV_FILE=${RAG_MODEL_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
+BOOTSTRAP_ENV_FILE=${RAG_BOOTSTRAP_ENV_FILE:-/home/ubuntu/.config/ai-rag/bootstrap-admin.env}
+STATE_VOLUME_NAME=${RAG_STATE_VOLUME_NAME:-ai-rag-ragnotebook-state}
 SMOKE_VOLUME=ai-rag-private-smoke-${BUILD_NUMBER}
 SMOKE_CONTAINER=
 
@@ -15,7 +17,7 @@ docker() {
 }
 
 compose() {
-    sudo env RAG_MODEL_ENV_FILE="$MODEL_ENV_FILE" docker compose --project-name "$PROJECT" "$@"
+    sudo env RAG_MODEL_ENV_FILE="$MODEL_ENV_FILE" RAG_BOOTSTRAP_ENV_FILE="$BOOTSTRAP_ENV_FILE" RAG_STATE_VOLUME_NAME="$STATE_VOLUME_NAME" docker compose --project-name "$PROJECT" "$@"
 }
 cleanup() {
     if [ -n "$SMOKE_CONTAINER" ]; then docker rm -f "$SMOKE_CONTAINER" >/dev/null 2>&1 || true; fi
@@ -60,6 +62,7 @@ rollback_or_stop() {
         return 1
     fi
     MODEL_ENV_FILE=$OLD_MODEL_ENV_FILE
+    [ -z "$OLD_STATE_VOLUME" ] || STATE_VOLUME_NAME=$OLD_STATE_VOLUME
     if compose up -d --no-build --force-recreate && wait_for_health; then
         docker image rm "$CANDIDATE" >/dev/null 2>&1 || true
         docker image rm "$BACKUP" >/dev/null 2>&1 || true
@@ -73,8 +76,10 @@ rollback_or_stop() {
 
 OLD_CONTAINER_ID=$(compose ps -q agent 2>/dev/null || true)
 OLD_MODEL_ENV_FILE=$MODEL_ENV_FILE
+OLD_STATE_VOLUME=
 if [ -n "$OLD_CONTAINER_ID" ]; then
     OLD_IMAGE_ID=$(docker inspect --format '{{.Image}}' "$OLD_CONTAINER_ID")
+    OLD_STATE_VOLUME=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/opt/agent/state"}}{{.Name}}{{end}}{{end}}' "$OLD_CONTAINER_ID")
     previous_model_env=$(docker inspect --format '{{index .Config.Labels "dev-knowledge.model-env-file"}}' "$OLD_CONTAINER_ID")
     [ -z "$previous_model_env" ] || OLD_MODEL_ENV_FILE=$previous_model_env
 else
@@ -93,16 +98,15 @@ if ! docker build --target runtime --tag "$CANDIDATE" .; then
 fi
 
 sudo test -s "$MODEL_ENV_FILE"
-sh scripts/prepare_web_quota.sh "$CANDIDATE"
+sudo test -s "$BOOTSTRAP_ENV_FILE"
 SMOKE_CONTAINER=$(docker run -d --rm --read-only --tmpfs /tmp:size=32m \
     --tmpfs /opt/agent/data/kb/user-notebooks:uid=10001,gid=10001,mode=0700,size=8m \
     --tmpfs /opt/agent/data/agent-files:uid=10001,gid=10001,mode=0700,size=8m \
     --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 0.50 \
-    --env-file "$MODEL_ENV_FILE" -e PUBLIC_DEMO=0 -e RAG_EMBED=fastembed \
+    --env-file "$MODEL_ENV_FILE" --env-file "$BOOTSTRAP_ENV_FILE" -e PUBLIC_DEMO=0 -e RAG_EMBED=fastembed \
     -e BGE_MODEL=BAAI/bge-small-zh-v1.5 -e FASTEMBED_CACHE_PATH=/opt/agent/models/fastembed_cache \
     -e STATE_DIR=/opt/agent/state -v "$SMOKE_VOLUME:/opt/agent/state" \
     -v "${PROJECT}_model-cache:/opt/agent/models/fastembed_cache" \
-    -e WEB_QUOTA_STATE_DIR=/opt/agent/web-quota -v ai-rag-web-quota:/opt/agent/web-quota \
     -p 127.0.0.1::8000 "$CANDIDATE")
 wait_for_health "$SMOKE_CONTAINER"
 PORT=$(docker port "$SMOKE_CONTAINER" 8000/tcp | sed -n 's/.*://p')

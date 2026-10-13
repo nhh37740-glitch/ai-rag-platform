@@ -31,3 +31,7 @@ python scripts/run_tests.py --mode source --group scripts
 ```
 
 Docker/Jenkins 构建还会编译 Cython 扩展、验证二进制加载边界并运行应用集成测试。生产构建与部署状态以构建发布记录为准。
+
+## 部署
+
+服务器首次启动需私有的 `/home/ubuntu/.config/ai-rag/bootstrap-admin.env`，包含 `RAG_BOOTSTRAP_ADMIN_USERNAME` 和 `RAG_BOOTSTRAP_ADMIN_PASSWORD`，权限为 0600；Compose 和候选容器均显式加载它。凭据不提交到 Git。新版本使用新的命名数据卷保存六表数据库，旧卷保留供回滚。公开演示只允许游客访问，使用统一问答 API。

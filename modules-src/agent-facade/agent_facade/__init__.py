@@ -5,6 +5,8 @@ import json
 import os
 import threading
 import time
+import uuid
+from pathlib import Path
 from urllib.request import Request, urlopen
 from copy import deepcopy
 from typing import Callable
@@ -25,7 +27,7 @@ from llm_gateway import DeepSeekProvider, MockProvider
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 
 def resolve_model_config(ctx: RequestContext, environment: dict[str, str], public: bool = False) -> ModelConfiguration:
@@ -279,6 +281,72 @@ class AgentService:
         if not user_input.strip():
             raise ValueError("user_input must not be empty")
         return await runtime.run(ctx, user_input, knowledge_base_ids, allow_write_tools, history, memory_enabled)
+
+    def enable_write_tools(self, ctx: RequestContext, files_dir: str) -> None:
+        """Register administrator-only file and conversation tools."""
+        self._ensure_open()
+        if not isinstance(files_dir, str) or not files_dir.strip():
+            raise ValueError("files_dir is required")
+        directory = Path(files_dir)
+
+        def require_admin(call_ctx: RequestContext) -> None:
+            user = self._data.get_user(call_ctx, call_ctx.user_id)
+            if not isinstance(user, dict) or not user.get("is_active") or not user.get("is_admin"):
+                raise PermissionError("Administrator required")
+
+        def create_file(filename: str, content: str, *, ctx: RequestContext, runtime_context: dict | None) -> str:
+            require_admin(ctx)
+            if not isinstance(filename, str) or not filename.strip():
+                raise ValueError("文件名不能为空")
+            clean_name = filename.strip()
+            if clean_name != Path(clean_name).name or clean_name in {".", ".."}:
+                raise ValueError("文件名不能包含路径")
+            if Path(clean_name).suffix.lower() not in {".md", ".txt", ".json"}:
+                raise ValueError("只允许创建 .md、.txt 或 .json 文件")
+            if not isinstance(content, str) or len(content.encode("utf-8")) > 1024 * 1024:
+                raise ValueError("文件内容必须是不超过 1 MiB 的文本")
+            directory.mkdir(parents=True, exist_ok=True)
+            with (directory / clean_name).open("x", encoding="utf-8") as stream:
+                stream.write(content)
+            return json.dumps({"created": True, "filename": clean_name}, ensure_ascii=False)
+
+        def save_conversation(name: str, description: str = "", *, ctx: RequestContext, runtime_context: dict | None) -> str:
+            require_admin(ctx)
+            if not isinstance(name, str) or not name.strip() or len(name.strip()) > 120:
+                raise ValueError("笔记本名称无效")
+            if not isinstance(description, str):
+                raise TypeError("description must be text")
+            messages = (runtime_context or {}).get("messages", [])
+            sections = ["# " + name.strip(), ""]
+            for message in messages:
+                if isinstance(message, ChatMessage) and message.role in {"user", "assistant"} and message.content.strip():
+                    sections.extend(["## " + ("用户" if message.role == "user" else "Agent"), "", message.content.strip(), ""])
+            if len(sections) == 2:
+                raise ValueError("当前会话没有可保存的内容")
+            notebook_id = uuid.uuid4().hex
+            notebook = self._data.create_notebook(ctx, {"id": notebook_id, "owner_user_id": ctx.user_id, "name": name.strip()})
+            try:
+                result = self._rag.ingest_markdown(ctx, "\n".join(sections).rstrip() + "\n", f"{notebook_id}/conversation")
+            except Exception:
+                self._data.delete_notebook(ctx, notebook_id)
+                raise
+            selected = (runtime_context or {}).get("knowledge_base_ids")
+            if isinstance(selected, list) and notebook_id not in selected:
+                selected.append(notebook_id)
+            return json.dumps({"created": True, "knowledge_base": notebook, "document": {
+                "source_id": result.source_id, "chunk_count": result.chunk_count,
+            }}, ensure_ascii=False)
+
+        self.register_tool(ctx, ToolDef("create_file",
+            "在受限目录创建 .md/.txt/.json 文本文件，不能覆盖已有文件。",
+            {"type": "object", "properties": {"filename": {"type": "string"}, "content": {"type": "string"}},
+             "required": ["filename", "content"], "additionalProperties": False}),
+            create_file, context_aware=True)
+        self.register_tool(ctx, ToolDef("save_conversation_to_knowledge_base",
+            "用户明确要求时，将当前对话保存为新笔记本并入库。",
+            {"type": "object", "properties": {"name": {"type": "string"}, "description": {"type": "string"}},
+             "required": ["name"], "additionalProperties": False}),
+            save_conversation, context_aware=True)
 
     def register_tool(
         self,

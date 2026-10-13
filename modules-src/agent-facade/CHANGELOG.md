@@ -1,3 +1,7 @@
+## 0.5.2 - 2026-10-13
+
+- Restore administrator file creation and conversation-to-notebook tools through AgentService.
+
 ## 0.5.1 - 2026-10-13
 
 - Accept persisted conversation history and disable all memory reads/writes for guest requests.

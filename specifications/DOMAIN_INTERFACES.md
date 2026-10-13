@@ -167,3 +167,5 @@ update_notebook(ctx,notebook_id,name,description)和set_notebook_archived(ctx,no
 agent-facade 0.3.0提供resolve_model_config(ctx: RequestContext, environment: dict[str,str], public: bool=False)->ModelConfiguration。共享不可变值对象保存provider/api_key/base_url/model，api_key不出现在repr，也不能序列化到网页。服务端既有环境配置、免费ID校验及mock/兼容DeepSeek选择统一由该业务函数决定；HTTP装配只传环境并使用结果，不自行定义免费选择策略。provider/model关系表与Web配置仍按MODEL_CONFIGURATION设计，待实现。
 
 2026-10-13：AgentService.run 可接收已保存的 user/assistant 历史；游客调用 memory_enabled=False，禁止持久记忆读写。游客 trace_id 为随机能力标识，只在进程内有效。
+
+2026-10-13：AgentService.enable_write_tools 在私有 RAGnotebook 恢复管理员创建文件与保存会话到新笔记本能力；公开演示不启用。

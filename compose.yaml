@@ -18,6 +18,7 @@ services:
     cpus: 0.50
     env_file:
       - ${RAG_MODEL_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
+      - ${RAG_BOOTSTRAP_ENV_FILE:-/home/ubuntu/.config/ai-rag/bootstrap-admin.env}
     labels:
       dev-knowledge.model-env-file: ${RAG_MODEL_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
     environment:
@@ -27,9 +28,10 @@ services:
       BGE_MODEL: ${BGE_MODEL:-BAAI/bge-small-zh-v1.5}
       FASTEMBED_CACHE_PATH: /opt/agent/models/fastembed_cache
     volumes:
-      - agent-state:/opt/agent/state
+      - ragnotebook-state:/opt/agent/state
       - model-cache:/opt/agent/models/fastembed_cache
 
 volumes:
-  agent-state:
+  ragnotebook-state:
+    name: ${RAG_STATE_VOLUME_NAME:-ai-rag-ragnotebook-state}
   model-cache:
