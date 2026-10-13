@@ -1,0 +1,56 @@
+name: 定期检查 Issue 和 PR
+
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  check-issue-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 汇总当前打开的 Issue 与 PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100
+            });
+
+            const openIssues = issues.filter(item => !item.pull_request);
+            const pulls = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100
+            });
+
+            const issueLines = openIssues
+              .slice(0, 10)
+              .map(issue => `- #${issue.number} ${issue.title}`)
+              .join("\n");
+
+            const prLines = pulls
+              .slice(0, 10)
+              .map(pr => `- #${pr.number} ${pr.title}`)
+              .join("\n");
+
+            await core.summary
+              .addHeading("Issue / PR 定期检查结果")
+              .addRaw(`- Open Issues: ${openIssues.length}\n`)
+              .addRaw(`- Open PRs: ${pulls.length}\n\n`)
+              .addRaw("### 最近 10 个 Issue\n")
+              .addRaw(`${issueLines || "- 无"}\n\n`)
+              .addRaw("### 最近 10 个 PR\n")
+              .addRaw(`${prLines || "- 无"}\n`)
+              .write();
