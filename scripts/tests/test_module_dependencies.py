@@ -27,7 +27,7 @@ class ModuleDependencyTests(unittest.TestCase):
             return checker.violations(root)
 
     def test_app_cannot_import_leaf_inside_function(self):
-        failures = self.check_fixture({"apps/agent-server/server.py": "def run():\n    from rag_core import RagClient\n"})
+        failures = self.check_fixture({"apps/ragnotebook/server.py": "def run():\n    from rag_core import RagClient\n"})
         self.assertTrue(any("app 不允许依赖 rag_core" in failure for failure in failures))
 
     def test_database_cannot_dynamically_import_rag(self):

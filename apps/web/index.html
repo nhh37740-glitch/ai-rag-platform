@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7f8fc">
-  <title>Knowledge Studio</title>
+  <title>RAGnotebook</title>
   <link rel="stylesheet" href="./static/knowledge_demo.css?v=notebook-db-20261011">
 </head>
 <body>
   <header class="app-header">
-    <a class="brand" href="../" aria-label="Knowledge Studio 首页">
+    <a class="brand" href="../" aria-label="RAGnotebook 首页">
       <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
-      <span class="brand-name">Knowledge Studio</span>
+      <span class="brand-name">RAGnotebook</span>
     </a>
 
     <div class="notebook-switcher-wrap">
@@ -29,7 +29,7 @@
         </div>
         <form id="create-notebook-form" class="create-form" hidden>
           <label class="field"><span>笔记本名称</span><input id="notebook-name" maxlength="80" placeholder="例如：产品研究" required></label>
-          <label class="field"><span>说明（可选）</span><input id="notebook-description" maxlength="300" placeholder="记录这个笔记本的用途"></label>
+
           <button type="submit" class="primary-btn wide">创建笔记本</button>
         </form>
         <nav id="notebook-list" class="notebook-list" aria-label="笔记本列表"></nav>
@@ -38,60 +38,48 @@
 
     <div class="header-actions">
       <p id="demo-status" class="dataset-status" aria-live="polite"></p>
-      <button id="edit-notebook" class="key-config-btn" type="button" hidden>修改笔记本</button>
-      <button id="archive-notebook" class="key-config-btn" type="button" hidden>归档笔记本</button>
-      <button id="open-archives" class="key-config-btn" type="button" hidden>已归档</button>
+
       <button id="open-members" class="key-config-btn" type="button" hidden>笔记本成员</button>
-      <button id="open-key-config" class="key-config-btn" type="button" aria-haspopup="dialog">模型设置</button>
+      <span id="server-model-status" class="dataset-status">读取模型配置…</span>
+      <button id="open-model-admin" class="key-config-btn" type="button" hidden>Provider / Model</button>
+      <button id="open-admin-users" class="key-config-btn" type="button" hidden>账号管理</button>
       <span id="web-quota" role="status" hidden></span>
+      <button id="auth-open" class="key-config-btn" type="button">登录 / 注册</button>
       <button id="admin-logout" class="key-config-btn" type="button" hidden>退出登录</button>
-      <a id="admin-login-link" class="key-config-btn" href="./login/" hidden>工作区登录</a>
       <span class="local-pill"><span class="online-dot"></span><span id="workspace-mode-label">正在验证身份</span></span>
       <button id="admin-identity" class="profile-chip" type="button" aria-label="显示并复制当前用户ID">…</button>
     </div>
   </header>
 
-  <dialog id="key-config-dialog" class="key-config-dialog" aria-labelledby="key-config-title">
-    <form id="key-config-form">
-      <h2 id="key-config-title">模型 API Key</h2>
-      <p id="key-config-status" role="status"></p>
-      <label class="field"><span>本次页面使用的密钥</span><input id="key-config-input" type="password" autocomplete="off" spellcheck="false" placeholder="输入新密钥以设置或替换"></label>
-      <p class="key-config-hint">密钥仅保留在当前页面内存中，刷新后清除。仅在 HTTPS 或本机页面允许输入，聊天请求会发送到此服务。</p>
-      <div class="key-config-actions">
-        <button id="remove-key-config" type="button">移除本页密钥</button>
-        <button id="close-key-config" type="button">关闭</button>
-        <button class="primary-btn" type="submit">保存</button>
-      </div>
+  <dialog id="auth-dialog" class="key-config-dialog" aria-labelledby="auth-title">
+    <form id="auth-form">
+      <h2 id="auth-title">登录 RAGnotebook</h2>
+      <p id="auth-status" role="status"></p>
+      <label class="field"><span>用户名</span><input id="auth-username" autocomplete="username" maxlength="128" required></label>
+      <label class="field"><span>密码</span><input id="auth-password" type="password" autocomplete="current-password" required></label>
+      <div class="key-config-actions"><button id="auth-mode-toggle" type="button">创建账号</button><button id="auth-close" type="button">关闭</button><button id="auth-submit" class="primary-btn" type="submit">登录</button></div>
     </form>
   </dialog>
-
+  <dialog id="admin-users-dialog" class="key-config-dialog" aria-labelledby="admin-users-title">
+    <h2 id="admin-users-title">账号管理</h2><p id="admin-users-status" role="status"></p><ul id="admin-users-list"></ul>
+    <button id="close-admin-users" type="button">关闭</button>
+  </dialog>
+  <dialog id="model-admin-dialog" class="key-config-dialog" aria-labelledby="model-admin-title">
+    <h2 id="model-admin-title">Provider / Model 管理</h2><p id="model-admin-status" role="status"></p>
+    <form id="model-admin-form"><label class="field"><span>Provider</span><select id="model-provider" required></select></label><label class="field"><span>Model</span><select id="model-choice" required></select></label><div class="key-config-actions"><button id="close-model-admin" type="button">关闭</button><button class="primary-btn" type="submit">应用默认模型</button></div></form>
+  </dialog>
   <dialog id="members-dialog" class="key-config-dialog" aria-labelledby="members-title">
     <h2 id="members-title">笔记本成员与权限</h2>
     <p id="members-status" role="status"></p>
-    <p>成员须先登录一次RAG；右上角身份按钮可复制用户ID。全局管理员始终保留管理权限。</p>
+    <p>选择已注册账号，并设置其在此笔记本中的查看或编辑权限。</p>
     <ul id="members-list"></ul>
     <form id="member-form">
-      <label class="field"><span>现有账号的用户ID</span><input id="member-user-id" maxlength="128" required autocomplete="off"></label>
-      <label class="field"><span>笔记本权限</span><select id="member-role"><option value="viewer">查看者：阅读、提问</option><option value="editor">编辑者：另可导入文档</option><option value="manager">管理者：另可设置成员和修改笔记本</option></select></label>
-      <div class="key-config-actions"><button id="close-members" type="button">关闭</button><button type="submit" class="primary-btn">添加或更新成员</button></div>
+      <label class="field"><span>账号</span><select id="member-user-id" required></select></label>
+      <label class="field"><span>笔记本权限</span><select id="member-role"><option value="viewer">查看者：阅读、提问</option><option value="editor">编辑者：另可导入文档</option></select></label>
+      <div class="key-config-actions"><button id="close-members" type="button">关闭</button><button type="submit" class="primary-btn">分享笔记本</button></div>
     </form>
   </dialog>
 
-  <dialog id="edit-notebook-dialog" class="key-config-dialog" aria-labelledby="edit-notebook-title">
-    <h2 id="edit-notebook-title">修改笔记本</h2>
-    <form id="edit-notebook-form">
-      <label class="field"><span>名称</span><input id="edit-notebook-name" maxlength="80" required></label>
-      <label class="field"><span>说明</span><input id="edit-notebook-description" maxlength="300"></label>
-      <p id="edit-notebook-status" role="status"></p>
-      <div class="key-config-actions"><button id="close-edit-notebook" type="button">关闭</button><button type="submit" class="primary-btn">保存</button></div>
-    </form>
-  </dialog>
-  <dialog id="archives-dialog" class="key-config-dialog" aria-labelledby="archives-title">
-    <h2 id="archives-title">已归档笔记本</h2>
-    <p>归档保留文档和成员权限，恢复后可继续使用。</p>
-    <p id="archives-status" role="status"></p><ul id="archives-list"></ul>
-    <button id="close-archives" type="button">关闭</button>
-  </dialog>
   <div id="workspace" class="workspace">
     <aside id="sources-panel" class="panel sources-panel" aria-label="来源">
       <header class="panel-header">
@@ -131,6 +119,9 @@
         </button>
         <div class="chat-heading"><h2>对话</h2><span id="current-summary" class="current-summary"></span></div>
         <div class="chat-actions">
+          <label id="guest-model-picker" class="guest-model-picker" hidden>
+            <span>本次回答模型</span><select id="guest-model-choice" aria-label="选择本次回答模型"></select>
+          </label>
           <span class="grounded-pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7"/></svg>基于来源</span>
           <button id="show-studio" class="icon-btn mobile-only" type="button" title="显示工作室">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM14 5v14"/></svg>
@@ -215,6 +206,7 @@
     </section>
   </div>
 
-  <script src="./static/knowledge_demo.js?v=notebook-db-20261011" defer></script>
+  <script src="./static/md-format.js?v=20261012" defer></script>
+  <script src="./static/knowledge_demo.js?v=guest-model-markdown-20261012" defer></script>
 </body>
 </html>

@@ -274,6 +274,9 @@ svg { display: block; fill: none; stroke: currentColor; stroke-linecap: round; s
 .chat-heading { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .current-summary { color: var(--ink-faint); font-size: 11px; white-space: nowrap; }
 .chat-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.guest-model-picker { display: flex; align-items: center; gap: 6px; color: var(--ink-muted); font-size: 11px; }
+.guest-model-picker select { max-width: 220px; min-width: 120px; padding: 6px 24px 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); font: inherit; }
+#guest-model-picker[hidden] { display: none; }
 .grounded-pill { color: #386590; background: #f3f7fd; border-color: #dde8f7; }
 .grounded-pill svg { width: 14px; height: 14px; }
 .chat-stage { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }

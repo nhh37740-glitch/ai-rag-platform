@@ -1,0 +1,9 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "RAGnotebook"
+version = "0.8.1"
+requires-python = ">=3.11"
+dependencies = ["fastapi", "uvicorn", "python-multipart", "core_specifications>=0.6.0", "agent_facade", "rag_facade", "data_facade", "auth_facade>=0.4.0", "observability"]

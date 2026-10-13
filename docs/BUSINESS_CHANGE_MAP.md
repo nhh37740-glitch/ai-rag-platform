@@ -1,16 +1,13 @@
-# RAG业务模块变更归属
+# RAG 业务模块变更归属
 
-任务：RAG-NOTEBOOK-20261011；日期：2026-10-11（北京时间）。正式索引；验收与发布状态见NOTEBOOK_ACCESS_VALIDATION.md。
+任务：RAG-NOTEBOOK-20261011；日期：2026-10-11（北京时间）。本表按当前 RAGnotebook 重构方案生效。
 
-| 用户能力 | 唯一业务归属 | 服务/接口实现位置 | 正式依据与状态 |
-| --- | --- | --- | --- |
-| 身份认证、普通登录用户、全局管理员证明 | auth-facade | AuthService → auth-runtime；admin_login可信会话；/api/auth/session | AUTH_INTERFACES；已实现待本轮回归 |
-| 笔记本viewer/editor/manager权限、成员管理、即时撤权 | auth-facade | NotebookStorePort；storage成员/角色/权限表；members API与Web成员界面 | NOTEBOOK_PERMISSIONS；关系表实现中 |
-| 笔记本目录、创建、改名、软归档/恢复、旧目录迁移 | data-facade | DataService目录方法 → storage NotebookStore；notebooks API及Web | NOTEBOOK_PERMISSIONS；关系表实现中 |
-| 全站每日20次规则 | auth-facade | DailyQueryQuota → StateStorePort；共享持久数据库；公开与成员入口同一计数 | OPENROUTER_RUNTIME；既有能力保持 |
-| 中文回答与只读工具执行、按笔记本隔离历史 | agent-facade | AgentService → agent-runtime语言和工具约束；chat/SSE适配 | DOMAIN_INTERFACES；已实现待回归 |
-| 当前授权笔记本内检索、引用和检索trace | rag-facade | RagService → rag-tools/rag-core；应用传已授权范围 | DOMAIN_INTERFACES；保持既有接口，回归越权 |
-| 模型环境配置、免费资格；计划provider/model目录管理 | agent-facade | resolve_model_config已提取既有策略；计划ModelCatalog业务接口与data-facade/storage表持久化；管理员HTTP/Web装配 | MODEL_CONFIGURATION；环境配置已归业务，目录/Web管理设计待实现 |
-| 管理员重置全站本地日额度与权限 | auth-facade | 计划额度重置业务接口；data-facade/storage计数与审计事务；管理员HTTP/Web | MODEL_CONFIGURATION；设计已写，待实现 |
+| 功能 | 业务模块 | 功能结果 |
+| --- | --- | --- |
+| 浏览器 HTTP 接口与网页 | `RAGnotebook` | 唯一浏览器入口和唯一后端进程；HTTP 路由只使用四个业务模块的公开接口。 |
+| 注册、登录、账号禁用、笔记本权限、全站额度 | `auth-facade` | 本地账号、进程内会话、即时有效状态检查；所有身份共用每日 100 次额度。 |
+| 关系数据、会话、记忆、模型配置及向量存储 | `data-facade` | 单个 SQLite 文件、六张固定表；统一提供读写接口。 |
+| 文档解析、切分、嵌入、入库、检索和 RAG 追踪 | `rag-facade` | `RAGnotebook` 经 `RagService` 完成上传和检索，不直接访问能力模块。 |
+| Agent 问答和 Provider/Model 管理 | `agent-facade` | 管理员切换服务端已配置模型；密钥不返回浏览器。 |
 
-每项验收、CHANGELOG和发布交接以业务模块为单位，再列支撑服务/接口。agent-server拥有HTTP身份上下文、请求校验、生命周期装配及响应转换，不拥有角色判定、语言策略或模型选择策略。apps/web按服务返回的权限显示操作，不能授予权限。storage不校验HTTP管理员；auth-runtime只验证证明，不依赖Agent/RAG/Data业务。模块归属不等于必须独立部署一个容器。
+笔记本所有者保存在 `notebooks.owner_user_id`，不是项目管理员或成员角色。成员角色仅 `editor`、`viewer`；游客可以 `viewer` 身份被分享，游客会话不保存。关系表和接口见 `specifications/DOMAIN_INTERFACES.md`、`specifications/AUTH_INTERFACES.md`。

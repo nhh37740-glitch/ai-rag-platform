@@ -1,0 +1,7 @@
+{
+  "module": "rag_facade",
+  "version": "0.3.1",
+  "public_api": [
+    "RagService"
+  ]
+}

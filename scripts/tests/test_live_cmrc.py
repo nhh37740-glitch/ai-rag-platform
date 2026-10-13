@@ -25,7 +25,7 @@ class LiveCmrcTests(unittest.IsolatedAsyncioTestCase):
         manifest = json.loads((kb / "knowledge-base-manifest.json").read_text(encoding="utf-8"))
         with tempfile.TemporaryDirectory() as temporary:
             ctx = RequestContext("live-import", "live-import")
-            data = DataService(temporary)
+            data = DataService(str(Path(temporary) / 'ragnotebook.sqlite'))
             tracing = make_trace_store()
             rag = RagService(data.vector_store(ctx), tracing)
             provider = make_provider(key, os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),

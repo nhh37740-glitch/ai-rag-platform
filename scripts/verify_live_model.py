@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "apps/agent-server"))
+sys.path.insert(0, str(ROOT / "apps/ragnotebook"))
 import runtime_boundary
 published = runtime_boundary.enforce_binary_runtime()
 for package in published:

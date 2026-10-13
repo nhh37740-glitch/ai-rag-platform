@@ -18,7 +18,7 @@ class DomainIntegrationTests(unittest.TestCase):
     def test_ingest_agent_trace_and_reopen(self):
         ctx = RequestContext("integration", "request", "user", "session")
         with tempfile.TemporaryDirectory() as temporary:
-            data = DataService(temporary)
+            data = DataService(str(Path(temporary) / 'ragnotebook.sqlite'))
             trace = make_trace_store()
             rag = RagService(data.vector_store(ctx), trace)
             agent = AgentService(data, rag, trace, str(ROOT / "skills"), make_provider())
@@ -35,7 +35,7 @@ class DomainIntegrationTests(unittest.TestCase):
             finally:
                 asyncio.run(agent.aclose(ctx))
                 data.close(ctx)
-            reopened = DataService(temporary)
+            reopened = DataService(str(Path(temporary) / 'ragnotebook.sqlite'))
             try:
                 rag = RagService(reopened.vector_store(ctx), trace)
                 result = rag.search(ctx, "Bearer", ["engineering"], mode="keyword")
@@ -56,7 +56,7 @@ class DomainIntegrationTests(unittest.TestCase):
         self.assertEqual(sum(len(doc["questions"]) for doc in manifest["documents"]), 99)
         ctx = RequestContext("cmrc-baseline", "baseline")
         with tempfile.TemporaryDirectory() as temporary:
-            data = DataService(temporary)
+            data = DataService(str(Path(temporary) / 'ragnotebook.sqlite'))
             rag = RagService(data.vector_store(ctx), make_trace_store())
             try:
                 for doc in manifest["documents"]:

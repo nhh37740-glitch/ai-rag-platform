@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rag_facade"
-version = "0.1.0"
+version = "0.3.2"
 requires-python = ">=3.11"
-dependencies = ["core_specifications", "rag_core", "rag_tools", "ingestion"]
+dependencies = ["observability>=0.1.0,<1", "core_specifications", "rag_core", "rag_tools", "ingestion"]
 
 [tool.setuptools]
 packages = ["rag_facade"]

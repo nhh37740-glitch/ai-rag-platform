@@ -3,24 +3,24 @@
   "modules": {
     "agent-facade": {
       "name": "agent_facade",
-      "version": "0.3.0",
-      "checksum": "b39f7614fe87c443eeee413243be2ad8b4098002efafecc6c6c05629b7b7b577",
-      "path": "artifacts/agent-facade/0.3.0",
-      "status": "published"
+      "version": "0.5.2",
+      "checksum": "5472076372b6a74f26686764a5cb82ded8501be92c16b3ae46e55f84e753f30c",
+      "path": "artifacts/agent-facade/0.5.2",
+      "status": "contract-only"
     },
     "agent-runtime": {
       "name": "agent_runtime",
-      "version": "0.5.0",
-      "checksum": "0dee01e0c1d3eee863a5c0526f4ff114b0b1fe07e330d398ed6c4faa53d1a874",
-      "path": "artifacts/agent-runtime/0.5.0",
-      "status": "published"
+      "version": "0.5.1",
+      "checksum": "2a91ead7e955d5db9338fa9b6440fdab2dba88636a21e4c3382d4cbab15d61b8",
+      "path": "artifacts/agent-runtime/0.5.1",
+      "status": "contract-only"
     },
     "data-facade": {
       "name": "data_facade",
-      "version": "0.2.0",
-      "checksum": "4963e9ada75873cfc4fb3e186bfd1a336a0c45d99c31445cb2b5b02c09ebd49f",
-      "path": "artifacts/data-facade/0.2.0",
-      "status": "published"
+      "version": "0.3.1",
+      "checksum": "5e674103a9ffddc0d60ba219499f3478400f0492012c273e52936250d0be50a9",
+      "path": "artifacts/data-facade/0.3.1",
+      "status": "contract-only"
     },
     "evaluation": {
       "name": "evaluation",
@@ -59,10 +59,10 @@
     },
     "memory": {
       "name": "memory",
-      "version": "0.2.0",
-      "checksum": "97df51d15a4c6e1ed8892662b4143c756cd8ff94335c3ce35905a33ced9e236c",
-      "path": "artifacts/memory/0.2.0",
-      "status": "published"
+      "version": "0.3.0",
+      "checksum": "9c2c53ae4566ecd0ff3dfadc43bf5d1af430635e7a46045696e6cb53fbae5ec3",
+      "path": "artifacts/memory/0.3.0",
+      "status": "contract-only"
     },
     "observability": {
       "name": "observability",
@@ -80,10 +80,10 @@
     },
     "rag-facade": {
       "name": "rag_facade",
-      "version": "0.1.0",
-      "checksum": "432fbd33e2eb9129eeb8cc6e3a82e0bc60249a6bbe9d32445618da4f7361fb35",
-      "path": "artifacts/rag-facade/0.1.0",
-      "status": "published"
+      "version": "0.3.2",
+      "checksum": "76f310e9ea1491f083b0f481dd54fe1f5142043b55d91efa9e643396fdda4b9c",
+      "path": "artifacts/rag-facade/0.3.2",
+      "status": "contract-only"
     },
     "rag-tools": {
       "name": "rag_tools",
@@ -101,10 +101,10 @@
     },
     "storage": {
       "name": "storage",
-      "version": "0.4.0",
-      "checksum": "a0b8ce5c82d9ab778f534acf62817c8ba1609c33af363aa08aae6ffcaef1d645",
-      "path": "artifacts/storage/0.4.0",
-      "status": "published"
+      "version": "0.5.1",
+      "checksum": "bb85d429ea87b8e96ddf9f8392244242fbd0f623c0dc9421c24fa4982a8d1731",
+      "path": "artifacts/storage/0.5.1",
+      "status": "contract-only"
     },
     "tool-runtime": {
       "name": "tool_runtime",
@@ -115,17 +115,17 @@
     },
     "auth-runtime": {
       "name": "auth_runtime",
-      "version": "0.4.0",
-      "checksum": "933daf64ad13f2183b88f1807cadd1ad01a955fc5c39a122e20a2db982af5a88",
-      "path": "artifacts/auth-runtime/0.4.0",
-      "status": "published"
+      "version": "0.5.0",
+      "checksum": "b2a81a15798e14fd0973c9353f37db89bc40b5f0e77fee16ec9ffcf3ec527c7c",
+      "path": "artifacts/auth-runtime/0.5.0",
+      "status": "contract-only"
     },
     "auth-facade": {
       "name": "auth_facade",
-      "version": "0.4.0",
-      "checksum": "a286a3de175007f040116dc034a18405b7122398096ee5d3d6e308e1bf5ee7c1",
-      "path": "artifacts/auth-facade/0.4.0",
-      "status": "published"
+      "version": "0.5.1",
+      "checksum": "44ce9e1cd9ac1ff7795a6963baa4c5c8685f1c7345d92060e8a1968db6ae238c",
+      "path": "artifacts/auth-facade/0.5.1",
+      "status": "contract-only"
     }
   }
 }

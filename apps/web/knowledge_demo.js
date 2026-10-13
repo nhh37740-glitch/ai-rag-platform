@@ -2,7 +2,7 @@
 // 检索范围永远只包含当前笔记本，不再存在"上一次还勾着"的残留状态。
 
 const $ = (id) => document.getElementById(id);
-// Relative API paths preserve the /projects/apps/rag/admin/ proxy boundary.
+// Every browser request stays on this RAGnotebook HTTP origin.
 const apiURL = (path) => new URL(path.replace(/^\//, ""), window.location.href);
 
 const dom = {
@@ -27,7 +27,6 @@ const dom = {
   toggleCreate: $("toggle-create"),
   createForm: $("create-notebook-form"),
   notebookName: $("notebook-name"),
-  notebookDescription: $("notebook-description"),
   uploadForm: $("upload-form"),
   openUpload: $("open-upload"),
   closeUpload: $("close-upload"),
@@ -47,13 +46,6 @@ const dom = {
   examples: $("examples"),
   form: $("f"),
   message: $("m"),
-  openKeyConfig: $("open-key-config"),
-  keyConfigDialog: $("key-config-dialog"),
-  keyConfigForm: $("key-config-form"),
-  keyConfigInput: $("key-config-input"),
-  keyConfigStatus: $("key-config-status"),
-  removeKeyConfig: $("remove-key-config"),
-  closeKeyConfig: $("close-key-config"),
 };
 
 const state = {
@@ -61,21 +53,26 @@ const state = {
   defaultIds: [],
   activeId: null,
   sessions: new Map(),
+  conversations: new Map(),
+  conversationListLoaded: false,
   transcripts: new Map(),
   drafts: new Map(),
   supported: [],
   busy: false,
   uploading: false,
   sourceDocuments: [],
-  deepseekKey: "",
-  serverKeyConfigured: false,
   principal: null,
+  guestModelProvider: "",
+  guestModelId: "",
+  guestModels: [],
+  guestModelLoading: false,
+  guestModelsLoaded: false,
 };
 
 function permitted(permission) {
   const principal = state.principal;
   if (!principal || !["admin", "user", "guest"].includes(principal.role)) return false;
-  if (["import_document", "write", "manage_members", "manage_notebook", "archive_notebook"].includes(permission)) {
+  if (["import_document", "write", "manage_members"].includes(permission)) {
     return activeNotebook()?.permissions?.includes(permission) === true;
   }
   return principal.permissions?.includes(permission) === true;
@@ -84,69 +81,87 @@ function permitted(permission) {
 function applyPermissions() {
   const principal = state.principal;
   const administrator = principal?.role === "admin" && principal.administrator === true;
-  $("workspace-mode-label").textContent = administrator ? "管理员工作区" : principal?.role === "user" ? "成员工作区" : principal ? "游客 · 公开资料" : "身份未确认";
-  $("admin-identity").textContent = principal?.role !== "guest" && principal ? Array.from(principal.user_id)[0] : principal ? "客" : "…";
-  $("admin-identity").title = principal?.role !== "guest" && principal ? `用户ID：${principal.user_id}（添加成员时使用）` : "游客只能阅读公开文档和提问";
+  if (principal?.role !== "guest") {
+    state.guestModelProvider = "";
+    state.guestModelId = "";
+    state.guestModels = [];
+    state.guestModelsLoaded = false;
+  }
+  $("workspace-mode-label").textContent = administrator ? "管理员" : principal?.role === "user" ? "已登录" : principal ? "游客 · 公开资料" : "身份未确认";
+  $("admin-identity").textContent = principal?.role !== "guest" && principal ? Array.from(principal.user_id || "U")[0] : principal ? "客" : "…";
+  $("admin-identity").title = principal?.role !== "guest" && principal ? `用户ID：${principal.user_id}` : "游客只能读取公开资料和提问";
   $("admin-logout").hidden = !principal || principal.role === "guest";
-  $("admin-login-link").hidden = Boolean(principal && principal.role !== "guest");
-  $("admin-login-link").href = new URL("admin/login/", new URL("../", window.location.href)).href;
+  $("auth-open").hidden = Boolean(principal && principal.role !== "guest");
+  $("open-admin-users").hidden = !administrator;
+  $("open-model-admin").hidden = !administrator;
+  $("guest-model-picker").hidden = principal?.role !== "guest" || state.guestModels.length === 0;
+  updateWebQuota(state.webQuota);
+  if (principal?.role === "guest" && !state.guestModelsLoaded && !state.guestModelLoading) {
+    loadGuestModels().catch(() => { $("server-model-status").textContent = "游客模型目录暂不可用"; });
+  }
   dom.toggleCreate.hidden = !permitted("create_notebook");
   dom.toggleCreate.disabled = !permitted("create_notebook");
   if (!permitted("create_notebook")) dom.createForm.hidden = true;
   dom.openUpload.hidden = !permitted("import_document");
   $("open-members").hidden = !permitted("manage_members");
-  $("edit-notebook").hidden = !permitted("manage_notebook");
-  $("archive-notebook").hidden = !permitted("archive_notebook");
-  $("open-archives").hidden = !administrator;
   dom.studioNotes.closest(".notes-card").hidden = !permitted("write");
   dom.message.disabled = !permitted("query");
   dom.form.querySelector('button[type="submit"]').disabled = !permitted("query");
   updateUploadState();
-  updateKeyStatus();
 }
 
 async function apiFetch(path, options = {}) {
   const response = await fetch(apiURL(path), { credentials: "same-origin", cache: "no-store", ...options });
   if (response.status === 401) {
     state.principal = null;
-    state.deepseekKey = "";
-    dom.keyConfigInput.value = "";
     applyPermissions();
-    setStatus(dom.notebookStatus, "登录已失效，请重新登录工作区。", "error");
+    setStatus(dom.notebookStatus, "登录已失效，请重新登录。", "error");
   }
   return response;
-}
-
-function canEnterWebKey() {
-  const host = window.location.hostname.toLowerCase();
-  const loopback = host === "localhost" || host.endsWith(".localhost") || host === "[::1]" ||
-    /^127(?:\.[0-9]{1,3}){3}$/.test(host);
-  return window.location.protocol === "https:" || (window.location.protocol === "http:" && loopback);
-}
-
-function updateKeyStatus() {
-  if (!canEnterWebKey()) {
-    dom.keyConfigStatus.textContent = "当前地址未使用 HTTPS；个人密钥输入已禁用。";
-    dom.openKeyConfig.textContent = "模型设置 · 需 HTTPS";
-    dom.openKeyConfig.disabled = true;
-    return;
-  }
-  dom.openKeyConfig.disabled = !permitted("query");
-  const status = state.deepseekKey
-    ? "已配置本页密钥（内容隐藏，刷新后清除）"
-    : state.serverKeyConfigured
-      ? "本页未设置密钥；正在使用服务器配置"
-      : "未配置密钥；使用离线演示模型";
-  dom.keyConfigStatus.textContent = status + (state.modelProvider === "openrouter" ? " · 仅使用 OpenRouter 免费模型" : "");
-  dom.openKeyConfig.textContent = state.modelProvider === "openrouter" ? "OpenRouter · 免费模型" : state.deepseekKey ? "模型 · 已配置" : "模型设置";
 }
 
 function updateWebQuota(quota) {
   state.webQuota = quota;
   const label = $("web-quota");
   label.hidden = !quota;
-  if (quota) label.textContent = `全站今日剩余 ${quota.remaining}/${quota.limit} 次 · 北京时间零点恢复`;
+  if (quota) label.textContent = state.principal?.role === "guest"
+    ? `游客可用：全站今日剩余 ${quota.remaining}/${quota.limit} 次 · 北京时间零点恢复`
+    : `全站今日剩余 ${quota.remaining}/${quota.limit} 次 · 北京时间零点恢复`;
 }
+
+async function loadGuestModels(force = false) {
+  if (state.principal?.role !== "guest" || state.guestModelLoading) return;
+  if (state.guestModelsLoaded && !force) return;
+  state.guestModelLoading = true;
+  try {
+    const response = await apiFetch("/api/models/guest", { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "模型目录暂不可用");
+    if (state.principal?.role !== "guest") return;
+    const select = $("guest-model-choice");
+    const previous = state.guestModelProvider === payload.provider_id ? state.guestModelId : "";
+    state.guestModelProvider = payload.provider_id;
+    state.guestModels = payload.models || [];
+    select.replaceChildren();
+    for (const model of state.guestModels) {
+      const option = document.createElement("option");
+      option.value = model.id || model.model_id;
+      option.textContent = model.name || option.value;
+      select.append(option);
+    }
+    const preferred = state.guestModels.some((item) => (item.id || item.model_id) === previous)
+      ? previous : payload.default_model_id;
+    if (preferred && state.guestModels.some((item) => (item.id || item.model_id) === preferred)) select.value = preferred;
+    state.guestModelId = select.value || "";
+    $("guest-model-picker").hidden = state.principal?.role !== "guest" || state.guestModels.length === 0;
+    state.guestModelsLoaded = true;
+  } finally {
+    state.guestModelLoading = false;
+  }
+}
+
+$("guest-model-choice").onchange = () => { state.guestModelId = $("guest-model-choice").value; };
+$("guest-model-choice").onfocus = () => { loadGuestModels(true).catch(() => {}); };
 
 // ---------------------------------------------------------------- 小工具
 
@@ -187,7 +202,7 @@ function escapeHtml(value) {
 }
 
 function formatAnswer(text) {
-  return escapeHtml(text).replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+  return typeof renderMarkdown === "function" ? renderMarkdown(text) : escapeHtml(text);
 }
 
 function scrollToBottom() {
@@ -472,6 +487,34 @@ async function loadSuggestions(notebookId) {
   }
 }
 
+async function restorePersistentConversation(notebookId) {
+  if (!state.principal || state.principal.role === "guest") return;
+  try {
+    if (!state.conversationListLoaded) {
+      const response = await apiFetch("/api/conversations");
+      if (!response.ok) throw new Error("会话列表加载失败");
+      const payload = await response.json();
+      state.savedConversations = payload.conversations || [];
+      state.conversationListLoaded = true;
+    }
+    const match = (state.savedConversations || []).find((item) => {
+      let scope = item.notebook_id;
+      try { if (typeof scope === "string") scope = JSON.parse(scope); } catch { return false; }
+      return Array.isArray(scope) && scope.length === 1 && scope[0] === notebookId;
+    });
+    if (!match) return;
+    state.conversations.set(notebookId, match.id);
+    const messages = Array.isArray(match.messages) ? match.messages : [];
+    state.transcripts.set(notebookId, messages.map((message) => ({
+      role: message.role === "assistant" ? "agent" : "user",
+      text: message.content || "",
+      traceId: message.trace_id || "",
+    })));
+  } catch (error) {
+    setStatus(dom.notebookStatus, `历史会话加载失败：${error.message}`, "error");
+  }
+}
+
 async function setActiveNotebook(notebookId) {
   const previous = state.activeId;
   if (previous && previous !== notebookId) {
@@ -479,6 +522,7 @@ async function setActiveNotebook(notebookId) {
   }
 
   state.activeId = notebookId;
+  if (notebookId) await restorePersistentConversation(notebookId);
   applyPermissions();
   state.sourceDocuments = [];
   dom.sourceSearch.value = "";
@@ -552,29 +596,37 @@ async function send(question) {
   dom.message.value = "";
   state.drafts.set(notebookId, "");
 
-  // 密钥只进入此 POST 请求头；不放入 URL、浏览器持久存储或聊天正文。
   try {
     const headers = { "Content-Type": "application/json" };
-    if (canEnterWebKey() && state.deepseekKey) headers["X-DeepSeek-Api-Key"] = state.deepseekKey;
     const authenticated = ["admin", "user"].includes(state.principal.role);
-    const response = await apiFetch(authenticated ? "/api/chat" : "/api/demo/chat", {
+    const response = await apiFetch("/api/chat", {
       method: "POST",
       headers,
       cache: "no-store",
-      body: JSON.stringify(authenticated ? {
+      body: JSON.stringify({
         message: text,
         session_id: sessionId,
+        conversation_id: authenticated ? state.conversations.get(notebookId) || "" : "",
         knowledge_base_ids: [notebookId],
-      } : { question: text }),
+        ...(state.principal.role === "guest" && state.guestModelId
+          ? { model_id: state.guestModelId, catalog_provider_id: state.guestModelProvider }
+          : {}),
+      }),
     });
     const result = await response.json();
+    if (response.status === 409 && state.principal?.role === "guest") {
+      state.guestModelsLoaded = false;
+      await loadGuestModels(true);
+    }
     if (result.quota || result.detail?.quota) updateWebQuota(result.quota || result.detail.quota);
     if (!response.ok) throw new Error(result.detail?.message || (typeof result.detail === "string" ? result.detail : `请求失败（${response.status}）`));
+    if (result.conversation_id) state.conversations.set(notebookId, result.conversation_id);
     pending.pending = false;
     pending.text = result.answer || "(空回答)";
     pending.traceId = result.trace_id || "";
     renderTranscript();
     scrollToBottom();
+    if (authenticated) state.conversationListLoaded = false;
     loadNotebooks(notebookId).catch(() => {});
   } catch (error) {
     pending.pending = false;
@@ -592,40 +644,23 @@ dom.form.onsubmit = (event) => {
   send(dom.message.value);
 };
 
-dom.openKeyConfig.onclick = () => {
-  if (!canEnterWebKey() || !permitted("query")) return;
-  updateKeyStatus();
-  dom.keyConfigDialog.showModal();
-};
-dom.closeKeyConfig.onclick = () => dom.keyConfigDialog.close();
-dom.keyConfigForm.onsubmit = (event) => {
-  event.preventDefault();
-  if (!canEnterWebKey() || !permitted("query")) return;
-  const key = dom.keyConfigInput.value.trim();
-  if (!key || key.length > 512) {
-    dom.keyConfigStatus.textContent = "请输入有效的密钥（最多 512 个字符）";
-    return;
-  }
-  state.deepseekKey = key;
-  dom.keyConfigInput.value = "";
-  updateKeyStatus();
-  dom.keyConfigDialog.close();
-};
-dom.removeKeyConfig.onclick = () => {
-  state.deepseekKey = "";
-  dom.keyConfigInput.value = "";
-  updateKeyStatus();
-};
-apiFetch("/api/llm/config", { cache: "no-store" })
+function refreshPublicStatus() {
+  return apiFetch("/api/llm/config", { cache: "no-store" })
   .then((response) => response.ok ? response.json() : Promise.reject())
   .then((config) => {
-    state.serverKeyConfigured = Boolean(config.server_key_configured);
     state.modelProvider = config.provider;
     updateWebQuota(config.quota);
-    updateKeyStatus();
+    $("server-model-status").textContent = `模型：${config.provider || "Mock"} · ${config.model || "默认"}`;
   })
-  .catch(() => {});
-updateKeyStatus();
+  .catch(() => { $("server-model-status").textContent = "模型配置暂不可用"; });
+}
+
+refreshPublicStatus();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  refreshPublicStatus();
+  loadGuestModels(true).catch(() => {});
+});
 
 dom.message.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
@@ -751,7 +786,6 @@ dom.createForm.onsubmit = async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
-        description: dom.notebookDescription.value.trim(),
       }),
     });
     const result = await response.json();
@@ -845,12 +879,17 @@ $("admin-identity").onclick = async () => {
 
 // 笔记本成员以已登录账号的用户 ID 识别。
 async function loadMembers(notebookId) {
-  const response = await apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/members`);
+  const [response, targetResponse] = await Promise.all([apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/members`), apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/share-targets`)]);
   const payload = await response.json();
+  const targetsPayload = await targetResponse.json();
   if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "成员加载失败");
+  if (!targetResponse.ok) throw new Error(typeof targetsPayload.detail === "string" ? targetsPayload.detail : "可分享账号加载失败");
+  const targetSelect = $("member-user-id");
+  targetSelect.replaceChildren();
+  for (const target of (targetsPayload.users || [])) { const option = document.createElement("option"); option.value = target.id; option.textContent = target.username || target.id; targetSelect.append(option); }
   const list = $("members-list");
   list.replaceChildren();
-  const labels = {viewer: "查看者", editor: "编辑者", manager: "管理者"};
+  const labels = {viewer: "查看者", editor: "编辑者"};
   for (const member of payload.members) {
     const row = document.createElement("li");
     const label = document.createElement("span");
@@ -882,7 +921,7 @@ $("open-members").onclick = async () => {
   if (!permitted("manage_members")) return;
   const notebookId = state.activeId;
   $("members-dialog").dataset.notebookId = notebookId;
-  $("members-status").textContent = "请输入已登录过RAG的账号用户ID；同一用户在不同笔记本可有不同权限。";
+  $("members-status").textContent = "选择账号并设置其在本笔记本中的权限。";
   $("members-dialog").showModal();
   try { await loadMembers(notebookId); }
   catch (error) { $("members-status").textContent = error.message; }
@@ -895,87 +934,17 @@ $("member-form").onsubmit = async (event) => {
   const button = event.submitter;
   if (button) button.disabled = true;
   try {
-    const userId = $("member-user-id").value.trim();
+    const userId = $("member-user-id").value;
     const response = await apiFetch(`/api/notebooks/${encodeURIComponent(notebookId)}/members/${encodeURIComponent(userId)}`, {
       method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify({role: $("member-role").value}),
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "成员设置失败");
-    $("members-status").textContent = "成员权限已保存。";
+    $("members-status").textContent = "笔记本访问权限已保存。";
     await loadMembers(notebookId);
   } catch (error) { $("members-status").textContent = error.message; }
   finally { if (button) button.disabled = false; }
 };
-
-// 笔记本目录操作由 DataService 业务接口保存；浏览器只发HTTP请求。
-$("edit-notebook").onclick = () => {
-  if (!permitted("manage_notebook")) return;
-  const book = activeNotebook();
-  $("edit-notebook-dialog").dataset.notebookId = book.id;
-  $("edit-notebook-name").value = book.name;
-  $("edit-notebook-description").value = book.description || "";
-  $("edit-notebook-status").textContent = "";
-  $("edit-notebook-dialog").showModal();
-};
-$("close-edit-notebook").onclick = () => $("edit-notebook-dialog").close();
-$("edit-notebook-form").onsubmit = async (event) => {
-  event.preventDefault();
-  const id = $("edit-notebook-dialog").dataset.notebookId;
-  if (id !== state.activeId || !permitted("manage_notebook")) return;
-  const button = event.submitter;
-  if (button) button.disabled = true;
-  try {
-    const response = await apiFetch(`/api/notebooks/${encodeURIComponent(id)}`, {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:$("edit-notebook-name").value.trim(),description:$("edit-notebook-description").value.trim()})});
-    const data = await response.json();
-    if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "修改失败");
-    $("edit-notebook-dialog").close();
-    await loadNotebooks(id);
-  } catch (error) { $("edit-notebook-status").textContent = error.message; }
-  finally { if (button) button.disabled = false; }
-};
-$("archive-notebook").onclick = async () => {
-  if (!permitted("archive_notebook") || state.busy || state.uploading) return;
-  const id = state.activeId;
-  $("archive-notebook").disabled = true;
-  try {
-    const response = await apiFetch(`/api/notebooks/${encodeURIComponent(id)}/archive`, {method:"POST"});
-    if (!response.ok) throw new Error("归档失败或权限已变更");
-    await loadNotebooks(state.defaultIds[0]);
-    setStatus(dom.notebookStatus,"笔记本已归档，可在「已归档」中恢复。","success");
-  } catch (error) { setStatus(dom.notebookStatus,error.message,"error"); }
-  finally { $("archive-notebook").disabled = false; }
-};
-async function loadArchives() {
-  const response = await apiFetch("/api/notebooks?include_archived=true");
-  if (!response.ok) throw new Error("归档目录加载失败");
-  const books = (await response.json()).notebooks.filter(book => book.archived);
-  const list = $("archives-list");
-  list.replaceChildren();
-  $("archives-status").textContent = books.length ? "" : "暂无归档笔记本。";
-  for (const book of books) {
-    const row = document.createElement("li");
-    const label = document.createElement("span");
-    label.textContent = `${book.name} · ${book.document_count} 篇来源 `;
-    const button = document.createElement("button");
-    button.type = "button"; button.textContent = "恢复";
-    button.onclick = async () => {
-      button.disabled = true;
-      try {
-        const result = await apiFetch(`/api/notebooks/${encodeURIComponent(book.id)}/restore`,{method:"POST"});
-        if (!result.ok) throw new Error("恢复失败或权限已变更");
-        await loadNotebooks(); await loadArchives();
-      } catch (error) { $("archives-status").textContent = error.message; }
-      finally { button.disabled = false; }
-    };
-    row.append(label,button); list.append(row);
-  }
-}
-$("open-archives").onclick = async () => {
-  if (state.principal?.role !== "admin") return;
-  $("archives-dialog").showModal();
-  try { await loadArchives(); } catch (error) { $("archives-status").textContent = error.message; }
-};
-$("close-archives").onclick = () => $("archives-dialog").close();
 
 // ---------------------------------------------------------------- 启动
 
@@ -993,24 +962,49 @@ apiFetch("/api/auth/session")
     setStatus(dom.notebookStatus, error.message, "error");
   });
 
-$("admin-logout").onclick = async () => {
-  const button = $("admin-logout");
-  button.disabled = true;
+$("auth-open").onclick = () => { $("auth-status").textContent = ""; $("auth-dialog").showModal(); };
+$("auth-close").onclick = () => $("auth-dialog").close();
+let registerMode = false;
+$("auth-mode-toggle").onclick = () => {
+  registerMode = !registerMode;
+  $("auth-title").textContent = registerMode ? "创建 RAGnotebook 账号" : "登录 RAGnotebook";
+  $("auth-submit").textContent = registerMode ? "注册并登录" : "登录";
+  $("auth-mode-toggle").textContent = registerMode ? "返回登录" : "创建账号";
+  $("auth-password").autocomplete = registerMode ? "new-password" : "current-password";
+};
+$("auth-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const username = $("auth-username").value.trim();
+  const password = $("auth-password").value;
+  const button = $("auth-submit"); button.disabled = true;
   try {
-    const auth = new URL("./auth/", window.location.href);
-    const csrfResponse = await fetch(new URL("csrf", auth), { cache: "no-store" });
-    const csrf = await csrfResponse.json();
-    if (!csrfResponse.ok) throw new Error(csrf.detail || "退出登录失败。");
-    const response = await fetch(new URL("logout", auth), {
-      method: "POST", headers: { [csrf.headerName]: csrf.token },
-    });
+    if (registerMode) {
+      const registered = await apiFetch("/api/auth/register", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password})});
+      const registration = await registered.json();
+      if (!registered.ok) throw new Error(typeof registration.detail === "string" ? registration.detail : "注册失败");
+    }
+    const response = await apiFetch("/api/auth/login", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password})});
+    const payload = await response.json();
+    if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "登录失败");
+    $("auth-dialog").close(); $("auth-password").value = "";
+    state.principal = null; state.conversationListLoaded = false; state.conversations.clear(); state.savedConversations = [];
+    state.transcripts.clear(); state.sessions.clear(); state.drafts.clear();
+    const sessionResponse = await apiFetch("/api/auth/session");
+    state.principal = await sessionResponse.json(); applyPermissions(); refreshPublicStatus(); await loadNotebooks(state.activeId || "");
+  } catch (error) { $("auth-status").textContent = error.message; }
+  finally { button.disabled = false; }
+};
+$("admin-logout").onclick = async () => {
+  const button = $("admin-logout"); button.disabled = true;
+  try {
+    const response = await apiFetch("/api/auth/logout", {method:"POST"});
     if (!response.ok) throw new Error("退出登录失败，请稍后重试。");
-    state.deepseekKey = "";
-    window.location.assign(new URL("./login/", window.location.href));
-  } catch (error) {
-    setStatus(dom.notebookStatus, error.message, "error");
-    button.disabled = false;
-  }
+    state.principal = null; state.conversationListLoaded = false; state.conversations.clear(); state.savedConversations = [];
+    state.transcripts.clear(); state.sessions.clear(); state.drafts.clear();
+    const session = await apiFetch("/api/auth/session"); state.principal = await session.json();
+    applyPermissions(); refreshPublicStatus(); await loadNotebooks(state.defaultIds[0] || "cmrc2018-demo");
+  } catch (error) { setStatus(dom.notebookStatus, error.message, "error"); }
+  finally { button.disabled = false; }
 };
 
 apiFetch("/api/demo")
@@ -1025,9 +1019,68 @@ apiFetch("/api/demo")
     dom.demoStatus.textContent = "演示知识库状态不可用";
   });
 
-window.addEventListener("pagehide", () => {
-  state.deepseekKey = "";
-  dom.keyConfigInput.value = "";
-  updateKeyStatus();
-});
 applyPermissions();
+
+
+async function loadAdminUsers() {
+  const response = await apiFetch("/api/admin/users");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "账号列表加载失败");
+  const list = $("admin-users-list"); list.replaceChildren();
+  for (const user of (payload.users || [])) {
+    const row = document.createElement("li");
+    const label = document.createElement("span"); label.textContent = `${user.username || user.user_id} · ${user.is_active === false || user.active === false ? "已停用" : "正常"}`;
+    const button = document.createElement("button"); button.type = "button"; button.textContent = user.is_active === false || user.active === false ? "启用" : "停用";
+    button.onclick = async () => {
+      button.disabled = true;
+      try {
+        const response = await apiFetch(`/api/admin/users/${encodeURIComponent(user.user_id || user.id)}`, {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({active:user.is_active === false || user.active === false})});
+        if (!response.ok) throw new Error("账号状态更新失败");
+        await loadAdminUsers();
+      } catch (error) { $("admin-users-status").textContent = error.message; }
+      finally { button.disabled = false; }
+    };
+    row.append(label,button); list.append(row);
+  }
+}
+$("open-admin-users").onclick = async () => {
+  if (state.principal?.role !== "admin") return;
+  $("admin-users-status").textContent = ""; $("admin-users-dialog").showModal();
+  try { await loadAdminUsers(); } catch (error) { $("admin-users-status").textContent = error.message; }
+};
+$("close-admin-users").onclick = () => $("admin-users-dialog").close();
+async function loadModels(providerId = "") {
+  const providerSelect = $("model-provider");
+  if (!providerSelect.options.length) {
+    const response = await apiFetch("/api/models/providers"); const payload = await response.json();
+    if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "Provider 列表加载失败");
+    for (const provider of payload.providers || []) {
+      const option = document.createElement("option"); option.value = provider.id || provider.provider_id; option.textContent = provider.name || option.value; providerSelect.append(option);
+    }
+  }
+  if (providerId) providerSelect.value = providerId;
+  const current = providerSelect.value;
+  const response = await apiFetch(`/api/models/${encodeURIComponent(current)}`); const payload = await response.json();
+  if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "Model 列表加载失败");
+  const modelSelect = $("model-choice"); modelSelect.replaceChildren();
+  for (const model of payload.models || []) { const option = document.createElement("option"); option.value = model.id || model.model_id; option.textContent = model.name || option.value; modelSelect.append(option); }
+  const settingsResponse = await apiFetch("/api/models/settings");
+  if (settingsResponse.ok) { const settings = await settingsResponse.json(); if (settings.provider_id === current) modelSelect.value = settings.model_id; }
+}
+$("open-model-admin").onclick = async () => {
+  if (state.principal?.role !== "admin") return;
+  $("model-admin-status").textContent = ""; $("model-admin-dialog").showModal();
+  try { await loadModels(); } catch (error) { $("model-admin-status").textContent = error.message; }
+};
+$("model-provider").onchange = () => loadModels().catch((error) => { $("model-admin-status").textContent = error.message; });
+$("close-model-admin").onclick = () => $("model-admin-dialog").close();
+$("model-admin-form").onsubmit = async (event) => {
+  event.preventDefault(); const button = event.submitter; if (button) button.disabled = true;
+  try {
+    const response = await apiFetch("/api/models/settings", {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({provider_id:$("model-provider").value,model_id:$("model-choice").value})});
+    const payload = await response.json(); if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "模型设置未保存");
+    $("model-admin-status").textContent = "已应用，后续问答将使用此模型。";
+    const configResponse = await apiFetch("/api/llm/config"); if (configResponse.ok) { const config = await configResponse.json(); state.modelProvider = config.provider; $("server-model-status").textContent = `模型：${config.provider || "Mock"} · ${config.model || "默认"}`; }
+  } catch (error) { $("model-admin-status").textContent = error.message; }
+  finally { if (button) button.disabled = false; }
+};

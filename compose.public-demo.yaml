@@ -19,19 +19,16 @@ services:
     # Runtime credentials are separate from Jenkins build credentials.
     env_file:
       - ${PUBLIC_DEMO_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
+      - ${RAG_BOOTSTRAP_ENV_FILE:-/home/ubuntu/.config/ai-rag/bootstrap-admin.env}
     environment:
       PUBLIC_DEMO: "1"
       DEMO_PROVIDER: ${PUBLIC_DEMO_PROVIDER:-openrouter}
       LLM_PROVIDER: ${PUBLIC_DEMO_PROVIDER:-openrouter}
       RAG_EMBED: hash
       STATE_DIR: /opt/agent/state
-      WEB_QUOTA_STATE_DIR: /opt/agent/web-quota
     volumes:
-      - public-demo-state:/opt/agent/state
-      - web-quota:/opt/agent/web-quota
+      - ragnotebook-public-state:/opt/agent/state
 
 volumes:
-  public-demo-state:
-  web-quota:
-    external: true
-    name: ai-rag-web-quota
+  ragnotebook-public-state:
+    name: ${PUBLIC_STATE_VOLUME_NAME:-ai-rag-public-ragnotebook-state}

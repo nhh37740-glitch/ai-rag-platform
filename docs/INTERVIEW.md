@@ -44,7 +44,7 @@ sequenceDiagram
 
 | 阅读顺序 | 去哪里找 | 必须回答的一个问题 |
 |---|---|---|
-| 1 | [server.py](../apps/agent-server/server.py)，找 `chat`、`runtime = AgentRuntime` | 请求有哪些字段，模型/记忆/工具在哪里装配？ |
+| 1 | [server.py](../apps/ragnotebook/server.py)，找 `chat`、`runtime = AgentRuntime` | 请求有哪些字段，模型/记忆/工具在哪里装配？ |
 | 2 | [agent_runtime](../modules-src/agent-runtime/agent_runtime/__init__.py)，找 `run` | 第一次给模型什么，为什么收到工具调用后还要再调模型？ |
 | 3 | [llm_gateway](../modules-src/llm-gateway/llm_gateway/__init__.py)，找 `generate` | tool_calls 如何从 HTTP JSON 变成 ToolCall？ |
 | 4 | [tool_runtime](../modules-src/tool-runtime/tool_runtime/__init__.py)，找 `execute` | 模型只能返回参数，真正执行函数的是谁？ |
@@ -189,7 +189,7 @@ $env:RAG_EMBED = 'hash'
 # 应用测试在独立进程中使用临时状态，避免覆盖已有数据库；不影响模型密钥文件。
 $env:STATE_DIR = Join-Path $env:TEMP ('dev-agent-interview-' + [guid]::NewGuid().ToString('N'))
 $env:DEEPSEEK_API_KEY = ''
-.\.venv\Scripts\python.exe -m pytest apps/agent-server/tests/test_cmrc2018_demo_workflow.py -q
+.\.venv\Scripts\python.exe -m pytest apps/ragnotebook/tests/test_cmrc2018_demo_workflow.py -q
 ```
 
 执行测试后关闭这个终端，避免 hash/空 key/临时状态环境设置影响正式演示。应用测试在某些情况下可能建立临时用户笔记本，现有测试会清理；本轮运行后 Git 工作区只出现文档改动。
@@ -207,7 +207,7 @@ $env:DEEPSEEK_API_KEY = ''
 
 问到取舍时说明：固定问题、单并发和五分钟缓存控制公开演示范围；缓存复用原答案和原 trace，不算本次模型调用。hash 便于小服务器启动，不能代表中文语义向量质量。命中来源证明检索执行过，尚不证明答案每句话都有证据支持。
 
-练习时先自己指着页面说出请求路径，再打开 `apps/agent-server/public_demo.py` 的 `chat()` 与 `_has_retrieval()` 核对。至少亲手修改一个显示文案或固定问题后的校验，解释修改为何通过或被拒绝；个人贡献仍应按实际参与描述。
+练习时先自己指着页面说出请求路径，再打开 `apps/ragnotebook/public_demo.py` 的 `chat()` 与 `_has_retrieval()` 核对。至少亲手修改一个显示文案或固定问题后的校验，解释修改为何通过或被拒绝；个人贡献仍应按实际参与描述。
 
 一个实际排障例子也可以拿来学习：Jenkins #9 的候选问答通过，但发布失败。脚本导出的模式和配置路径被 sudo 清除，Compose 使用了默认 DeepSeek 配置；修复在 `deploy_public_demo.sh` 的 `compose()` 中显式转交两个非敏感变量，并让回滚测试的 sudo 替身真的清理环境。你要能解释“为什么候选通过、正式切换却失败”和“测试为什么漏掉了它”。这是本轮 AI 辅助处理的记录，只有自己读懂并复核以后才能按实际参与程度讲述。
 

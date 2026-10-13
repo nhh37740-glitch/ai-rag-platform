@@ -1,18 +1,22 @@
-# auth-facade
+## 0.5.1 - 2026-10-13
+
+- Reject a missing login account even when dummy password verification succeeds.
+
+# auth-facade Changelog
+
+## 0.5.0 — 2026-10-11
+- Add bootstrap admin and fixed guest creation, registration, login, process-local sessions, logout, and active-account checks.
+- Replace proxy/role-store policies with owner/editor/viewer authorization and share targets.
+- Add administrator account controls, model-management permission, and persistent 100-query site quota.
 
 ## 0.4.0 — 2026-10-11
-
-成员授权改用NotebookStorePort关系表；按资源角色权限决策，事务版本冲突后重新授权；新增manage_notebook及管理员归档/恢复权限，保留全站20次策略。
-
-# Changelog
-
-## [0.2.0]
-- Add site-wide DailyQueryQuota policy with Beijing-midnight reset and injected atomic persistence.
-
-## [0.1.0]
-- Extract guest/admin permission and notebook visibility policy into auth-facade.
-- Delegate identity and proxy-proof validation to auth-runtime.
+- Move notebook members to NotebookStorePort and add notebook metadata permissions.
 
 ## 0.3.0 — 2026-10-11
+- Add persistent notebook member roles and permission checks.
 
-- 新增持久笔记本成员角色、权限检查和增改删；普通用户范围由成员策略授权。
+## 0.2.0
+- Add site-wide daily query quota.
+
+## 0.1.0
+- Extract guest/admin policy from the application.

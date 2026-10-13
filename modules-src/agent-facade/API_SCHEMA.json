@@ -1,7 +1,7 @@
 {
   "package": "agent_facade",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.3.0",
+  "version": "0.5.2",
   "facade": {
     "make_provider": {
       "kind": "function",
@@ -18,10 +18,11 @@
       "init": {
         "data": "DataServicePort",
         "rag": "RagServicePort",
-        "tracing": "TraceStorePort",
+        "tracing": "TraceStorePort|null",
         "skill_dir": "str",
         "provider": "LLMProviderPort|null",
-        "max_tool_rounds": "int=10"
+        "max_tool_rounds": "int=10",
+        "environment": "dict[str,str]|null"
       },
       "methods": {
         "run": {
@@ -29,7 +30,11 @@
             "ctx": "RequestContext",
             "user_input": "str",
             "knowledge_base_ids": "list[str]|null",
-            "allow_write_tools": "bool"
+            "allow_write_tools": "bool",
+            "model_id": "str|null",
+            "expected_provider_id": "str|null",
+            "history": "list[dict]|null",
+            "memory_enabled": "bool"
           },
           "returns": "str",
           "async": true
@@ -61,6 +66,42 @@
           },
           "returns": "None",
           "async": true
+        },
+        "list_model_providers": {
+          "params": {
+            "ctx": "RequestContext",
+            "environment": "dict[str,str]"
+          },
+          "returns": "list[dict]"
+        },
+        "list_models": {
+          "params": {
+            "ctx": "RequestContext",
+            "provider_id": "str",
+            "environment": "dict[str,str]"
+          },
+          "returns": "list[dict]"
+        },
+        "get_model_settings": {
+          "params": {
+            "ctx": "RequestContext"
+          },
+          "returns": "dict"
+        },
+        "update_model_settings": {
+          "params": {
+            "ctx": "RequestContext",
+            "provider_id": "str",
+            "model_id": "str"
+          },
+          "returns": "dict"
+        },
+        "enable_write_tools": {
+          "params": {
+            "ctx": "RequestContext",
+            "files_dir": "str"
+          },
+          "returns": "None"
         }
       }
     },

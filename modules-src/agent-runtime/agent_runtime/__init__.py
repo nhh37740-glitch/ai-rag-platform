@@ -10,7 +10,7 @@ from observability import ASpan
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 ANSWER_LANGUAGE_POLICY = (
     "回答语言规则：默认使用简体中文回答，包括总结、解释、无命中说明及引用来源说明。"
@@ -76,7 +76,9 @@ class AgentRuntime:
         with self._history_lock:
             return deepcopy(self._histories.get(key, []))
 
-    def _remember_turn(self, ctx: RequestContext, user_input: str, answer: str, user_memory: bool = True) -> None:
+    def _remember_turn(self, ctx: RequestContext, user_input: str, answer: str, user_memory: bool = True, memory_enabled: bool = True) -> None:
+        if not memory_enabled:
+            return
         key = (ctx.user_id, ctx.session_id)
         with self._history_lock:
             history = self._histories.setdefault(key, [])
@@ -116,11 +118,13 @@ class AgentRuntime:
         user_input: str,
         knowledge_base_ids: Optional[List[str]] = None,
         allow_write_tools: bool = True,
+        history: Optional[List[ChatMessage]] = None,
+        memory_enabled: bool = True,
     ) -> str:
         async with ASpan(ctx, "agent", self.tracing):
-            user_memory = not knowledge_base_ids and allow_write_tools
+            user_memory = memory_enabled and not knowledge_base_ids and allow_write_tools
             user_notes = self.memory.search(ctx, "user", user_input, 3) if user_memory else []
-            session_notes = self.memory.search(ctx, "session", user_input, 3)
+            session_notes = self.memory.search(ctx, "session", user_input, 3) if memory_enabled else []
             memory_text = "\n".join(
                 "- " + note.content for note in user_notes + session_notes
             ) or "(无)"
@@ -152,7 +156,7 @@ class AgentRuntime:
             )
             messages: List[ChatMessage] = [
                 ChatMessage("system", system),
-                *self._history(ctx),
+                *(deepcopy(history) if history is not None else self._history(ctx)),
                 ChatMessage("user", user_input),
             ]
             tool_definitions = [definition for definition in self.tools.list(ctx)
@@ -187,7 +191,7 @@ class AgentRuntime:
                             ctx, reminders, selected_knowledge_bases
                         )
                         continue
-                    self._remember_turn(ctx, user_input, content, user_memory)
+                    self._remember_turn(ctx, user_input, content, user_memory, memory_enabled)
                     return content
 
                 messages.append(ChatMessage("assistant", content, tool_calls=calls))
@@ -226,7 +230,7 @@ class AgentRuntime:
             async with ASpan(ctx, "llm", self.tracing):
                 content, _ = await self.provider.generate(ctx, messages, [])
             answer = content or "(工具调用达到上限，未生成最终结论)"
-            self._remember_turn(ctx, user_input, answer, user_memory)
+            self._remember_turn(ctx, user_input, answer, user_memory, memory_enabled)
             return answer
 
 

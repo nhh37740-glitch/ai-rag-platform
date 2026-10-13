@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "memory"
-version = "0.2.0"
+version = "0.3.0"
 requires-python = ">=3.11"
-dependencies = ["core_specifications"]
+dependencies = ["core_specifications", "storage>=0.5.0"]
 
 [tool.setuptools]
 packages = ["memory"]

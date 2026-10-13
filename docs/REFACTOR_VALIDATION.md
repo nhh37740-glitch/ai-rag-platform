@@ -8,7 +8,7 @@
 - `agent-facade` 0.1.0：注入跨域 Protocol，装配 AgentRuntime、工具、技能；五个 RAG 工具自动注册且不能被覆盖，模型不能扩大请求范围，历史快照隔离，关闭幂等。
 - `rag-facade` 0.1.0：文件转换、分块、入库、三种检索、分页读取、工具执行及 trace；显式范围、空范围、非法参数和越界访问均有检查。
 - `data-facade` 0.1.0：管理 memory/vector/state 连接与持久化；SQLite 向量实现迁到 storage，不依赖 rag_core；原子替换、事务回滚、向量维度/数值检查、锁和生命周期已验证。
-- `apps/agent-server` 0.4.0 只装配三个中间包及公共层；`apps/web/` 是随包交付的静态前端，仅调用 API。
+- `apps/ragnotebook` 0.4.0 只装配三个中间包及公共层；`apps/web/` 是随包交付的静态前端，仅调用 API。
 - AGENT runtime、RAG core、memory/storage 及接口改名涉及的一级包均更新版本和 CHANGELOG。所有16个注册模块已生成 Windows `.pyd`、接口元数据和 checksum；源码 VERSION、pyproject、规范和注册表保持一致。
 - 自动依赖检查拒绝应用引用叶子、数据库引用 RAG、叶子引用中间包及同域循环；支持字面量动态 import 检查。源码测试显式强制加载 `.py`，二进制测试只加载注册 `.pyd/.so`。
 - Jenkins 分步显示检查/测试/编译/真实模型/打包/发布，保存 JUnit（包括失败容器内报告）。每次真实模型调用在新容器执行，不受 Docker 层缓存跳过；凭据只通过临时环境文件注入，不进入镜像。部署参数仍默认 false。

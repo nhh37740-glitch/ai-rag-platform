@@ -18,29 +18,20 @@ services:
     cpus: 0.50
     env_file:
       - ${RAG_MODEL_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
+      - ${RAG_BOOTSTRAP_ENV_FILE:-/home/ubuntu/.config/ai-rag/bootstrap-admin.env}
     labels:
       dev-knowledge.model-env-file: ${RAG_MODEL_ENV_FILE:-/home/ubuntu/.config/ai-rag/openrouter-runtime.env}
     environment:
       STATE_DIR: /opt/agent/state
-      WEB_QUOTA_STATE_DIR: /opt/agent/web-quota
-      RAG_EMBED: ${RAG_EMBED:-hash}
+      RAG_DATABASE_PATH: /opt/agent/state/ragnotebook.sqlite
+      RAG_EMBED: ${RAG_EMBED:-fastembed}
       BGE_MODEL: ${BGE_MODEL:-BAAI/bge-small-zh-v1.5}
       FASTEMBED_CACHE_PATH: /opt/agent/models/fastembed_cache
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
-      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
     volumes:
-      - agent-state:/opt/agent/state
-      - user-notebooks:/opt/agent/data/kb/user-notebooks
-      - agent-files:/opt/agent/data/agent-files
+      - ragnotebook-state:/opt/agent/state
       - model-cache:/opt/agent/models/fastembed_cache
-      - web-quota:/opt/agent/web-quota
 
 volumes:
-  agent-state:
-  user-notebooks:
-  agent-files:
+  ragnotebook-state:
+    name: ${RAG_STATE_VOLUME_NAME:-ai-rag-ragnotebook-state}
   model-cache:
-  web-quota:
-    external: true
-    name: ai-rag-web-quota

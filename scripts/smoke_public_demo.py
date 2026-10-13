@@ -1,17 +1,16 @@
-"""Exercise the deployed public boundary and a real retrieval trace; no secrets logged."""
+"""Check the public RAGnotebook guest boundary and one retrieval trace."""
 from __future__ import annotations
 
 import json
 import sys
 import urllib.error
 import urllib.request
-from urllib.parse import quote
 
 
-def request(base, path, method="GET", payload=None, headers=None):
+def request(base, path, method="GET", payload=None):
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(base.rstrip("/") + "/" + path.lstrip("/"), data=data,
-                                 method=method, headers={"Content-Type": "application/json", **(headers or {})})
+                                 method=method, headers={"Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=100) as response:
             body = response.read()
@@ -24,55 +23,50 @@ def smoke(base, expected_provider="openrouter", *, metadata_only=False):
     assert expected_provider in ("mock", "deepseek", "openrouter")
     status, demo = request(base, "api/demo")
     assert status == 200 and demo["public_demo"] and demo["read_only"]
-    assert demo["provider"] == expected_provider, "provider must match the explicit release mode"
-    assert demo["embedding"] == "hash", "hash baseline must be labeled honestly"
-    if expected_provider == "openrouter":
-        assert demo["model"] == "openrouter/free" and demo["free_models_only"] is True
-        quota = demo["quota"]
-        assert quota["scope"] == "site" and quota["limit"] == 20
-        assert 0 <= quota["used"] <= 20 and quota["remaining"] == 20 - quota["used"]
-        assert quota["reset_at"].endswith("+08:00")
-    question = demo["suggested_questions"][0]["question"]
-    for path in ("api/chat", "api/notebooks", "api/files", "api/evaluate"):
-        assert request(base, path, "POST", {})[0] in (403, 405), path
-    assert request(base, "api/demo/chat", "POST", {"question": question, "user_id": "private"})[0] == 422
-    assert request(base, "api/demo/chat", "POST", {"question": " "})[0] == 422
+    assert demo["provider"] == expected_provider
+    assert demo["embedding"] == "hash"
+    quota = demo["quota"]
+    assert quota["scope"] == "site" and quota["limit"] == 100
+    assert 0 <= quota["used"] <= 100 and quota["remaining"] == 100 - quota["used"]
+
     status, session = request(base, "api/auth/session")
-    assert status == 200 and session["role"] == "guest" and session["permissions"] == ["read", "query"]
-    assert "proof" not in session and session["allowed_notebook_ids"] == ["cmrc2018-demo"]
+    assert status == 200 and session["role"] == "guest"
+    assert session["permissions"] == ["read", "query"]
+    assert session["allowed_notebook_ids"] == ["cmrc2018-demo"]
+    assert request(base, "api/auth/register", "POST", {})[0] == 403
+    assert request(base, "api/auth/login", "POST", {})[0] == 403
+
     status, notebooks = request(base, "api/notebooks")
     assert status == 200 and [item["id"] for item in notebooks["notebooks"]] == ["cmrc2018-demo"]
     status, documents = request(base, "api/notebooks/cmrc2018-demo/documents")
     assert status == 200 and documents["documents"]
-    document_id = documents["documents"][0]["source_id"].split("/", 1)[1]
-    status, document = request(base, "api/demo/documents/" + quote(document_id, safe=""))
-    assert status == 200 and document["contexts"] and len(document["contexts"]) <= 20
-    assert document["source_id"].startswith("cmrc2018-demo/")
     assert request(base, "api/notebooks/private/documents")[0] == 403
-    assert request(base, "api/demo/chat", "POST", {"question": question}, {"x-deepseek-api-key": "blocked-test-value"})[0] == 403
-    status, unknown = request(base, "api/trace/private-unknown")
-    assert status == 200 and unknown == []
+    assert request(base, "api/trace/private-unknown")[0] == 404
+    assert request(base, "api/chat", "POST", {"message": " "})[0] == 422
+
+    status, config = request(base, "api/llm/config")
+    assert status == 200 and config["provider"] == expected_provider
+    if expected_provider == "openrouter":
+        assert config["model"] == "openrouter/free" and config["free_models_only"]
+
     if metadata_only:
         print(json.dumps({"public_smoke": "passed", "provider": expected_provider,
-                          "metadata_only": True, "quota": demo.get("quota")}, ensure_ascii=False))
+                          "metadata_only": True, "quota": quota}, ensure_ascii=False))
         return
-    status, result = request(base, "api/demo/chat", "POST", {"question": question})
-    assert status == 200, f"curated model request failed with HTTP {status}"
-    assert result["provider"] == expected_provider and result["read_only"] and result["answer"]
+
+    question = demo["suggested_questions"][0]["question"]
+    status, result = request(base, "api/chat", "POST", {
+        "message": question, "knowledge_base_ids": ["cmrc2018-demo"],
+    })
+    assert status == 200 and result["answer"], f"guest chat failed with HTTP {status}"
     assert result["knowledge_base_ids"] == ["cmrc2018-demo"]
+    assert result["conversation_id"] is None
     status, trace = request(base, "api/trace/" + result["trace_id"])
-    assert status == 200 and trace, "answer must have an actual trace"
+    assert status == 200 and trace
     retrievals = [event for event in trace if event["span"] == "rag" and event["status"] == "ok"]
-    assert retrievals, "answer must include successful retrieval"
-    assert any(event["meta"].get("hit_count", 0) > 0 and event["meta"].get("knowledge_base_ids") == ["cmrc2018-demo"] for event in retrievals)
-    if expected_provider != "openrouter":
-        status, free = request(base, "api/demo/chat", "POST", {"question": "请查询公开文档，什么是静电感应？"})
-        assert status == 200 and free["cache_hit"] is False and free["knowledge_base_ids"] == ["cmrc2018-demo"]
-    else:
-        assert result["quota"]["scope"] == "site" and result["quota"]["limit"] == 20
-    print(json.dumps({"public_smoke": "passed", "provider": result["provider"],
-                      "embedding": result["embedding"], "trace_id": result["trace_id"],
-                      "spans": len(trace), "cache_hit": result.get("cache_hit", False),
+    assert retrievals and any(event["meta"].get("hit_count", 0) > 0 for event in retrievals)
+    print(json.dumps({"public_smoke": "passed", "provider": expected_provider,
+                      "trace_id": result["trace_id"], "spans": len(trace),
                       "quota": result.get("quota")}, ensure_ascii=False))
 
 

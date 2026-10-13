@@ -6,8 +6,7 @@ from contextlib import closing
 from pathlib import Path
 
 from core_specifications import RequestContext, VectorStore
-from memory import MemoryStore
-from storage import SqliteVectorStore, StateStore, make_storage
+from storage import SqliteVectorStore, StateStore
 
 
 CTX = RequestContext("t", "r", "user", "session")
@@ -80,8 +79,8 @@ class TestSqliteVectorStore(unittest.TestCase):
     def test_sql_error_rolls_back_replacement(self):
         self.store.add("alpha/a", ["original"], [[1, 0]])
         with closing(sqlite3.connect(self.path)) as conn, conn:
-            conn.execute("CREATE TRIGGER reject_replacement BEFORE INSERT ON vectors "
-                         "WHEN NEW.text = 'reject' BEGIN SELECT RAISE(ABORT, 'rejected'); END")
+            conn.execute("CREATE TRIGGER reject_replacement BEFORE INSERT ON documents "
+                         "WHEN NEW.content = 'reject' BEGIN SELECT RAISE(ABORT, 'rejected'); END")
         with self.assertRaises(sqlite3.IntegrityError):
             self.store.add("alpha/a", ["reject"], [[0, 1]])
         self.assertEqual(self.store.document_chunks("alpha/a"), ["original"])
@@ -110,16 +109,13 @@ class TestSqliteVectorStore(unittest.TestCase):
         self.assertEqual(len(chunks), 2)
         self.assertEqual(chunks[0].partition(":")[0], chunks[1].partition(":")[0])
 
-    def test_existing_vectors_table_compatible(self):
+    def test_existing_vectors_schema_rejected(self):
         legacy_path = str(Path(self.temporary.name) / "legacy.sqlite")
         with closing(sqlite3.connect(legacy_path)) as conn, conn:
             conn.execute("CREATE TABLE vectors (source_id TEXT, text TEXT, embedding TEXT)")
             conn.execute("INSERT INTO vectors VALUES (?, ?, ?)", ("legacy/doc", "old text", "[1, 0]"))
-        legacy = SqliteVectorStore(legacy_path)
-        self.addCleanup(legacy.close)
-        self.assertEqual(legacy.search([1, 0]), [("legacy/doc", "old text", 1.0)])
-        legacy.add("legacy/doc", ["new text"], [[0, 1]])
-        self.assertEqual(legacy.document_chunks("legacy/doc"), ["new text"])
+        with self.assertRaises(RuntimeError):
+            SqliteVectorStore(legacy_path)
 
     def test_close_rejects_all_operations(self):
         self.store.close()
@@ -171,33 +167,6 @@ class TestStateStore(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 operation()
 
-
-class TestStorageCompatibility(unittest.TestCase):
-    def test_unified_persistence(self):
-        with tempfile.TemporaryDirectory() as directory:
-            memory = MemoryStore(str(Path(directory) / "memory.sqlite"))
-            vector = SqliteVectorStore(str(Path(directory) / "vectors.sqlite"))
-            storage = make_storage(str(Path(directory) / "eval.sqlite"), memory, vector)
-            try:
-                storage.memory_write(CTX, "user", "project", "issue 网关 keep-alive")
-                self.assertTrue(storage.memory_search(CTX, "user", "网关")[0].content)
-                self.assertEqual(storage.memory_get(CTX, "user", "project").content, "issue 网关 keep-alive")
-                storage.add_documents("api/doc", ["Bearer token"], [[1, 0]])
-                self.assertEqual(storage.search_documents([1, 0])[0][0], "api/doc")
-                storage.save_eval("run1", {"recall": 0.9})
-                self.assertEqual(storage.load_eval("run1")["recall"], 0.9)
-                storage.memory_forget(CTX, "user", "project")
-                self.assertIsNone(storage.memory_get(CTX, "user", "project"))
-                storage.close()
-                with self.assertRaises(RuntimeError):
-                    storage.load_eval("run1")
-                # Injected stores are not closed by the legacy wrapper.
-                self.assertEqual(vector.document_chunks("api/doc"), ["Bearer token"])
-                self.assertIsNone(memory.get(CTX, "user", "project"))
-            finally:
-                storage.close()
-                vector.close()
-                memory.close()
 
 
 if __name__ == "__main__":

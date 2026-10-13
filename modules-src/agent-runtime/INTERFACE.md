@@ -1,6 +1,6 @@
 # INTERFACE
 
-版本：0.4.0。provider、memory、tracing 分别接收共享 LLMProviderPort、MemoryStorePort、TraceStorePort。
+版本：0.5.1。provider、memory、tracing 分别接收共享 LLMProviderPort、MemoryStorePort、TraceStorePort。
 
 - `AgentRuntime.history(ctx: RequestContext) -> list[ChatMessage]` 返回按 user_id/session_id 隔离的深拷贝快照。
 
@@ -13,3 +13,5 @@
 - `RETRIEVAL_TOOL_NAMES` 列出五个知识库检索工具；同一条 assistant 消息里第二个及之后的检索调用不执行，改为返回 `SKIPPED_RETRIEVAL_MESSAGE`，让模型先读结果再决定下一轮。非检索类工具在同轮内照常按顺序执行。
 
 本次接口扩展以根目录 `specifications/DOMAIN_INTERFACES.md` 的2026-10-11条款为正式依据。
+
+run 支持 history 快照和 memory_enabled=False；后者既不读写记忆，也不保留游客进程内历史。

@@ -1,3 +1,3 @@
 # memory
 
-双层记忆：`SessionMemory` 与 `UserMemory` 共用 SQLite，仅本模块写库。接口 `get/search/write/forget`。
+Memory facade over `agent_data` in the single SQLite database. Namespace and user identity are encoded into its type key; no separate memory table or SQLite file is created by DataService.

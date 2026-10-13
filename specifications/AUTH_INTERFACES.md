@@ -1,42 +1,25 @@
-# 鉴权接口与验收矩阵
+# RAGnotebook 身份与权限接口
 
-auth-facade/AuthService 0.3.0 是管理员／成员／游客权限业务模块，依赖共享类型和 auth-runtime；auth-runtime/AuthRuntime 负责身份校验与管理员代理证明验证，仅依赖共享类型及标准库。两者都不依赖 Agent、RAG、Data 业务模块。所有身份来自服务端；HTTP 层不能把 JSON role/user_id 直接作为管理员身份。
+`auth-facade` 管理账号注册登录、进程内会话校验、笔记本权限与全站额度；`auth-runtime` 提供密码哈希、会话令牌和 principal 验证；`data-facade` 保存关系数据。HTTP 层只通过业务接口鉴权。
 
-DailyQueryQuota 通过注入的 StateStorePort 提供全站每日查询额度，默认20次，按北京时间零点重置。跨身份及重启共享持久计数；reserve/status 返回额度摘要，超额 PermissionError 由 HTTP 层转为429。接口详见 modules-src/auth-facade/INTERFACE.md。计数不保存密钥或问题正文。
+## 账号和会话
 
-构造 AuthService(proxy_token: str = "", owner_id: str = "", store: StateStorePort | None = None)：两者均空为仅游客模式；部分配置、少于32字节的证明或空白 owner 拒绝（ValueError）。证明只保存于服务端对象，不进入日志或响应。
+首次启动使用服务器配置创建一个管理员账号和固定游客账号。普通用户自行注册。登录令牌仅保存在当前进程内存，服务器重启后失效；每个请求都会从数据库重新检查 `is_active`。管理员禁用用户后，其现存令牌立即无法通过鉴权。
 
-公开签名固定：
+项目管理员由 `users.is_admin` 表示。笔记本所有者由 `notebooks.owner_user_id` 表示，两者是不同身份。成员表角色只有 `editor`、`viewer`；所有者始终拥有编辑和成员管理权限，不存入成员角色表。
 
-- guest(ctx: RequestContext) -> AuthPrincipal：user_id 使用 ctx 或 guest，role=guest，无管理证明。
-- authenticate_proxy(ctx: RequestContext, proxy_token: str, user_id: str, role: str) -> AuthPrincipal：恒定时间验证已配置代理证明；admin 需固定 owner，user 为其它可信登录身份；无效为 PermissionError。返回带本实例签发的不可伪造 proof，HTTP 不输出 proof。
-- authorize(ctx: RequestContext, principal: AuthPrincipal, permission: str) -> None：read/query 对有效游客、成员及管理员开放；authenticated 需可信登录；create_notebook/import_document/write 只允许本实例验证的管理员。未知 permission 为 ValueError；伪造角色/证明为 PermissionError。
-- allowed_notebooks(ctx: RequestContext, principal: AuthPrincipal, available_ids: List[str], public_ids: List[str]) -> List[str]：管理员可读全部服务端可用范围，成员返回持久 ACL 授权及公开范围，游客仅返回公开范围交集，保持顺序并去重。未认证身份拒绝。输入非法 ID 为 ValueError。
+## 笔记本权限
 
-验收用例：A01 游客 read/query 成功，三种写操作失败；A02 正确 owner/proxy/admin 身份通过全部权限，错误证明/角色/用户失败；A03 直接构造伪造 AuthPrincipal、复制跨实例证明无法升级权限；A04 游客范围交集、管理员完整范围、非法 ID、未知权限；A05 身份响应及错误/trace 不含 proof/token；A06 公共页面读取文档和自由查询成功、游客 POST 创建/导入/其他写接口直接返回403；A07 已登录管理员创建→导入→实际来源命中，匿名/伪造 owner/跨源写拒绝；A08 所有18模块编译并校验真实二进制来源。Web 临时key真实调用交给用户，不替代构建真实模型门禁。
+- 所有者：读取、问答、上传和管理成员。
+- `editor`：读取、问答、上传。
+- `viewer`：读取和问答。
+- 游客：默认只读；所有者可将游客作为 `viewer` 分享。
+- 全局管理员：管理账号和模型，不会自动读取其他用户的笔记本。
 
-公共 HTTP 范围只含内置 CMRC；私人管理笔记本不自动发布。POST /api/demo/chat 接受非空≤1024字符 question，固定服务端知识库范围。自由问题不读写共享缓存，原精选题无临时key缓存语义保留。游客 GET /api/notebooks、内置笔记本 documents/suggestions、GET /api/demo/documents/{document_id} 分页原文、GET /api/auth/session、GET /api/llm/config 仅返回无凭据配置；私有管理入口需登录。默认 OpenRouter 凭据仅保存于服务端。公开原文接口固定 cmrc2018-demo source 前缀并复用 RagService 分页读取（offset>=0，每页最多20块），不能通过路径/参数访问私人范围。
+分享前，前端查询有效用户并选择对象。成员角色不接受 `owner` 或 `manager`。
 
-## 笔记本成员扩展（0.3.0）
+## 额度与游客历史
 
-AuthService(proxy_token: str = "", owner_id: str = "", store: StateStorePort | None = None)。store 为私人 ACL 状态端口；不接收 DataService 具体类。不提供 store 时成员管理不可用，旧管理员/游客行为兼容。
+全站每日 100 次问答，按北京时间重置；管理员、注册用户和游客共用额度。使用 `users.quota_date`、`users.quota_used` 原子计数。游客问答不写入 `conversations`；注册用户会话按 `user_id` 隔离。
 
-authenticate_proxy 增加 role=user：仅服务器证明有效、身份有效且不是固定 owner 时签发；admin 仍须固定 owner。AuthRuntime.is_authenticated(ctx, principal)->bool 验证实例证明；is_administrator 也验证 user 证明但返回 False。证明绑定 user_id/role，不能修改身份或跨实例重放。
-
-authorize 增加 authenticated（必须有可信登录）。全局创建/写/导入仍要求管理员；普通成员通过笔记本接口授权。
-
-```python
-notebook_permissions(ctx: RequestContext, principal: AuthPrincipal, notebook_id: str, public: bool = False) -> list[str]
-authorize_notebook(ctx: RequestContext, principal: AuthPrincipal, notebook_id: str, permission: str, public: bool = False) -> None
-list_members(ctx: RequestContext, principal: AuthPrincipal, notebook_id: str) -> list[dict]
-set_member(ctx: RequestContext, principal: AuthPrincipal, notebook_id: str, user_id: str, role: str) -> None
-remove_member(ctx: RequestContext, principal: AuthPrincipal, notebook_id: str, user_id: str) -> None
-```
-
-viewer=read/query；editor 增加 import_document/write；manager 增加 manage_members。全局 admin 隐式 manager，其 owner 身份不能列为成员、删除或降级。guest 只在 public=True 时 read/query，冒用成员 userId 的游客不能获得 ACL 权限。available_ids 仅服务端提供；allowed_notebooks 增加有有效 ACL 的成员范围。非法参数 ValueError，越权 PermissionError；缺少成员删除幂等。ACL 固定命名空间 __rag_notebook_acl__，键 notebook-members:{id}；非法持久数据拒绝授权。单管理进程锁避免并发覆盖，私有卷不与公开实例共享。
-
-## 关系型权限仓库（0.4.0，替代0.3.0状态键存储）
-
-AuthService(proxy_token: str = "", owner_id: str = "", store: NotebookStorePort | None = None)。可信代理认证成功登记 users；角色权限通过关系表查询。成员增删使用快照 acl_revision 与事务比较更新；冲突重新核验管理权限，不能在撤权后用旧快照写入。添加对象需为已登记用户，否则 ValueError。旧文件目录/JSON ACL 由应用启动迁移一次到关系表，权限不再从旧状态键实时读取。其它授权接口与角色行为沿用；全站日额度继续使用独立 StateStorePort。完整仓库接口见 DOMAIN_INTERFACES.md 的 NotebookStorePort 条款。
-
-0.4.0：manager增加manage_notebook；全局authorize支持archive_notebook/restore_notebook且仅可信管理员。用户目录在验证登录后登记；成员变更必须目标用户已登记，CAS冲突后重新读取权限再重试。
+验收覆盖注册、登录、登出、禁用账号即时拒绝、笔记本所有者与 editor/viewer/游客权限、共享对象过滤、用户会话隔离和全站额度上限。
