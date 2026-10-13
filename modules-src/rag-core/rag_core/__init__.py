@@ -9,7 +9,7 @@ import numpy as np
 
 from core_specifications import Citation, RequestContext, RetrievalResult, VectorStore
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 DIM = 384
 SearchHit = Tuple[str, str, float]
@@ -75,11 +75,14 @@ def _embed_fastembed(texts: List[str]) -> List[List[float]]:
                 f"无法加载文本向量模型 {model_name}: {exc}"
             ) from exc
     try:
-        vectors: List[List[float]] = []
+        # 逐批推理；每批结果先转成 Python list，不能把 ndarray 直接 extend 进
+        # 带类型标注的列表——Cython 会按 List[List[float]] 校验并抛
+        # 「Expected list, got numpy.ndarray」。
+        vectors = []
         for start in range(0, len(texts), EMBED_BATCH_SIZE):
             batch = texts[start : start + EMBED_BATCH_SIZE]
-            vectors.extend(list(_FASTEMBED.embed(batch, batch_size=len(batch))))
-        return [list(map(float, v)) for v in vectors]
+            vectors.extend([[float(value) for value in vector] for vector in _FASTEMBED.embed(batch)])
+        return vectors
     except Exception as exc:
         model_name = os.environ.get("BGE_MODEL", _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
         raise RuntimeError(f"文本向量模型 {model_name} 推理失败: {exc}") from exc
