@@ -4,6 +4,15 @@ RAGnotebook 是一个面向浏览器的文档问答应用，支持账号注册�
 
 浏览器只访问 `RAGnotebook` HTTP API。后端运行在一个进程中，内部由 `auth-facade`、`data-facade`、`rag-facade`、`agent-facade` 四个业务模块处理请求。HTTP 路由不直接访问数据库、向量库或其他一级能力模块。
 
+## 项目导航
+
+- [Project 进度](docs/PROJECT_STATUS.md)：已完成、进行中、后续候选方向。
+- [Wiki 文档源稿](docs/wiki/Home.md)：使用说明、架构、协作、编译与发布。
+- [Issues](https://github.com/nhh37740-glitch/ai-rag-platform/issues) / [Pull Requests](https://github.com/nhh37740-glitch/ai-rag-platform/pulls)：问题和代码评审。
+- [GitHub Actions](https://github.com/nhh37740-glitch/ai-rag-platform/actions)：查看构建并下载产物。
+
+> `docs/wiki/` 是可维护的 **Wiki 源稿**，尚未写入 GitHub Wiki 独立页面。当前有效设计仍以 [docs/PLAN.md](docs/PLAN.md) 为准。
+
 ## 数据与账号
 
 全部关系数据和文档向量共用一个 SQLite 文件，固定六张表：`users`、`notebooks`、`notebook_members`、`documents`、`conversations`、`agent_data`。首次启动创建结构；已有数据库结构不符时启动失败，不执行迁移。旧账号和笔记本不导入。
