@@ -14,6 +14,8 @@
 
 CPython3.11.17 / Linux x86_64，按仓库编译脚本生成18个模块入口与MCP辅助扩展。所有业务导入来自artifacts的.so，运行边界验证输出RAGNOTEBOOK_COMPILED_OK。
 
+发行ZIP逐文件验证摘要后，独立解压到不含modules-src的目录并启动服务：api/demo确认version=0.9.0，实际POST api/chat返回200，trace证明检索命中。该验证仍使用hash/Mock，依赖由声明的运行依赖环境提供。
+
 | 检查 | 通过 | 失败/跳过 |
 |---|---:|---|
 | source leaf | 106 | 0 |
