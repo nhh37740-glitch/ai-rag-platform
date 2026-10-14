@@ -15,6 +15,14 @@ DOCKER = r'''#!/usr/bin/env python3
 import json,os,sys
 from pathlib import Path
 p=Path(os.environ['DOCKER_STATE']); s=json.loads(p.read_text()); a=sys.argv[1:]
+poll=Path(os.environ['DOCKER_POLL_STATE'])
+if a==['init-polls']:
+ poll.write_text(str(s.get('candidate_starting_polls',0))+' '+s['candidate_health']+' 0\n')
+ sys.exit(0)
+if poll.is_file():
+ count=int(poll.read_text().split()[2]); previous=s.get('candidate_inspections',0)
+ s['calls'].extend([['inspect','--format','{{.State.Health.Status}}','candidate-private'] for _ in range(count-previous)])
+ s['candidate_inspections']=count
 s['calls'].append(a); out=''; code=0
 if a[:2]==['image','tag']:
  s['tags'][a[3]]=s['tags'].get(a[2],a[2])
@@ -54,11 +62,28 @@ if out: print(out)
 sys.exit(code)
 '''
 
+# 健康轮询用 shell 更新小计数器；180轮不必启动180次Python并改写完整JSON。
+# 其它命令仍由原假Docker处理，并将轮询记录同步回同一状态文件。
+DOCKER_WRAPPER = r'''#!/bin/sh
+last_arg=
+for arg do last_arg=$arg; done
+if [ "$1" = inspect ] && [ "$last_arg" = candidate-private ]; then
+ if [ ! -f "$DOCKER_POLL_STATE" ]; then python3 "$0.py" init-polls || exit; fi
+ read -r starting_polls candidate_health inspections < "$DOCKER_POLL_STATE"
+ inspections=$((inspections + 1))
+ printf '%s %s %s\n' "$starting_polls" "$candidate_health" "$inspections" > "$DOCKER_POLL_STATE"
+ if [ "$inspections" -le "$starting_polls" ]; then printf 'starting\n'; else printf '%s\n' "$candidate_health"; fi
+ exit 0
+fi
+exec python3 "$0.py" "$@"
+'''
+
 @pytest.fixture
 def release_env(tmp_path: Path):
     assert shutil.which('sh')
     bin_dir=tmp_path/'bin'; bin_dir.mkdir()
-    docker=bin_dir/'docker'; docker.write_text(DOCKER); docker.chmod(0o755)
+    docker=bin_dir/'docker'; docker.write_text(DOCKER_WRAPPER); docker.chmod(0o755)
+    (bin_dir/'docker.py').write_text(DOCKER)
     sudo=bin_dir/'sudo'
     sudo.write_text('#!/bin/sh\nif [ "$1" = python3 ]; then exit 0; fi\nexec "$@"\n')
     sudo.chmod(0o755)
@@ -71,12 +96,12 @@ def release_env(tmp_path: Path):
         'candidate_health':'healthy','deployed_health':'healthy','running':True,
         'active':'sha256:old','up':0,'calls':[]}))
     env={**os.environ,'PATH':str(bin_dir)+os.pathsep+os.environ['PATH'],
-         'DOCKER_STATE':str(state),'BUILD_NUMBER':'17',
+         'DOCKER_STATE':str(state),'DOCKER_POLL_STATE':str(tmp_path/'poll-state'),'BUILD_NUMBER':'17',
          'RAG_MODEL_ENV_FILE':str(model),'RAG_BOOTSTRAP_ENV_FILE':str(admin)}
     return env,state
 
-def run(env):
-    return subprocess.run(['sh',str(SCRIPT)],env=env,capture_output=True,text=True,timeout=30)
+def run(env, timeout=30):
+    return subprocess.run(['sh',str(SCRIPT)],env=env,capture_output=True,text=True,timeout=timeout)
 
 def load(path):
     return json.loads(path.read_text())
@@ -116,7 +141,8 @@ def test_new_service_failure_stops_it_without_restoring_old_image(release_env):
 def test_candidate_can_become_healthy_on_last_allowed_poll(release_env):
     env,path=release_env; state=load(path)
     state['candidate_starting_polls']=179; path.write_text(json.dumps(state))
-    result=run(env); state=load(path)
+    # 180 次假 Docker 进程启动需要独立预算，不能在行为断言前被杀死。
+    result=run(env, timeout=180); state=load(path)
     assert result.returncode==0,result.stderr
     assert state['candidate_inspections']==180
     assert state['active']=='sha256:candidate' and state['up']==1
@@ -124,7 +150,7 @@ def test_candidate_can_become_healthy_on_last_allowed_poll(release_env):
 def test_candidate_startup_timeout_preserves_active_service_and_cleans_smoke(release_env):
     env,path=release_env; state=load(path)
     state['candidate_starting_polls']=180; path.write_text(json.dumps(state))
-    result=run(env); state=load(path)
+    result=run(env, timeout=180); state=load(path)
     assert result.returncode!=0
     assert state['candidate_inspections']==180
     assert state['active']=='sha256:old' and state['running'] and state['up']==0

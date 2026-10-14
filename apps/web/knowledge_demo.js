@@ -885,11 +885,98 @@ function uploadWithProgress(path, formData) {
     });
     xhr.upload.onload = () => renderProgress({ stage: "上传完成，等待解析", done: 0, total: 0 });
     xhr.onerror = () => reject(new Error("上传连接中断，请重试。"));
-    xhr.ontimeout = () => reject(new Error("上传或处理超时，请重试。"));
+    xhr.ontimeout = () => reject(new Error("文件传输超时，请检查连接后重试。"));
+    // 这个请求只负责传输/暂存；长时间的推理由后台任务完成。
     xhr.timeout = 20 * 60 * 1000;
     xhr.onload = () => resolve(new Response(xhr.responseText, { status: xhr.status, headers: { "Content-Type": xhr.getResponseHeader("Content-Type") || "text/plain" } }));
     xhr.send(formData);
   });
+}
+
+function pendingUploadKey(userId) {
+  return `ragnotebook:pending-upload:${userId}`;
+}
+
+function rememberUpload(userId, notebookId, uploadId) {
+  try { localStorage.setItem(pendingUploadKey(userId), JSON.stringify({ notebookId, uploadId })); }
+  catch { /* 禁用本地存储时，当前页面仍可完成导入。 */ }
+}
+
+function forgetUpload(userId) {
+  try { localStorage.removeItem(pendingUploadKey(userId)); } catch {}
+}
+
+async function pollUpload(uploadId, control) {
+    let failures = 0;
+    while (!control.settled) {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      if (control.settled) break;
+      try {
+        const response = await apiFetch(`/api/uploads/${encodeURIComponent(uploadId)}`, { signal: AbortSignal.timeout(15000) });
+        if (response.ok) {
+          const progress = await readJSON(response);
+          failures = 0;
+          renderProgress(progress);
+          if (progress.state === "error") return { error: progress.message || "导入失败", terminal: true };
+          if (progress.state === "done" && progress.result) return { result: progress.result };
+        } else if (control.accepted && response.status === 404) {
+          return { error: "导入任务记录已失效，请刷新后检查来源，再决定是否重新上传。", terminal: true };
+        } else if (response.status === 401 || response.status === 403) {
+          return { error: "当前登录或笔记本权限已失效，请重新登录后检查来源。" };
+        } else if (control.accepted && ++failures >= 10) {
+          return { error: "暂时无法取得导入进度，请刷新后查看来源，避免重复上传。" };
+        }
+      } catch (error) {
+        if (control.accepted && ++failures >= 10) return { error: "连接暂时中断，请刷新后查看来源，避免重复上传。" };
+      }
+    }
+
+}
+
+async function showUploadSuccess(result, notebookId) {
+  dom.uploadForm.reset();
+  await loadNotebooks(notebookId);
+  setStatus(dom.notebookStatus, `已导入 ${result.imported.length} 篇 Markdown 来源。`, "success");
+  setUploading(false);
+  closeUploadDialog();
+  dom.uploadProgress.hidden = true;
+}
+
+function showUploadError(error) {
+  setStatus(dom.notebookStatus, `导入失败：${error.message}`, "error");
+  dom.uploadProgressText.dataset.kind = "error";
+  dom.uploadProgressText.textContent = error.message;
+  dom.uploadBar.dataset.indeterminate = "false";
+  dom.uploadBar.style.width = "0";
+}
+
+async function restorePendingUpload() {
+  const userId = state.principal?.user_id;
+  if (!userId || state.principal?.guest || state.uploading) return;
+  let pending;
+  try { pending = JSON.parse(localStorage.getItem(pendingUploadKey(userId)) || "null"); }
+  catch { forgetUpload(userId); return; }
+  if (!pending) return;
+  if (typeof pending.uploadId !== "string" || typeof pending.notebookId !== "string" ||
+      !state.notebooks.some(book => book.id === pending.notebookId && book.writable)) {
+    forgetUpload(userId); return;
+  }
+  try {
+    await setActiveNotebook(pending.notebookId);
+    openUploadDialog();
+    setUploading(true);
+    renderProgress({ stage: "恢复后台导入进度", state: "running" });
+    const outcome = await pollUpload(pending.uploadId, { settled: false, accepted: true });
+    if (outcome?.terminal) forgetUpload(userId);
+    if (outcome?.error) throw new Error(outcome.error);
+    if (!outcome?.result) throw new Error("没有取得完整导入结果，请检查来源。");
+    forgetUpload(userId);
+    await showUploadSuccess(outcome.result, pending.notebookId);
+  } catch (error) {
+    showUploadError(error);
+  } finally {
+    setUploading(false);
+  }
 }
 
 dom.uploadForm.onsubmit = async (event) => {
@@ -919,42 +1006,33 @@ dom.uploadForm.onsubmit = async (event) => {
   });
   setUploading(true);
 
-  let settled = false;
-  const poller = (async () => {
-    while (!settled) {
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      if (settled) break;
-      try {
-        const response = await apiFetch(`/api/uploads/${encodeURIComponent(uploadId)}`);
-        if (response.ok) renderProgress(await readJSON(response));
-      } catch (error) {
-        // 单次轮询失败无所谓，下一次继续。
-      }
-    }
-  })();
+  const control = { settled: false, accepted: false };
+  const userId = state.principal?.user_id;
+  const poller = pollUpload(uploadId, control);
 
   try {
     const response = await uploadWithProgress(
-      `/api/notebooks/${encodeURIComponent(notebookId)}/files?upload_id=${encodeURIComponent(uploadId)}`,
+      `/api/notebooks/${encodeURIComponent(notebookId)}/files?upload_id=${encodeURIComponent(uploadId)}&background=true`,
       formData
     );
-    const result = await readJSON(response);
+    let result = await readJSON(response);
     if (!response.ok) throw new Error(result.detail || "导入失败");
+    if (response.status === 202) {
+      control.accepted = true;
+      rememberUpload(userId, notebookId, uploadId);
+      const outcome = await poller;
+      if (outcome?.terminal) forgetUpload(userId);
+      if (outcome?.error) throw new Error(outcome.error);
+      if (!outcome?.result) throw new Error("没有取得完整导入结果，请刷新后检查来源。");
+      result = outcome.result;
+    }
 
-    dom.uploadForm.reset();
-    await loadNotebooks(notebookId);
-    setStatus(dom.notebookStatus, `已导入 ${result.imported.length} 篇 Markdown 来源。`, "success");
-    setUploading(false);
-    closeUploadDialog();
-    dom.uploadProgress.hidden = true;
+    forgetUpload(userId);
+    await showUploadSuccess(result, notebookId);
   } catch (error) {
-    setStatus(dom.notebookStatus, `导入失败：${error.message}`, "error");
-    dom.uploadProgressText.dataset.kind = "error";
-    dom.uploadProgressText.textContent = error.message;
-    dom.uploadBar.dataset.indeterminate = "false";
-    dom.uploadBar.style.width = "0";
+    showUploadError(error);
   } finally {
-    settled = true;
+    control.settled = true;
     await poller;
     setUploading(false);
   }
@@ -1045,6 +1123,7 @@ apiFetch("/api/auth/session")
     state.principal = session;
     applyPermissions();
     await loadNotebooks();
+    restorePendingUpload();
   })
   .catch((error) => {
     state.principal = null;
@@ -1081,6 +1160,7 @@ $("auth-form").onsubmit = async (event) => {
     state.transcripts.clear(); state.sessions.clear(); state.drafts.clear();
     const sessionResponse = await apiFetch("/api/auth/session");
     state.principal = await readJSON(sessionResponse); applyPermissions(); refreshPublicStatus(); await loadNotebooks(state.activeId || "");
+    restorePendingUpload();
   } catch (error) { $("auth-status").textContent = error.message; }
   finally { button.disabled = false; }
 };

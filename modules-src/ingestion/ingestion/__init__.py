@@ -10,7 +10,7 @@ from typing import Callable, List
 
 from core_specifications import RequestContext
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 _NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 SUPPORTED_EXTENSIONS = frozenset({".md", ".txt", ".docx", ".pdf"})
@@ -21,9 +21,12 @@ def _split(text: str) -> List[str]:
 
 
 def _docx_text(path: str) -> str:
-    with zipfile.ZipFile(path) as z:
-        xml = z.read("word/document.xml")
-    root = ET.fromstring(xml)
+    try:
+        with zipfile.ZipFile(path) as z:
+            xml = z.read("word/document.xml")
+        root = ET.fromstring(xml)
+    except (zipfile.BadZipFile, ET.ParseError, KeyError, RuntimeError) as exc:
+        raise ValueError("DOCX 文件损坏或缺少可读取的正文") from exc
     paragraphs = []
     for paragraph in root.iter(_NS + "p"):
         text = "".join(node.text or "" for node in paragraph.iter(_NS + "t")).strip()
@@ -35,10 +38,16 @@ def _docx_text(path: str) -> str:
 def _pdf_pages(path: str) -> List[str]:
     try:
         from pypdf import PdfReader
+        from pypdf.errors import PyPdfError
     except ImportError as exc:
         raise RuntimeError("读取 PDF 需要安装 pypdf") from exc
-    reader = PdfReader(path)
-    return [text for page in reader.pages if (text := (page.extract_text() or "").strip())]
+    try:
+        reader = PdfReader(path)
+        if reader.is_encrypted:
+            raise ValueError("PDF 已加密，请上传未加密的 PDF")
+        return [text for page in reader.pages if (text := (page.extract_text() or "").strip())]
+    except PyPdfError as exc:
+        raise ValueError("PDF 文件损坏或无法读取正文") from exc
 
 
 def parse(path: str) -> List[str]:

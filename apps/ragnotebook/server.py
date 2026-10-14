@@ -7,6 +7,7 @@ PUBLISHED_MODULES = runtime_boundary.enforce_binary_runtime()
 import asyncio
 import hashlib
 import json
+import logging
 import os
 import re
 import secrets
@@ -39,11 +40,13 @@ STATE_DIR = Path(os.environ.get("STATE_DIR", str(ROOT / "data")))
 SKILL_DIR = ROOT / "skills"
 SESSION_COOKIE = "ragnotebook_session"
 SESSION_TTL_SECONDS = 43200
-APP_VERSION = "0.9.0"
+APP_VERSION = "0.9.1"
 PUBLIC_DEMO = os.environ.get("PUBLIC_DEMO", "0") == "1"
 TRACE_ACCESS: dict[str, tuple[str, list[str]]] = {}
 UPLOAD_PROGRESS: dict[str, dict] = {}
 ACTIVE_QUERIES: dict[str, int] = {}
+IMPORT_LOCK = asyncio.Lock()
+IMPORT_TASKS: set[asyncio.Task] = set()
 CHAT_TIMEOUT_SECONDS = 120
 SUPPORTED_EXTENSIONS = frozenset({".md", ".txt", ".docx", ".pdf"})
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -257,6 +260,8 @@ demo_kb_imported = _ensure_demo_documents()
 @asynccontextmanager
 async def lifespan(app):
     yield
+    if IMPORT_TASKS:
+        await asyncio.gather(*tuple(IMPORT_TASKS), return_exceptions=True)
     await runtime.aclose(BOOT_CONTEXT)
     data_service.close(BOOT_CONTEXT)
 
@@ -485,8 +490,60 @@ def notebook_documents(notebook_id: str, req: Request):
     return JSONResponse({"notebook_id": notebook_id, "name": data_service.get_notebook(ctx, notebook_id).get("name", notebook_id), "writable": "import_document" in _notebook_permissions(req, notebook_id), "permissions": _notebook_permissions(req, notebook_id), "documents": [{"title": _doc_title(item["source_id"]), "source_id": item["source_id"], "chunks": item.get("chunk_count", 0)} for item in documents]}, headers={"Cache-Control": "no-store"})
 
 
+async def _process_upload(ctx, notebook_id, upload_id, staged, temporary_dir, progress):
+    try:
+        imported = []
+        progress.update(stage="解析并入库", total=len(staged), done=0)
+        for index, (filename, temporary_source, file_digest) in enumerate(staged, start=1):
+            safe_stem = re.sub(r"[^\w\u4e00-\u9fff-]+", "-", Path(filename).stem).strip("-_")[:60] or "document"
+            source_id = f"{notebook_id}/{safe_stem}-{uuid.uuid4().hex[:8]}"
+            progress.update(file=filename, file_index=index)
+            def report(event: dict) -> None:
+                progress.update(event)
+            worker = asyncio.create_task(asyncio.to_thread(rag_service.ingest, ctx, str(temporary_source), notebook_id, source_id, report))
+            try:
+                result = await asyncio.shield(worker)
+            except asyncio.CancelledError:
+                # 线程不可强行停止；等它结束再清理文件和释放互斥。
+                await worker
+                raise
+            except ValueError as exc:
+                raise HTTPException(422, f"{filename}: {exc}") from None
+            imported.append({"title": Path(filename).stem, "source_id": result.source_id, "chunks": result.chunk_count,
+                             "original_name": filename, "bytes": temporary_source.stat().st_size,
+                             "characters": progress.get("characters", 0), "sha256": file_digest})
+            progress.update(stage="文件完成", done=index, total=len(staged), unit="文件", message=f"已导入 {index}/{len(staged)} 篇来源")
+        receipt = {"notebook_id": notebook_id, "upload_id": upload_id, "imported": imported}
+        progress.update(state="done", stage="完成", done=len(staged), total=len(staged), unit="文件",
+                        message=f"已导入 {len(imported)} 篇来源", result=receipt)
+        return receipt
+    except HTTPException as exc:
+        progress.update(state="error", stage="失败", message=str(exc.detail))
+        raise
+    except (OSError, RuntimeError, TypeError, ValueError):
+        progress.update(state="error", stage="失败", message="文件解析或入库失败")
+        raise HTTPException(422, "文件解析或入库失败") from None
+    except BaseException:
+        progress.update(state="error", stage="失败", message="导入失败，请重试或联系管理员")
+        raise
+    finally:
+        try:
+            temporary_dir.cleanup()
+        finally:
+            IMPORT_LOCK.release()
+
+
+async def _background_upload(*args):
+    try:
+        await _process_upload(*args)
+    except HTTPException:
+        pass  # 预期的文档错误已写入可查询终态。
+    except Exception:
+        logging.getLogger(__name__).exception("后台文档导入失败")
+
+
 @app.post("/api/notebooks/{notebook_id}/files")
-async def upload_documents(notebook_id: str, req: Request, files: list[UploadFile] = File(...), upload_id: str = ""):
+async def upload_documents(notebook_id: str, req: Request, files: list[UploadFile] = File(...), upload_id: str = "", background: bool = False):
     _require_same_origin(req)
     ctx, principal = _authorize(req, "authenticated", required=True)
     _authorize_notebook(req, notebook_id, "import_document")
@@ -496,63 +553,66 @@ async def upload_documents(notebook_id: str, req: Request, files: list[UploadFil
         raise HTTPException(422, "无效的上传任务标识")
     if upload_id in UPLOAD_PROGRESS:
         raise HTTPException(409, "上传任务标识已使用")
-    progress = {"user_id": principal.user_id, "notebook_id": notebook_id, "state": "running", "stage": "暂存文件", "done": 0, "total": len(files), "unit": "文件", "file": "", "file_index": 0, "file_total": len(files), "message": ""}
+    if IMPORT_LOCK.locked():
+        raise HTTPException(409, "已有来源正在导入，请完成后再上传")
+    await IMPORT_LOCK.acquire()
+    owns_files = True
+    temporary_dir = None
     upload_id = upload_id or uuid.uuid4().hex
+    progress = {"user_id": principal.user_id, "notebook_id": notebook_id, "state": "running", "stage": "暂存文件", "done": 0,
+                "total": len(files), "unit": "文件", "file": "", "file_index": 0, "file_total": len(files), "message": ""}
     UPLOAD_PROGRESS[upload_id] = progress
-    if upload_id:
-        UPLOAD_PROGRESS[upload_id] = progress
-
-    staged = []
     try:
-        with tempfile.TemporaryDirectory(prefix="ragnotebook-upload-") as temporary_dir:
-            temporary_root = Path(temporary_dir)
-            for index, upload in enumerate(files):
-                original_name = (upload.filename or "document").replace("\\", "/").rsplit("/", 1)[-1].strip()
-                if not original_name or original_name in {".", ".."}:
-                    original_name = "document"
-                extension = Path(original_name).suffix.lower()
-                if extension not in SUPPORTED_EXTENSIONS:
-                    supported = ", ".join(sorted(SUPPORTED_EXTENSIONS))
-                    raise HTTPException(415, f"{original_name}: 仅支持 {supported}")
-                try:
-                    content = await upload.read(MAX_UPLOAD_BYTES + 1)
-                finally:
-                    await upload.close()
-                if len(content) > MAX_UPLOAD_BYTES:
-                    raise HTTPException(413, f"{original_name}: 文件不能超过 25 MB")
-                staging_directory = temporary_root / str(index)
-                staging_directory.mkdir()
-                temporary_source = staging_directory / original_name
-                temporary_source.write_bytes(content)
-                staged.append((original_name, temporary_source, hashlib.sha256(content).hexdigest()))
-
-            imported = []
-            progress.update(stage="解析并入库", total=len(staged), done=0)
-            for index, (filename, temporary_source, file_digest) in enumerate(staged, start=1):
-                safe_stem = re.sub(r"[^\w\u4e00-\u9fff-]+", "-", Path(filename).stem).strip("-_")[:60] or "document"
-                source_id = f"{notebook_id}/{safe_stem}-{uuid.uuid4().hex[:8]}"
-                progress.update(file=filename, file_index=index)
-                def report(event: dict) -> None:
-                    progress.update(event)
-                try:
-                    result = await asyncio.to_thread(rag_service.ingest, ctx, str(temporary_source), notebook_id, source_id, report)
-                except ValueError as exc:
-                    raise HTTPException(422, f"{filename}: {exc}") from None
-                byte_count = temporary_source.stat().st_size
-                imported.append({"title": Path(filename).stem, "source_id": result.source_id, "chunks": result.chunk_count, "original_name": filename, "bytes": byte_count, "characters": progress.get("characters", 0), "sha256": file_digest})
-                progress.update(stage="文件完成", done=index, total=len(staged), unit="文件", message=f"已导入 {index}/{len(staged)} 篇来源")
-
-        progress.update(state="done", stage="完成", done=len(staged), total=len(staged), unit="文件", message=f"已导入 {len(imported)} 篇来源")
-        return JSONResponse({"notebook_id": notebook_id, "upload_id": upload_id, "imported": imported}, status_code=201)
+        temporary_dir = tempfile.TemporaryDirectory(prefix="ragnotebook-upload-")
+        temporary_root = Path(temporary_dir.name)
+        staged = []
+        for index, upload in enumerate(files):
+            original_name = (upload.filename or "document").replace("\\", "/").rsplit("/", 1)[-1].strip()
+            if not original_name or original_name in {".", ".."}:
+                original_name = "document"
+            extension = Path(original_name).suffix.lower()
+            if extension not in SUPPORTED_EXTENSIONS:
+                raise HTTPException(415, f"{original_name}: 仅支持 {', '.join(sorted(SUPPORTED_EXTENSIONS))}")
+            try:
+                content = await upload.read(MAX_UPLOAD_BYTES + 1)
+            finally:
+                await upload.close()
+            if len(content) > MAX_UPLOAD_BYTES:
+                raise HTTPException(413, f"{original_name}: 文件不能超过 25 MB")
+            directory = temporary_root / str(index)
+            directory.mkdir()
+            source = directory / original_name
+            source.write_bytes(content)
+            staged.append((original_name, source, hashlib.sha256(content).hexdigest()))
+        args = (ctx, notebook_id, upload_id, staged, temporary_dir, progress)
+        if background:
+            task = asyncio.create_task(_background_upload(*args))
+            IMPORT_TASKS.add(task)
+            task.add_done_callback(IMPORT_TASKS.discard)
+            owns_files = False
+            return JSONResponse({"notebook_id": notebook_id, "upload_id": upload_id, "state": "running"}, status_code=202)
+        owns_files = False
+        return JSONResponse(await _process_upload(*args), status_code=201)
     except HTTPException as exc:
         progress.update(state="error", stage="失败", message=str(exc.detail))
         raise
-    except (OSError, RuntimeError, TypeError, ValueError) as exc:
-        progress.update(state="error", stage="失败", message=str(exc))
+    except (OSError, RuntimeError, TypeError, ValueError):
+        progress.update(state="error", stage="失败", message="文件解析或入库失败")
         raise HTTPException(422, "文件解析或入库失败") from None
+    except BaseException:
+        progress.update(state="error", stage="失败", message="导入失败，请重试或联系管理员")
+        raise
     finally:
-        for upload in files:
-            await upload.close()
+        try:
+            for upload in files:
+                await upload.close()
+        finally:
+            if owns_files:
+                try:
+                    if temporary_dir is not None:
+                        temporary_dir.cleanup()
+                finally:
+                    IMPORT_LOCK.release()
 
 
 @app.get("/api/uploads/{upload_id}")

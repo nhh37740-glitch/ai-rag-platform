@@ -1,14 +1,15 @@
 {
   "package": "ingestion",
   "delivery": "Cython extension + standalone Nuitka worker (Windows)",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "facade": {
     "parse": {
       "kind": "function",
       "params": {
         "path": "str"
       },
-      "returns": "list[str]"
+      "returns": "list[str]",
+      "raises": "ValueError for malformed DOCX/PDF or encrypted PDF"
     },
     "to_markdown": {
       "kind": "function",
@@ -16,7 +17,8 @@
         "path": "str",
         "title": "str"
       },
-      "returns": "str"
+      "returns": "str",
+      "raises": "ValueError for malformed DOCX/PDF or encrypted PDF"
     },
     "chunk": {
       "kind": "function",
