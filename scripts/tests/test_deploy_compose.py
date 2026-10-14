@@ -31,7 +31,11 @@ elif a[0]=='port':
 elif a[:2]==['container','inspect']:
  code=0 if a[-1] in s['legacy'] else 1
 elif a[0]=='inspect':
- out=s['candidate_health'] if a[-1]=='candidate-private' else s['deployed_health']
+ if a[-1]=='candidate-private':
+  count=s.get('candidate_inspections',0)+1; s['candidate_inspections']=count
+  out='starting' if count<=s.get('candidate_starting_polls',0) else s['candidate_health']
+ else:
+  out=s['deployed_health']
 elif a[0]=='compose':
  action=a[a.index('--project-name')+2]
  if action=='up':
@@ -58,6 +62,7 @@ def release_env(tmp_path: Path):
     sudo=bin_dir/'sudo'
     sudo.write_text('#!/bin/sh\nif [ "$1" = python3 ]; then exit 0; fi\nexec "$@"\n')
     sudo.chmod(0o755)
+    sleep=bin_dir/'sleep'; sleep.write_text('#!/bin/sh\nexit 0\n'); sleep.chmod(0o755)
     model=tmp_path/'model.env'; model.write_text('LLM_PROVIDER=openrouter\n')
     admin=tmp_path/'bootstrap.env'; admin.write_text('RAG_BOOTSTRAP_ADMIN_USERNAME=administrator\n')
     state=tmp_path/'state.json'
@@ -71,7 +76,7 @@ def release_env(tmp_path: Path):
     return env,state
 
 def run(env):
-    return subprocess.run(['sh',str(SCRIPT)],env=env,capture_output=True,text=True)
+    return subprocess.run(['sh',str(SCRIPT)],env=env,capture_output=True,text=True,timeout=30)
 
 def load(path):
     return json.loads(path.read_text())
@@ -86,6 +91,9 @@ def test_success_replaces_main_service_and_retires_legacy_without_deleting_data(
     candidate=next(call for call in state['calls'] if call[0]=='run')
     assert 'ai-rag-private-smoke-17:/opt/agent/state' in candidate
     assert 'ai-rag_model-cache:/opt/agent/models/fastembed_cache' in candidate
+    for flag,value in [('--memory','1g'),('--memory-swap','2g'),('--cpus','1.00'),
+                       ('--health-start-period','900s')]:
+        assert candidate[candidate.index(flag)+1]==value
     assert all('ai-rag-web-quota' not in ' '.join(call) for call in state['calls'])
 
 def test_candidate_failure_does_not_switch_or_retire_containers(release_env):
@@ -104,3 +112,22 @@ def test_new_service_failure_stops_it_without_restoring_old_image(release_env):
     assert state['up']==1 and len(state['legacy'])==3
     assert 'no old service was restored' in result.stderr
     assert not any(call[:2]==['volume','rm'] and call[-1]!='ai-rag-private-smoke-17' for call in state['calls'])
+
+def test_candidate_can_become_healthy_on_last_allowed_poll(release_env):
+    env,path=release_env; state=load(path)
+    state['candidate_starting_polls']=179; path.write_text(json.dumps(state))
+    result=run(env); state=load(path)
+    assert result.returncode==0,result.stderr
+    assert state['candidate_inspections']==180
+    assert state['active']=='sha256:candidate' and state['up']==1
+
+def test_candidate_startup_timeout_preserves_active_service_and_cleans_smoke(release_env):
+    env,path=release_env; state=load(path)
+    state['candidate_starting_polls']=180; path.write_text(json.dumps(state))
+    result=run(env); state=load(path)
+    assert result.returncode!=0
+    assert state['candidate_inspections']==180
+    assert state['active']=='sha256:old' and state['running'] and state['up']==0
+    assert len(state['legacy'])==3
+    assert ['rm','-f','candidate-private'] in state['calls']
+    assert [call[-1] for call in state['calls'] if call[:2]==['volume','rm']]==['ai-rag-private-smoke-17']
