@@ -1,5 +1,9 @@
 import asyncio
 import os
+import io
+import zipfile
+from pathlib import Path
+from pypdf import PdfWriter
 from unittest.mock import patch
 import httpx
 from core_specifications import ModelRequestError, RequestContext
@@ -16,6 +20,134 @@ async def register(c, prefix):
     assert response.status_code == 201, response.text
     assert (await c.post("/api/auth/login", headers={"Origin": ORIGIN}, json=account)).status_code == 200
     return response.json()["user"]["id"]
+
+
+async def completed_upload(owner, upload_id):
+    for _ in range(100):
+        response = await owner.get(f"/api/uploads/{upload_id}")
+        assert response.status_code == 200
+        state = response.json()
+        if state["state"] != "running":
+            return state
+        await asyncio.sleep(0.02)
+    raise AssertionError("background upload did not finish")
+
+
+def test_background_upload_returns_before_embedding_and_holds_files_and_admission():
+    async def run():
+        async with client() as owner, client() as other:
+            await register(owner, "async-owner")
+            await register(other, "async-other")
+            book = (await owner.post("/api/notebooks", headers={"Origin": ORIGIN}, json={"name": "后台长导入"})).json()["id"]
+            second = (await other.post("/api/notebooks", headers={"Origin": ORIGIN}, json={"name": "其它导入"})).json()["id"]
+            started, release = __import__("threading").Event(), __import__("threading").Event()
+            paths = []
+            original = s.rag_service.ingest
+            def paused(ctx, path, knowledge_base_id, source_id="", progress=None):
+                paths.append(Path(path))
+                assert paths[-1].is_file()
+                started.set()
+                assert release.wait(10)
+                return original(ctx, path, knowledge_base_id, source_id, progress)
+            upload_id = "async-" + book
+            try:
+                with patch.object(s.rag_service, "ingest", new=paused):
+                    response = await owner.post(f"/api/notebooks/{book}/files?background=true&upload_id={upload_id}", headers={"Origin": ORIGIN}, files={"files": ("novel.txt", "后台导入保留临时文件。".encode())})
+                    assert response.status_code == 202, response.text
+                    assert await asyncio.to_thread(started.wait, 5)
+                    assert (await owner.get(f"/api/uploads/{upload_id}")).json()["state"] == "running"
+                    assert (await other.get(f"/api/uploads/{upload_id}")).status_code == 404
+                    assert (await owner.delete(f"/api/notebooks/{book}", headers={"Origin": ORIGIN})).status_code == 409
+                    busy = await other.post(f"/api/notebooks/{second}/files?background=true", headers={"Origin": ORIGIN}, files={"files": ("other.txt", b"other")})
+                    assert busy.status_code == 409
+                    release.set()
+                    done = await completed_upload(owner, upload_id)
+            finally:
+                release.set()
+            assert done["state"] == "done"
+            assert done["result"]["imported"][0]["bytes"] == len("后台导入保留临时文件。".encode())
+            assert done["result"]["imported"][0]["sha256"]
+            assert paths and not paths[0].exists()
+            assert not s.IMPORT_LOCK.locked()
+            assert (await owner.delete(f"/api/notebooks/{book}", headers={"Origin": ORIGIN})).status_code == 200
+            assert (await other.delete(f"/api/notebooks/{second}", headers={"Origin": ORIGIN})).status_code == 200
+    asyncio.run(run())
+
+
+def test_background_document_error_finishes_cleans_files_and_allows_retry():
+    async def run():
+        async with client() as owner:
+            await register(owner, "async-error")
+            book = (await owner.post("/api/notebooks", headers={"Origin": ORIGIN}, json={"name": "后台错误"})).json()["id"]
+            upload_id = "async-error-" + book
+            seen = []
+            original = s.rag_service.ingest
+            def recording(ctx, path, *args):
+                seen.append(Path(path))
+                return original(ctx, path, *args)
+            with patch.object(s.rag_service, "ingest", new=recording):
+                response = await owner.post(f"/api/notebooks/{book}/files?background=true&upload_id={upload_id}", headers={"Origin": ORIGIN}, files={"files": ("broken.docx", b"not a ZIP")})
+                assert response.status_code == 202
+                failure = await completed_upload(owner, upload_id)
+            assert failure["state"] == "error" and "DOCX" in failure["message"]
+            assert seen and not seen[0].exists()
+            assert not s.IMPORT_LOCK.locked()
+            assert (await owner.get(f"/api/notebooks/{book}/documents")).json()["documents"] == []
+            retry = await owner.post(f"/api/notebooks/{book}/files?background=true", headers={"Origin": ORIGIN}, files={"files": ("valid.txt", "重新上传正常文本。".encode())})
+            assert retry.status_code == 202
+            assert (await completed_upload(owner, retry.json()["upload_id"]))["state"] == "done"
+            assert (await owner.delete(f"/api/notebooks/{book}", headers={"Origin": ORIGIN})).status_code == 200
+    asyncio.run(run())
+
+
+def test_corrupt_documents_end_progress_allow_retry_and_deletion():
+    malformed_xml = io.BytesIO()
+    with zipfile.ZipFile(malformed_xml, "w") as archive:
+        archive.writestr("word/document.xml", "<broken")
+    missing_body = io.BytesIO()
+    with zipfile.ZipFile(missing_body, "w") as archive:
+        archive.writestr("other.xml", "<document/>")
+    encrypted = io.BytesIO()
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    writer.encrypt("private-test-password")
+    writer.write(encrypted)
+    cases = [("broken.docx", b"not a ZIP"), ("xml.docx", malformed_xml.getvalue()),
+             ("missing.docx", missing_body.getvalue()), ("broken.pdf", b"not a PDF"),
+             ("encrypted.pdf", encrypted.getvalue())]
+    async def run():
+        async with client() as owner:
+            await register(owner, "corrupt-owner")
+            for filename, content in cases:
+                book = (await owner.post("/api/notebooks", headers={"Origin": ORIGIN}, json={"name": filename})).json()["id"]
+                upload_id = "corrupt-" + book
+                response = await owner.post(f"/api/notebooks/{book}/files?upload_id={upload_id}", headers={"Origin": ORIGIN}, files={"files": (filename, content)})
+                assert response.status_code == 422, response.text
+                assert response.headers["content-type"].startswith("application/json")
+                assert filename in response.json()["detail"]
+                progress = (await owner.get(f"/api/uploads/{upload_id}")).json()
+                assert progress["state"] == "error"
+                assert (await owner.get(f"/api/notebooks/{book}/documents")).json()["documents"] == []
+                retry = await owner.post(f"/api/notebooks/{book}/files", headers={"Origin": ORIGIN}, files={"files": ("valid.txt", "正常文档可以重试。".encode())})
+                assert retry.status_code == 201, retry.text
+                assert (await owner.delete(f"/api/notebooks/{book}", headers={"Origin": ORIGIN})).status_code == 200
+    asyncio.run(run())
+
+
+def test_unexpected_ingestion_error_ends_task_without_hiding_programming_error():
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=s.app, raise_app_exceptions=False), base_url=ORIGIN) as owner:
+            await register(owner, "unexpected-import")
+            book = (await owner.post("/api/notebooks", headers={"Origin": ORIGIN}, json={"name": "程序错误回归"})).json()["id"]
+            upload_id = "unexpected-" + book
+            with patch.object(s.rag_service, "ingest", side_effect=AssertionError("internal diagnostic")):
+                response = await owner.post(f"/api/notebooks/{book}/files?upload_id={upload_id}", headers={"Origin": ORIGIN}, files={"files": ("valid.txt", b"valid content")})
+            assert response.status_code == 500
+            progress = (await owner.get(f"/api/uploads/{upload_id}")).json()
+            assert progress["state"] == "error"
+            assert "internal diagnostic" not in progress["message"]
+            assert (await owner.delete(f"/api/notebooks/{book}", headers={"Origin": ORIGIN})).status_code == 200
+    asyncio.run(run())
 
 
 def test_notebook_and_source_delete_enforce_owner_editor_viewer_and_origin():

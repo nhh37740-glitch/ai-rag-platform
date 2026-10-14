@@ -18,3 +18,9 @@
 游客问答可附带 `model_id` 与目录中的 `catalog_provider_id`；服务端再次核对当前 Provider 和模型目录，目录已切换时返回 409。注册用户和管理员不能指定此临时覆盖；任何问答请求都不能直接指定 provider_id。
 
 数据结构和模块接口见 [`DOMAIN_INTERFACES.md`](DOMAIN_INTERFACES.md) 与 [`AUTH_INTERFACES.md`](AUTH_INTERFACES.md)。
+
+## RAGnotebook 0.9.1 导入任务
+
+POST /api/notebooks/{id}/files 的可选 background=true 在文件校验/暂存后返回202 `{notebook_id, upload_id, state}`；默认同步模式保持201完整回执。全站最多一个导入任务，忙时409。GET /api/uploads/{upload_id} 保持身份与笔记本写权限检查：state=running/error/done；done时result为原完整回执（含imported字节/字符/块数/sha256/source_id），error时message为失败原因。前端通过短请求轮询终态，不把请求传输完成或临时网络失败当作导入完成；重启丢失进程内任务记录时提示检查来源后再操作，不静默重复上传。
+
+网页本地恢复记录按user_id隔离，仅含notebookId/uploadId。登录与页面刷新后仍通过受权限保护的GET进度续看；终态清理记录，不自动重发文件。

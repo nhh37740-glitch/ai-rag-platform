@@ -45,9 +45,9 @@
     },
     "ingestion": {
       "name": "ingestion",
-      "version": "0.2.1",
-      "checksum": "ae1e2fca3fd1e27f2da95267ee1999378a39326f782493bb8034c786ad24fb41",
-      "path": "artifacts/ingestion/0.2.1",
+      "version": "0.2.2",
+      "checksum": "2fc08ed058c313fac34e861b8aaa40e2f42ed0d3985d986758490d32eea8e299",
+      "path": "artifacts/ingestion/0.2.2",
       "status": "published"
     },
     "llm-gateway": {
