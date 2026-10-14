@@ -28,7 +28,7 @@ wait_for_health() {
     cid=${1:-$(compose ps -q agent 2>/dev/null || true)}
     [ -n "$cid" ] || return 1
     attempt=1
-    while [ "$attempt" -le 72 ]; do
+    while [ "$attempt" -le 180 ]; do
         status=$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null || true)
         if [ "$status" = healthy ]; then
             return 0
@@ -59,7 +59,8 @@ sudo test -s "$BOOTSTRAP_ENV_FILE"
 SMOKE_CONTAINER=$(docker run -d --rm --read-only --tmpfs /tmp:size=32m \
     --tmpfs /opt/agent/data/kb/user-notebooks:uid=10001,gid=10001,mode=0700,size=8m \
     --tmpfs /opt/agent/data/agent-files:uid=10001,gid=10001,mode=0700,size=8m \
-    --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 0.50 \
+    --cap-drop ALL --security-opt no-new-privileges --memory 1g --memory-swap 2g --cpus 1.00 \
+    --health-start-period 900s \
     --env-file "$MODEL_ENV_FILE" --env-file "$BOOTSTRAP_ENV_FILE" -e PUBLIC_DEMO=0 -e RAG_EMBED=fastembed \
     -e BGE_MODEL=BAAI/bge-small-zh-v1.5 -e FASTEMBED_CACHE_PATH=/opt/agent/models/fastembed_cache \
     -e STATE_DIR=/opt/agent/state -v "$SMOKE_VOLUME:/opt/agent/state" \
