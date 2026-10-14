@@ -1,5 +1,9 @@
 ## 0.7.1 - 2026-10-13
 
+## 0.8.0 — 2026-10-13
+
+- 来源删除、导入进度回调及 ModelRequestError 共享错误契约。
+
 - Add DataServicePort atomic full-collection embedding replacement for model changes.
 
 # 变更记录

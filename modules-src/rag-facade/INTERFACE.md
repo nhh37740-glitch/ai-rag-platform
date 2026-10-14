@@ -7,3 +7,7 @@
 `ensure_embedding_model(ctx)` 使用 `embedding_state` 的公开 DataService 接口，在 `agent_data` 保存 `RAG_EMBED` 和 BGE 模型标识。标识变化后先生成全部新向量，再通过 DataService 一次性替换；成功后才更新标识；不增删表。
 
 支持 md/txt/docx/pdf。检索范围必须显式提供；空范围不返回文档。文档按页读取，每次最多 100 个分块。`ingest` 接收服务端临时文件路径，完成解析、切分、嵌入和入库。
+
+## 0.3.3 导入进度
+
+ingest/ingest_markdown 最后增加可选 progress: Callable[[dict], None]。每批32块向量完成时报告 stage/done/total/unit；分块阶段还报告解析后的characters。全部向量成功后才原子写入，回调不含正文。

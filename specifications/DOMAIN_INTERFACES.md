@@ -169,3 +169,11 @@ agent-facade 0.3.0提供resolve_model_config(ctx: RequestContext, environment: d
 2026-10-13：AgentService.run 可接收已保存的 user/assistant 历史；游客调用 memory_enabled=False，禁止持久记忆读写。游客 trace_id 为随机能力标识，只在进程内有效。
 
 2026-10-13：AgentService.enable_write_tools 在私有 RAGnotebook 恢复管理员创建文件与保存会话到新笔记本能力；公开演示不启用。
+
+## 0.9.0 追加接口
+
+`DataService.delete_document(ctx, notebook_id: str, source_id: str) -> None`：两个范围精确匹配；不存在或跨范围抛 ValueError；事务删除该来源全部分块。权限由 auth-facade 的 notebook_permissions 在 HTTP 入口复核。
+
+`RagService.ingest(ctx, path, knowledge_base_id, source_id="", progress=None)` 与 `ingest_markdown(ctx, markdown, source_id, progress=None)` 的可选回调为 `Callable[[dict], None]`。事件包含 stage、done、total、unit，解析/分块/向量/入库/完成分阶段。向量每32块更新；失败不写入新来源，回调不得包含文档正文或凭据。
+
+共享 `ModelRequestError(code, message, status_code=502)` 跨模型/应用边界；code 为稳定分类（model_rate_limited/model_unavailable/model_timeout/model_connection_failed/model_invalid_response），message 为脱敏中文提示，严禁携带请求头、凭据或完整上游响应。HTTP 额外附带 trace_id。

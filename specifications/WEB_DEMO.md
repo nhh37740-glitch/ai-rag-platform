@@ -47,3 +47,12 @@ OpenRouter 模式下所有 Web 问答入口共用 DailyQueryQuota，每天 20 �
 Jenkins 在目标平台已编译模块的环境中验证：允许的固定问题→实际 trace；无检索成功结果拒绝；错误/超时/并发与缓存；禁止写 API、参数扩权；临时 key 同源校验、请求后清理、缓存隔离与错误不泄露；不读取私人目录；正常私有模式已有功能仍通过。公开部署使用独立新数据卷；编译和模块原始接口规范门禁保留。
 
 身份、文档读取与管理员能力接口详见 [AUTH_INTERFACES.md](AUTH_INTERFACES.md)。自由问题不读取或写入全局缓存；游客直接创建、上传或调用私有查询端点仍返回403。
+
+## RAGnotebook 0.9.0
+
+- `DELETE /api/notebooks/{id}`：同源、owner 的 manage_notebook 权限；删除整个笔记本与关联来源、成员、会话。内置CMRC拒绝；活动问答/导入返回409。
+- `DELETE /api/notebooks/{id}/documents?source_id=...`：同源、owner/editor 的 import_document 权限；来源严格属于该笔记本。viewer/guest拒绝，跨范围或不存在404，内置CMRC拒绝。
+- 导入响应 imported 每项返回 bytes（原文件字节）、characters（解析后的Markdown字符）、chunks、sha256（原文件摘要），不把文件传输完成当作向量入库完成。
+- `/api/uploads/{id}` 在导入期间返回 stage/done/total/unit、当前file/file_index/file_total；权限按请求用户及笔记本复核。上传弹窗内显示真实XHR传输字节进度和后端处理阶段，解析/入库阶段使用不确定进度动画。
+- `/api/chat` 成功路径保持原字段；失败返回JSON detail.code/detail.message 和 trace_id。模型429/503/502/504与总时限120秒可区分；不泄露上游正文或凭据。浏览器等待130秒并可主动取消；服务端检测断开并取消任务。
+- 免费目录要求零文本输入/输出/请求价格、文本输入输出、tools参数；目录仍不是逐模型可用性承诺。不自动把用户选择替换成其他模型。

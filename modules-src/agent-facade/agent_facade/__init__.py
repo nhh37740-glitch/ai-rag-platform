@@ -5,6 +5,7 @@ import json
 import os
 import threading
 import time
+from decimal import Decimal, InvalidOperation
 import uuid
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -27,7 +28,7 @@ from llm_gateway import DeepSeekProvider, MockProvider
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 
 def resolve_model_config(ctx: RequestContext, environment: dict[str, str], public: bool = False) -> ModelConfiguration:
@@ -154,8 +155,19 @@ class AgentService:
             if not isinstance(item, dict) or not isinstance(item.get("id"), str):
                 continue
             mid, price = item["id"], item.get("pricing", {})
-            zero = isinstance(price, dict) and str(price.get("prompt")) in {"0", "0.0", "0.000000"} and str(price.get("completion")) in {"0", "0.0", "0.000000"}
-            if (mid.endswith(":free") or zero) and mid not in seen:
+            try:
+                zero = isinstance(price, dict) and all(
+                    Decimal(str(price.get(key, "1" if key in {"prompt", "completion"} else "0"))) == 0
+                    for key in ("prompt", "completion", "request")
+                )
+            except (InvalidOperation, ValueError):
+                zero = False
+            architecture = item.get("architecture", {})
+            inputs = architecture.get("input_modalities") if isinstance(architecture, dict) else None
+            parameters = item.get("supported_parameters")
+            text_chat = isinstance(inputs, list) and "text" in inputs and architecture.get("output_modalities") == ["text"]
+            supports_tools = isinstance(parameters, list) and "tools" in parameters
+            if zero and text_chat and supports_tools and mid not in seen:
                 seen.add(mid)
                 result.append({"id": mid, "name": item.get("name") or mid})
         if not raw:

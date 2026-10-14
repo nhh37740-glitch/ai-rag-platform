@@ -1,7 +1,7 @@
 {
   "package": "rag_facade",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "facade": {
     "RagService": {
       "kind": "class",
@@ -80,7 +80,8 @@
             "ctx": "RequestContext",
             "path": "str",
             "knowledge_base_id": "str",
-            "source_id": "str"
+            "source_id": "str",
+            "progress": "Optional[Callable[[dict], None]]"
           },
           "returns": "IngestResult"
         },
@@ -88,7 +89,8 @@
           "params": {
             "ctx": "RequestContext",
             "markdown": "str",
-            "source_id": "str"
+            "source_id": "str",
+            "progress": "Optional[Callable[[dict], None]]"
           },
           "returns": "IngestResult"
         },

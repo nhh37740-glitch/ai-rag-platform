@@ -1,6 +1,6 @@
 {
   "format": 2,
-  "specification_version": "1.1.0",
+  "specification_version": "1.2.0",
   "context": {
     "type": "RequestContext",
     "package": "specifications.core_specifications",
@@ -119,7 +119,7 @@
     "rag-core": {
       "package": "rag_core",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.5.2",
+      "version": "0.5.3",
       "constants": {
         "DEFAULT_READ_CHUNKS": 20,
         "MAX_READ_CHUNKS": 100
@@ -127,7 +127,10 @@
       "embedding": {
         "default_backend": "fastembed",
         "default_model": "BAAI/bge-small-zh-v1.5",
-        "fallback": "disabled; hash requires explicit RAG_EMBED=hash"
+        "fallback": "disabled; hash requires explicit RAG_EMBED=hash",
+        "batch_size": 8,
+        "threads": 1,
+        "concurrency": "process-local serialized initialization and batch inference"
       },
       "facade": {
         "RagClient": {
@@ -356,7 +359,7 @@
     "llm-gateway": {
       "package": "llm_gateway",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "facade": {
         "LLMProvider": {
           "kind": "protocol",
@@ -710,7 +713,7 @@
     "rag-facade": {
       "package": "rag_facade",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.3.2",
+      "version": "0.3.3",
       "facade": {
         "RagService": {
           "kind": "class",
@@ -789,7 +792,8 @@
                 "ctx": "RequestContext",
                 "path": "str",
                 "knowledge_base_id": "str",
-                "source_id": "str"
+                "source_id": "str",
+                "progress": "Optional[Callable[[dict], None]]"
               },
               "returns": "IngestResult"
             },
@@ -797,7 +801,8 @@
               "params": {
                 "ctx": "RequestContext",
                 "markdown": "str",
-                "source_id": "str"
+                "source_id": "str",
+                "progress": "Optional[Callable[[dict], None]]"
               },
               "returns": "IngestResult"
             },
@@ -826,7 +831,7 @@
     "data-facade": {
       "package": "data_facade",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "facade": {
         "DataService": {
           "kind": "class",
@@ -1049,6 +1054,14 @@
                 "replacements": "dict[str,tuple[list[str],list[list[float]]]]"
               },
               "returns": "None"
+            },
+            "delete_document": {
+              "params": {
+                "ctx": "RequestContext",
+                "notebook_id": "str",
+                "source_id": "str"
+              },
+              "returns": "None"
             }
           }
         }
@@ -1057,7 +1070,7 @@
     "agent-facade": {
       "package": "agent_facade",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.5.2",
+      "version": "0.5.3",
       "facade": {
         "make_provider": {
           "kind": "function",
@@ -2052,5 +2065,15 @@
       "data_facade",
       "auth_facade"
     ]
+  },
+  "shared_errors": {
+    "ModelRequestError": {
+      "constructor": {
+        "code": "str",
+        "message": "str",
+        "status_code": "int=502"
+      },
+      "note": "Sanitized model failure; no credentials or raw provider body"
+    }
   }
 }

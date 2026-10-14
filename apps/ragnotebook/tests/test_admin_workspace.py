@@ -49,7 +49,7 @@ def test_model_admin_is_global_admin_only_and_never_returns_server_keys():
             await user.post("/api/auth/login", headers={"origin": ORIGIN}, json={"username": registered.json()["user"]["username"], "password": "test-password-123"})
             assert (await user.get("/api/models/providers")).status_code == 403
             await admin.post("/api/auth/login", headers={"origin": ORIGIN}, json={"username": admin_username, "password": admin_password})
-            catalog = json.dumps([{"id": "vendor/free-model:free", "name": "Free Model", "pricing": {"prompt": "0", "completion": "0"}}])
+            catalog = json.dumps([{"id": "vendor/free-model:free", "name": "Free Model", "pricing": {"prompt": "0", "completion": "0"}, "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]}, "supported_parameters": ["tools"]}])
             with patch.dict(os.environ, {"OPENROUTER_API_KEY": secret, "OPENROUTER_MODELS": catalog}), \
                  patch.dict(s.runtime._environment, {"OPENROUTER_API_KEY": secret, "OPENROUTER_MODELS": catalog}):
                 providers = await admin.get("/api/models/providers")

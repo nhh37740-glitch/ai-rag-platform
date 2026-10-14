@@ -419,3 +419,12 @@ svg { display: block; fill: none; stroke: currentColor; stroke-linecap: round; s
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* 0.9.0 resource controls and visible processing state */
+.notebook-row { display: flex; align-items: center; gap: 4px; }
+.notebook-row .notebook-item { flex: 1; min-width: 0; }
+.delete-resource { flex: 0 0 auto; padding: 6px 8px; color: var(--danger); background: transparent; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; font-size: 11px; }
+.delete-resource:disabled { opacity: .5; cursor: wait; }
+.source-copy { flex: 1; }
+.cancel-chat { padding: 5px 9px; margin-top: 8px; color: var(--ink-soft); background: white; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+.cancel-chat[hidden], .progress[hidden] { display: none; }

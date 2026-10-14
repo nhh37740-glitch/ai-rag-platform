@@ -16,3 +16,5 @@
 - `DEFAULT_READ_CHUNKS = 20`、`MAX_READ_CHUNKS = 100`：分页边界；单次调用最多返回 `MAX_READ_CHUNKS` 块，因此不可能一次读回整篇长文档
 - `read_document` 返回的每个 `Citation.metadata` 含 `knowledge_base_id`、`chunk_index`（1 起绝对序号）、`total_chunks`
 - `build_context(result) -> str`
+
+- FastEmbed 推理约束：单批最多8条，模型threads=1；进程内串行初始化与逐批推理（包含消费惰性结果），批次间释放锁。公共签名、模型及向量维度不变；不保证整个进程内存固定。

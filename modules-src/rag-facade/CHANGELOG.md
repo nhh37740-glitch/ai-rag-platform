@@ -1,5 +1,9 @@
 ## 0.3.2 - 2026-10-13
 
+## 0.3.3 — 2026-10-13
+
+- 导入支持阶段与分块进度回调，向量分批计算完成后原子入库。
+
 - Build the complete new embedding set before a single atomic replacement.
 
 # rag-facade

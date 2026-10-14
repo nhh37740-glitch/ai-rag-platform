@@ -1,7 +1,7 @@
 {
   "package": "data_facade",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "facade": {
     "DataService": {
       "kind": "class",
@@ -222,6 +222,14 @@
           "params": {
             "ctx": "RequestContext",
             "replacements": "dict[str,tuple[list[str],list[list[float]]]]"
+          },
+          "returns": "None"
+        },
+        "delete_document": {
+          "params": {
+            "ctx": "RequestContext",
+            "notebook_id": "str",
+            "source_id": "str"
           },
           "returns": "None"
         }

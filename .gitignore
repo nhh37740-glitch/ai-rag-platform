@@ -17,6 +17,8 @@ build/
 
 # Cython outputs generated beside module sources
 modules-src/**/__init__.c
+modules-src/**/github.c
+modules-src/**/*.so
 modules-src/**/data/_tests/
 
 # resume / job-search notes (not part of repo)

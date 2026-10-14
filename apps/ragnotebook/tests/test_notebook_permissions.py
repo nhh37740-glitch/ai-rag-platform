@@ -95,10 +95,10 @@ def test_owner_editor_viewer_guest_sharing_ingestion_and_conversations():
 
             original_ingest = s.rag_service.ingest
             calls = []
-            def tracked_ingest(ctx, path, knowledge_base_id, source_id=""):
+            def tracked_ingest(ctx, path, knowledge_base_id, source_id="", progress=None):
                 temp_path = Path(path)
                 calls.append((str(temp_path), temp_path.exists(), temp_path.read_text(encoding="utf-8"), knowledge_base_id, source_id))
-                return original_ingest(ctx, path, knowledge_base_id, source_id)
+                return original_ingest(ctx, path, knowledge_base_id, source_id, progress)
             with patch.object(s.rag_service, "ingest", side_effect=tracked_ingest):
                 uploaded = await editor.post(f"/api/notebooks/{notebook_id}/files?upload_id=ingest-{os.urandom(4).hex()}", headers={"origin": ORIGIN}, files={"files": ("资料\u002eTXT", b"RAG facade ingestion content.", "text/plain")})
             assert uploaded.status_code == 201, uploaded.text
