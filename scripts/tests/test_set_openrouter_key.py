@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import tempfile
@@ -11,6 +12,10 @@ VALID_KEY = "sk-or-v1-" + "a" * 64
 
 @unittest.skipUnless(shutil.which("sh"), "POSIX sh is required")
 class SetOpenRouterKeyTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "posix", "executable bit is POSIX-only")
+    def test_documented_command_is_executable(self):
+        self.assertTrue(os.access(SCRIPT, os.X_OK))
+
     def run_script(self, env_file, key, *arguments):
         return subprocess.run(
             ["sh", str(SCRIPT), "--env-file", str(env_file), "--no-verify", "--no-restart", *arguments],
