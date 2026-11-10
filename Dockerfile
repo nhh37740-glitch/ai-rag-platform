@@ -22,6 +22,8 @@ COPY data/kb/README.md data/kb/README.md
 COPY data/kb/user-notebooks/README.md data/kb/user-notebooks/README.md
 COPY data/agent-files/README.md data/agent-files/README.md
 COPY registry.json pytest.ini ./
+COPY CLAUDE.md ./
+COPY docs/CODE_TREE.md docs/CODE_TREE.md
 
 # Editable installs are used only to run module tests in the disposable build stage.
 RUN pip install --no-cache-dir --no-deps -e specifications \

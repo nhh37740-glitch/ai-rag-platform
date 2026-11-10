@@ -10,7 +10,7 @@ from typing import Callable, List
 
 from core_specifications import RequestContext
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 
 _NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 SUPPORTED_EXTENSIONS = frozenset({".md", ".txt", ".docx", ".pdf"})

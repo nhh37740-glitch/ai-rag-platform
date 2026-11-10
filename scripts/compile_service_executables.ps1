@@ -22,6 +22,6 @@ function Invoke-Nuitka([string]$Entry, [string]$Name) {
 
 Push-Location $Root
 try {
-    Invoke-Nuitka "modules-src\mcp-servers\mcp_servers\__main__.py" "mcp_servers"
-    if ($All) { Invoke-Nuitka "modules-src\ingestion\ingestion\__main__.py" "ingestion_worker" }
+    Invoke-Nuitka "modules-src\agent\mcp-servers\mcp_servers\__main__.py" "mcp_servers"
+    if ($All) { Invoke-Nuitka "modules-src\rag\ingestion\ingestion\__main__.py" "ingestion_worker" }
 } finally { Pop-Location }
