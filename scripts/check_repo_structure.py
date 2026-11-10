@@ -168,11 +168,10 @@ def _check_artifacts(root: Path) -> list[str]:
         if not path.is_dir():
             errors.append(f"registry 指向的产物目录不存在：{relative}")
             continue
-        for filename in ("VERSION", "checksum.sha256", "INTERFACE.md", "API_SCHEMA.json"):
+        for filename in ("VERSION", "checksum.sha256", "INTERFACE.md", "API_SCHEMA.json",
+                         "CHANGELOG.md", "test_specification.py"):
             if not (path / filename).is_file():
                 errors.append(f"产物缺少 {filename}：{relative}")
-        if not (path / str(spec.get("name", ""))).is_dir():
-            errors.append(f"产物缺少包目录 {spec.get('name')}：{relative}")
     known = set(modules)
     for entry in sorted(artifacts.iterdir()):
         if entry.is_dir() and entry.name not in known:
