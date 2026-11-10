@@ -119,7 +119,7 @@
     "rag-core": {
       "package": "rag_core",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.5.3",
+      "version": "0.6.0",
       "constants": {
         "DEFAULT_READ_CHUNKS": 20,
         "MAX_READ_CHUNKS": 100
@@ -221,6 +221,42 @@
           },
           "returns": "RetrievalResult",
           "notes": "向量与词面排序的 RRF 融合"
+        },
+        "bm25_search": {
+          "kind": "function",
+          "params": {
+            "ctx": "RequestContext",
+            "query": "str",
+            "store": "VectorStore",
+            "scope": "str|list[str]|null",
+            "top_k": "int"
+          },
+          "returns": "RetrievalResult",
+          "notes": "Okapi BM25；中文双字 + 英文词，不调用向量模型"
+        },
+        "bm25_hybrid_search": {
+          "kind": "function",
+          "params": {
+            "ctx": "RequestContext",
+            "query": "str",
+            "store": "VectorStore",
+            "scope": "str|list[str]|null",
+            "top_k": "int",
+            "alpha": "float"
+          },
+          "returns": "RetrievalResult",
+          "notes": "向量与 BM25 的 RRF 融合；生产默认仍为 hybrid_search"
+        },
+        "rerank_by_lexical_overlap": {
+          "kind": "function",
+          "params": {
+            "query": "str",
+            "hits": "list[tuple[str,str,float]]",
+            "top_k": "int",
+            "weight": "float=0.5"
+          },
+          "returns": "list[tuple[str,str,float]]",
+          "notes": "词面启发式重排，只调整已召回候选；不是 cross-encoder"
         },
         "list_documents": {
           "kind": "function",
@@ -359,7 +395,7 @@
     "llm-gateway": {
       "package": "llm_gateway",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.1.2",
+      "version": "0.2.0",
       "facade": {
         "LLMProvider": {
           "kind": "protocol",
@@ -534,8 +570,8 @@
     "agent-runtime": {
       "package": "agent_runtime",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.5.1",
-      "notes": "已选择知识库时每个问题至少检索一次：未检索就想收尾会被打回（最多 MAX_RETRIEVAL_REMINDERS 次）并记录 retrieval_guard span；工具循环每轮只执行一次知识库检索；系统提示词按 search → hybrid → keyword → list → read 的顺序引导回退。",
+      "version": "0.6.0",
+      "notes": "已选择知识库时每个问题至少检索一次：未检索就想收尾会被打回（最多 MAX_RETRIEVAL_REMINDERS 次）并记录 retrieval_guard span；工具循环每轮只执行一次知识库检索；相同工具+参数重复查询返回 DUPLICATE_RETRIEVAL_MESSAGE；可解析的检索结果全部 0 命中时返回 NO_EVIDENCE_ANSWER，不输出伪装成有来源的结论；agent_stop span 记录 stop_reason；系统提示词按 search → hybrid → keyword → list → read 的顺序引导回退。",
       "facade": {
         "AgentRuntime": {
           "kind": "class",
@@ -606,13 +642,34 @@
     "evaluation": {
       "package": "evaluation",
       "delivery": "Cython extension (.pyd/.so)",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "facade": {
+        "ranking_metrics": {
+          "kind": "function",
+          "params": {
+            "relevant": "iterable",
+            "retrieved": "iterable",
+            "k": "int|None",
+            "grades": "mapping|None"
+          },
+          "returns": "dict"
+        },
         "evaluate_qa": {
           "kind": "function",
           "params": {
             "ctx": "RequestContext",
             "qa_set": "dict"
+          },
+          "returns": "dict"
+        },
+        "llm_as_judge": {
+          "kind": "function",
+          "params": {
+            "ctx": "RequestContext",
+            "provider": "LLMProviderPort",
+            "question": "str",
+            "answer": "str",
+            "context": "str"
           },
           "returns": "dict"
         },
@@ -629,7 +686,7 @@
     "ingestion": {
       "package": "ingestion",
       "delivery": "Cython extension + standalone Nuitka worker (Windows)",
-      "version": "0.2.2",
+      "version": "0.3.0",
       "facade": {
         "parse": {
           "kind": "function",
@@ -655,7 +712,39 @@
             "size": "int=500",
             "overlap": "int=50"
           },
-          "returns": "list[str]"
+          "returns": "list[str]",
+          "notes": "字符滑动窗口基线；size/overlap 是字符数，不是 token 数"
+        },
+        "chunk_tokens": {
+          "kind": "function",
+          "params": {
+            "texts": "list[str]",
+            "size": "int=500",
+            "overlap": "int=50"
+          },
+          "returns": "list[str]",
+          "notes": "近似 token 滑动窗口；中文按字、英文按词计数"
+        },
+        "chunk_structural": {
+          "kind": "function",
+          "params": {
+            "texts": "list[str]",
+            "size": "int=500",
+            "overlap": "int=50"
+          },
+          "returns": "list[str]",
+          "notes": "按段落打包；超长段落回退到 chunk_tokens"
+        },
+        "chunk_with_strategy": {
+          "kind": "function",
+          "params": {
+            "texts": "list[str]",
+            "strategy": "str",
+            "size": "int=500",
+            "overlap": "int=50"
+          },
+          "returns": "list[str]",
+          "raises": "ValueError for unknown strategy"
         },
         "build_index": {
           "kind": "function",
@@ -663,7 +752,8 @@
             "ctx": "RequestContext",
             "docs_dir": "str",
             "store": "VectorStore",
-            "embed_fn": "callable"
+            "embed_fn": "callable",
+            "chunker": "callable=chunk"
           },
           "returns": "int",
           "blocking_io": true

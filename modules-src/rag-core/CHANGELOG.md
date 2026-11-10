@@ -1,3 +1,10 @@
+## 0.6.0 - 2026-11-10
+
+- 新增 `bm25_search`：Okapi BM25（中文双字、英文词），用于精确术语/错误码等词面匹配。
+- 新增 `bm25_hybrid_search`：向量与 BM25 的 RRF 融合，作为离线对照；生产默认仍为 `hybrid_search`。
+- 新增 `rerank_by_lexical_overlap`：词面启发式重排，只调整已召回候选，明确不是 cross-encoder。
+- 现有 `hybrid_search` 的向量+词面重合 RRF 行为保持不变。
+
 ## 0.5.3 - 2026-10-13
 
 - FastEmbed 单批上限从32降为8，模型使用单线程，降低推理工作内存。

@@ -1,13 +1,34 @@
 {
   "package": "evaluation",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "facade": {
+    "ranking_metrics": {
+      "kind": "function",
+      "params": {
+        "relevant": "iterable",
+        "retrieved": "iterable",
+        "k": "int|None",
+        "grades": "mapping|None"
+      },
+      "returns": "dict"
+    },
     "evaluate_qa": {
       "kind": "function",
       "params": {
         "ctx": "RequestContext",
         "qa_set": "dict"
+      },
+      "returns": "dict"
+    },
+    "llm_as_judge": {
+      "kind": "function",
+      "params": {
+        "ctx": "RequestContext",
+        "provider": "LLMProviderPort",
+        "question": "str",
+        "answer": "str",
+        "context": "str"
       },
       "returns": "dict"
     },

@@ -1,8 +1,8 @@
 {
   "package": "agent_runtime",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.5.1",
-  "notes": "已选择知识库时每个问题至少检索一次：未检索就想收尾会被打回（最多 MAX_RETRIEVAL_REMINDERS 次）并记录 retrieval_guard span；工具循环每轮只执行一次知识库检索；系统提示词按 search → hybrid → keyword → list → read 的顺序引导回退。",
+  "version": "0.6.0",
+  "notes": "已选择知识库时每个问题至少检索一次：未检索就想收尾会被打回（最多 MAX_RETRIEVAL_REMINDERS 次）并记录 retrieval_guard span；工具循环每轮只执行一次知识库检索；相同工具+参数重复查询返回 DUPLICATE_RETRIEVAL_MESSAGE；可解析的检索结果全部 0 命中时返回 NO_EVIDENCE_ANSWER，不输出伪装成有来源的结论；agent_stop span 记录 stop_reason；系统提示词按 search → hybrid → keyword → list → read 的顺序引导回退。",
   "facade": {
     "AgentRuntime": {
       "kind": "class",

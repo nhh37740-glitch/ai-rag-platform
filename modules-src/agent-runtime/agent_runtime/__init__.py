@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import threading
 import time
 from copy import deepcopy
@@ -10,7 +11,7 @@ from observability import ASpan
 from skill_runtime import SkillRegistry
 from tool_runtime import ToolRegistry
 
-__version__ = "0.5.1"
+__version__ = "0.6.0"
 
 ANSWER_LANGUAGE_POLICY = (
     "回答语言规则：默认使用简体中文回答，包括总结、解释、无命中说明及引用来源说明。"
@@ -36,12 +37,44 @@ SKIPPED_RETRIEVAL_MESSAGE = (
 
 MAX_RETRIEVAL_REMINDERS = 2
 
+DUPLICATE_RETRIEVAL_MESSAGE = (
+    "SKIPPED: 相同检索已经执行过；请阅读已有结果，改用不同查询或停止检索。"
+)
+
+NO_EVIDENCE_ANSWER = (
+    "当前知识库中没有检索到支持回答的证据。已选知识库但没有命中时，"
+    "不能把模型常识或历史对话伪装成知识库结论；请换用不同关键词、查看文档清单，"
+    "或明确告诉我需要补充哪些资料。"
+)
+
 RETRIEVAL_REQUIRED_MESSAGE = (
     "本轮还没有执行任何知识库检索。当前对话已选择知识库，规则要求每个问题至少检索一次："
     "请先调用 search_knowledge_base，必要时再按回退顺序换用其他检索工具，然后基于返回结果作答。"
     "在完成检索之前，不得断言知识库中有什么或没有什么，不得输出 [n] 引用标注，"
     "也不得复用历史对话里的引用。"
 )
+
+def _retrieval_hit_count(outcome: str) -> Optional[int]:
+    """Read hit_count from a RagTools JSON payload.
+
+    Unknown/non-JSON tool output returns ``None`` so custom tools are not
+    incorrectly treated as empty retrieval.
+    """
+    try:
+        payload = json.loads(outcome)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    if isinstance(payload.get("hit_count"), int):
+        return payload["hit_count"]
+    citations = payload.get("citations")
+    if isinstance(citations, list):
+        return len(citations)
+    hits = payload.get("hits")
+    if isinstance(hits, list):
+        return len(hits)
+    return None
 
 
 class AgentRuntime:
@@ -94,8 +127,9 @@ class AgentRuntime:
         ctx: RequestContext,
         attempt: int,
         knowledge_base_ids: List[str],
+        reason: str = "retrieval_required",
     ) -> None:
-        """记录一次'未检索就想收尾'的拦截，便于在 trace 里发现这类回答。"""
+        """记录一次检索守卫拦截，便于在 trace 里发现这类回答。"""
         now = time.perf_counter_ns()
         self.tracing.record(
             SpanEvent(
@@ -107,8 +141,24 @@ class AgentRuntime:
                 error="",
                 meta={
                     "attempt": attempt,
+                    "reason": reason,
                     "knowledge_base_ids": list(knowledge_base_ids),
                 },
+            )
+        )
+
+    def _record_stop(self, ctx: RequestContext, reason: str, **meta) -> None:
+        """Record why the agent loop stopped, alongside the answer."""
+        now = time.perf_counter_ns()
+        self.tracing.record(
+            SpanEvent(
+                trace_id=ctx.trace_id,
+                span="agent_stop",
+                start_ns=now,
+                end_ns=now,
+                status="ok",
+                error="",
+                meta={"stop_reason": reason, **meta},
             )
         )
 
@@ -168,6 +218,10 @@ class AgentRuntime:
             }
 
             retrieval_done = False
+            retrieval_evidence = False
+            evidence_unknown = False
+            retrieval_calls = 0
+            executed_queries = set()
             reminders = 0
             for _ in range(self.max_tool_rounds):
                 messages.append(ChatMessage("system", ANSWER_LANGUAGE_POLICY))
@@ -191,6 +245,32 @@ class AgentRuntime:
                             ctx, reminders, selected_knowledge_bases
                         )
                         continue
+                    if selected_knowledge_bases and not retrieval_done:
+                        self._record_stop(
+                            ctx,
+                            "retrieval_required_not_met",
+                            reminders=reminders,
+                            retrieval_calls=retrieval_calls,
+                        )
+                        self._remember_turn(
+                            ctx, user_input, NO_EVIDENCE_ANSWER, user_memory, memory_enabled
+                        )
+                        return NO_EVIDENCE_ANSWER
+                    if selected_knowledge_bases and not retrieval_evidence and not evidence_unknown:
+                        self._record_stop(
+                            ctx,
+                            "no_evidence",
+                            retrieval_calls=retrieval_calls,
+                        )
+                        self._remember_turn(
+                            ctx, user_input, NO_EVIDENCE_ANSWER, user_memory, memory_enabled
+                        )
+                        return NO_EVIDENCE_ANSWER
+                    self._record_stop(
+                        ctx,
+                        "answered_with_evidence" if retrieval_evidence else "answered",
+                        retrieval_calls=retrieval_calls,
+                    )
                     self._remember_turn(ctx, user_input, content, user_memory, memory_enabled)
                     return content
 
@@ -201,14 +281,33 @@ class AgentRuntime:
                         if not allow_write_tools and call.name not in RETRIEVAL_TOOL_NAMES:
                             outcome = "DENIED: 当前身份只能检索和提问，不能执行写工具。"
                         elif call.name in RETRIEVAL_TOOL_NAMES:
+                            query_key = (
+                                call.name,
+                                json.dumps(call.arguments, ensure_ascii=False, sort_keys=True),
+                            )
                             if retrieval_executed:
                                 # 同一条消息里的后续检索调用会被丢弃，让 LLM
                                 # 先读第一条结果，再决定下一轮怎么查。
                                 outcome = SKIPPED_RETRIEVAL_MESSAGE
+                            elif query_key in executed_queries:
+                                outcome = DUPLICATE_RETRIEVAL_MESSAGE
+                                self._record_retrieval_reminder(
+                                    ctx,
+                                    reminders,
+                                    selected_knowledge_bases,
+                                    reason="duplicate_query",
+                                )
                             else:
                                 retrieval_executed = True
                                 retrieval_done = True
+                                retrieval_calls += 1
+                                executed_queries.add(query_key)
                                 outcome = self.tools.execute(ctx, call, runtime_context)
+                                hit_count = _retrieval_hit_count(outcome)
+                                if hit_count is None:
+                                    evidence_unknown = True
+                                elif hit_count > 0:
+                                    retrieval_evidence = True
                         else:
                             outcome = self.tools.execute(ctx, call, runtime_context)
                         messages.append(
@@ -229,7 +328,15 @@ class AgentRuntime:
             messages.append(ChatMessage("system", ANSWER_LANGUAGE_POLICY))
             async with ASpan(ctx, "llm", self.tracing):
                 content, _ = await self.provider.generate(ctx, messages, [])
-            answer = content or "(工具调用达到上限，未生成最终结论)"
+            if selected_knowledge_bases and not retrieval_evidence and not evidence_unknown:
+                answer = NO_EVIDENCE_ANSWER
+                stop_reason = "no_evidence"
+            else:
+                answer = content or "(工具调用达到上限，未生成最终结论)"
+                stop_reason = "max_tool_rounds"
+            self._record_stop(
+                ctx, stop_reason, retrieval_calls=retrieval_calls
+            )
             self._remember_turn(ctx, user_input, answer, user_memory, memory_enabled)
             return answer
 
@@ -241,7 +348,9 @@ def make_runtime(**kwargs) -> AgentRuntime:
 __all__ = [
     "AgentRuntime",
     "ANSWER_LANGUAGE_POLICY",
+    "DUPLICATE_RETRIEVAL_MESSAGE",
     "MAX_RETRIEVAL_REMINDERS",
+    "NO_EVIDENCE_ANSWER",
     "RETRIEVAL_REQUIRED_MESSAGE",
     "RETRIEVAL_TOOL_NAMES",
     "SKIPPED_RETRIEVAL_MESSAGE",

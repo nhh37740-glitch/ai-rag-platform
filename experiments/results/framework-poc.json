@@ -1,0 +1,316 @@
+{
+  "framework": "llama-index-core",
+  "status": "ran",
+  "backend": "fastembed",
+  "questions": 20,
+  "development_surface": {
+    "script_lines": 184,
+    "new_dependencies": [
+      "llama-index-core"
+    ],
+    "production_changes": "none"
+  },
+  "framework_metrics": {
+    "mean_recall_at_k": 0.95,
+    "mean_mrr_at_k": 0.95,
+    "mean_latency_ms": 11.792
+  },
+  "baseline": {
+    "mean_recall_at_k": 0.95,
+    "mean_mrr_at_k": 0.95,
+    "mean_latency_ms": 9.963
+  },
+  "elapsed_seconds": 29.749,
+  "max_rss_mb": 391.8,
+  "note": "最小 PoC；未接入生产，不代表框架整体优劣。",
+  "rows": [
+    {
+      "id": "q001",
+      "question": "王处直的字是什么？",
+      "framework_docs": [
+        "001-王处直.md",
+        "013-项少龙.md"
+      ],
+      "baseline_docs": [
+        "001-王处直.md",
+        "013-项少龙.md"
+      ],
+      "framework_latency_ms": 12.827,
+      "baseline_latency_ms": 9.158
+    },
+    {
+      "id": "q002",
+      "question": "王处直墓在哪里？",
+      "framework_docs": [
+        "001-王处直.md",
+        "012-朱祐杬.md"
+      ],
+      "baseline_docs": [
+        "001-王处直.md",
+        "012-朱祐杬.md"
+      ],
+      "framework_latency_ms": 11.054,
+      "baseline_latency_ms": 10.932
+    },
+    {
+      "id": "q003",
+      "question": "王处直墓中的汉白玉浮雕有多少块？",
+      "framework_docs": [
+        "001-王处直.md",
+        "012-朱祐杬.md"
+      ],
+      "baseline_docs": [
+        "001-王处直.md",
+        "009-谢尔吉耶夫镇.md"
+      ],
+      "framework_latency_ms": 14.327,
+      "baseline_latency_ms": 10.414
+    },
+    {
+      "id": "q004",
+      "question": "杰米·海纳曼是什么大学的语言学学士？",
+      "framework_docs": [
+        "002-杰米·海纳曼.md",
+        "010-罗伯特·C·吉芬.md"
+      ],
+      "baseline_docs": [
+        "002-杰米·海纳曼.md",
+        "006-归纳偏向.md"
+      ],
+      "framework_latency_ms": 12.569,
+      "baseline_latency_ms": 12.753
+    },
+    {
+      "id": "q005",
+      "question": "杰米·海纳曼以主持什么节目著称？",
+      "framework_docs": [
+        "002-杰米·海纳曼.md",
+        "016-乔许·哈却森.md"
+      ],
+      "baseline_docs": [
+        "002-杰米·海纳曼.md",
+        "006-归纳偏向.md"
+      ],
+      "framework_latency_ms": 11.809,
+      "baseline_latency_ms": 10.049
+    },
+    {
+      "id": "q006",
+      "question": "金关丈夫出身于什么地方？",
+      "framework_docs": [
+        "003-金关丈夫.md",
+        "014-出家人.md"
+      ],
+      "baseline_docs": [
+        "003-金关丈夫.md",
+        "014-出家人.md",
+        "013-项少龙.md",
+        "007-以仁王.md"
+      ],
+      "framework_latency_ms": 10.875,
+      "baseline_latency_ms": 8.98
+    },
+    {
+      "id": "q007",
+      "question": "金关丈夫凭借什么文章取得京都大学医学博士学位？",
+      "framework_docs": [
+        "003-金关丈夫.md",
+        "007-以仁王.md"
+      ],
+      "baseline_docs": [
+        "003-金关丈夫.md",
+        "007-以仁王.md",
+        "020-苏锦梁.md"
+      ],
+      "framework_latency_ms": 16.123,
+      "baseline_latency_ms": 12.179
+    },
+    {
+      "id": "q008",
+      "question": "现代货箱码头成立于哪一年？",
+      "framework_docs": [
+        "004-现代货箱码头.md",
+        "019-加拿大中文电台.md"
+      ],
+      "baseline_docs": [
+        "004-现代货箱码头.md",
+        "019-加拿大中文电台.md"
+      ],
+      "framework_latency_ms": 10.731,
+      "baseline_latency_ms": 9.166
+    },
+    {
+      "id": "q009",
+      "question": "现代货箱码头是香港第几大货柜码头营运商？",
+      "framework_docs": [
+        "004-现代货箱码头.md",
+        "019-加拿大中文电台.md"
+      ],
+      "baseline_docs": [
+        "004-现代货箱码头.md",
+        "019-加拿大中文电台.md"
+      ],
+      "framework_latency_ms": 12.37,
+      "baseline_latency_ms": 10.838
+    },
+    {
+      "id": "q010",
+      "question": "挪威同性婚姻法何时正式生效？",
+      "framework_docs": [
+        "005-挪威同性婚姻.md",
+        "021-中国－新西兰自由贸易协定.md"
+      ],
+      "baseline_docs": [
+        "005-挪威同性婚姻.md",
+        "021-中国－新西兰自由贸易协定.md"
+      ],
+      "framework_latency_ms": 10.961,
+      "baseline_latency_ms": 9.115
+    },
+    {
+      "id": "q011",
+      "question": "挪威是全球第几个给予同性婚姻注册的国家？",
+      "framework_docs": [
+        "005-挪威同性婚姻.md",
+        "021-中国－新西兰自由贸易协定.md"
+      ],
+      "baseline_docs": [
+        "005-挪威同性婚姻.md",
+        "021-中国－新西兰自由贸易协定.md"
+      ],
+      "framework_latency_ms": 12.288,
+      "baseline_latency_ms": 10.816
+    },
+    {
+      "id": "q012",
+      "question": "“奥卡姆剃刀”的内容是什么？",
+      "framework_docs": [
+        "002-杰米·海纳曼.md",
+        "014-出家人.md",
+        "017-魔弹理论.md"
+      ],
+      "baseline_docs": [
+        "002-杰米·海纳曼.md",
+        "017-魔弹理论.md",
+        "014-出家人.md"
+      ],
+      "framework_latency_ms": 10.872,
+      "baseline_latency_ms": 9.227
+    },
+    {
+      "id": "q013",
+      "question": "以仁王是后白河天皇的第几皇子？",
+      "framework_docs": [
+        "007-以仁王.md",
+        "012-朱祐杬.md"
+      ],
+      "baseline_docs": [
+        "007-以仁王.md",
+        "012-朱祐杬.md"
+      ],
+      "framework_latency_ms": 11.279,
+      "baseline_latency_ms": 9.435
+    },
+    {
+      "id": "q014",
+      "question": "以仁王又被称为什么宫亲王？",
+      "framework_docs": [
+        "007-以仁王.md",
+        "012-朱祐杬.md"
+      ],
+      "baseline_docs": [
+        "007-以仁王.md",
+        "012-朱祐杬.md"
+      ],
+      "framework_latency_ms": 10.877,
+      "baseline_latency_ms": 9.503
+    },
+    {
+      "id": "q015",
+      "question": "什么是静电感应？",
+      "framework_docs": [
+        "008-静电感应.md",
+        "017-魔弹理论.md"
+      ],
+      "baseline_docs": [
+        "008-静电感应.md",
+        "017-魔弹理论.md"
+      ],
+      "framework_latency_ms": 10.127,
+      "baseline_latency_ms": 8.191
+    },
+    {
+      "id": "q016",
+      "question": "静电感应现象由哪两位科学家发现？",
+      "framework_docs": [
+        "008-静电感应.md",
+        "003-金关丈夫.md"
+      ],
+      "baseline_docs": [
+        "008-静电感应.md",
+        "003-金关丈夫.md"
+      ],
+      "framework_latency_ms": 11.264,
+      "baseline_latency_ms": 9.619
+    },
+    {
+      "id": "q017",
+      "question": "谢尔吉耶夫镇位于哪里？",
+      "framework_docs": [
+        "009-谢尔吉耶夫镇.md",
+        "010-罗伯特·C·吉芬.md"
+      ],
+      "baseline_docs": [
+        "009-谢尔吉耶夫镇.md",
+        "006-归纳偏向.md",
+        "010-罗伯特·C·吉芬.md"
+      ],
+      "framework_latency_ms": 10.665,
+      "baseline_latency_ms": 9.217
+    },
+    {
+      "id": "q018",
+      "question": "谢尔吉耶夫镇距莫斯科多少公里？",
+      "framework_docs": [
+        "009-谢尔吉耶夫镇.md",
+        "010-罗伯特·C·吉芬.md"
+      ],
+      "baseline_docs": [
+        "009-谢尔吉耶夫镇.md",
+        "006-归纳偏向.md",
+        "016-乔许·哈却森.md"
+      ],
+      "framework_latency_ms": 11.232,
+      "baseline_latency_ms": 9.738
+    },
+    {
+      "id": "q019",
+      "question": "罗伯特·C·吉芬出生于哪里？",
+      "framework_docs": [
+        "010-罗伯特·C·吉芬.md",
+        "003-金关丈夫.md"
+      ],
+      "baseline_docs": [
+        "010-罗伯特·C·吉芬.md",
+        "003-金关丈夫.md",
+        "002-杰米·海纳曼.md"
+      ],
+      "framework_latency_ms": 11.437,
+      "baseline_latency_ms": 9.683
+    },
+    {
+      "id": "q020",
+      "question": "彼得·罗利马是哪个国家的足球员？",
+      "framework_docs": [
+        "011-彼得·罗利马.md",
+        "023-鲍比·霍顿.md"
+      ],
+      "baseline_docs": [
+        "011-彼得·罗利马.md",
+        "023-鲍比·霍顿.md"
+      ],
+      "framework_latency_ms": 12.152,
+      "baseline_latency_ms": 10.245
+    }
+  ]
+}

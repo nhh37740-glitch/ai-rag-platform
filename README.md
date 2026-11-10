@@ -7,6 +7,7 @@ RAGnotebook 是一个面向浏览器的文档问答应用，支持账号注册�
 ## 项目导航
 
 - [Project 进度](docs/PROJECT_STATUS.md)：已完成、进行中、后续候选方向。
+- [RAG 面试实验](docs/EXPERIMENTS.md)：检索、切块、位置效应、图检索、框架 PoC 与模型错误回归的实际结果和未完成项。
 - [Wiki 文档源稿](docs/wiki/Home.md)：使用说明、架构、协作、编译与发布。
 - [Issues](https://github.com/nhh37740-glitch/ai-rag-platform/issues) / [Pull Requests](https://github.com/nhh37740-glitch/ai-rag-platform/pulls)：问题和代码评审。
 - [GitHub Actions](https://github.com/nhh37740-glitch/ai-rag-platform/actions)：查看构建并下载产物。
@@ -29,6 +30,7 @@ RAGnotebook 是一个面向浏览器的文档问答应用，支持账号注册�
 - `modules-src/` 其他目录：解析、检索、存储等能力模块。
 - `specifications/`：共享类型与模块接口规范。
 - `scripts/`：依赖边界检查、测试、编译和发布制品脚本。
+- `experiments/`：固定问题集、可复跑实验脚本和结果文件；不进入运行镜像。
 
 ## 源码测试
 

@@ -1,0 +1,40 @@
+{
+  "name": "synthetic-service-dependency-graph",
+  "note": "自建的小型服务依赖资料，仅用于离线图检索对照，不是任何真实公司的数据。",
+  "nodes": [
+    {"id": "auth", "name": "认证服务", "type": "service"},
+    {"id": "user", "name": "用户服务", "type": "service"},
+    {"id": "order", "name": "订单服务", "type": "service"},
+    {"id": "payment", "name": "支付服务", "type": "service"},
+    {"id": "notification", "name": "通知服务", "type": "service"},
+    {"id": "audit", "name": "审计服务", "type": "service"},
+    {"id": "zhang", "name": "张伟", "type": "person"},
+    {"id": "li", "name": "李娜", "type": "person"},
+    {"id": "wang", "name": "王强", "type": "person"},
+    {"id": "zhao", "name": "赵敏", "type": "person"}
+  ],
+  "edges": [
+    {"from": "auth", "relation": "DEPENDS_ON", "to": "user", "text": "认证服务依赖用户服务。"},
+    {"from": "order", "relation": "DEPENDS_ON", "to": "auth", "text": "订单服务依赖认证服务。"},
+    {"from": "order", "relation": "DEPENDS_ON", "to": "payment", "text": "订单服务依赖支付服务。"},
+    {"from": "payment", "relation": "DEPENDS_ON", "to": "audit", "text": "支付服务依赖审计服务。"},
+    {"from": "notification", "relation": "DEPENDS_ON", "to": "user", "text": "通知服务依赖用户服务。"},
+    {"from": "audit", "relation": "DEPENDS_ON", "to": "user", "text": "审计服务依赖用户服务。"},
+    {"from": "auth", "relation": "OWNED_BY", "to": "zhang", "text": "认证服务的负责人是张伟。"},
+    {"from": "user", "relation": "OWNED_BY", "to": "zhang", "text": "用户服务的负责人是张伟。"},
+    {"from": "order", "relation": "OWNED_BY", "to": "li", "text": "订单服务的负责人是李娜。"},
+    {"from": "payment", "relation": "OWNED_BY", "to": "wang", "text": "支付服务的负责人是王强。"},
+    {"from": "notification", "relation": "OWNED_BY", "to": "zhao", "text": "通知服务的负责人是赵敏。"},
+    {"from": "audit", "relation": "OWNED_BY", "to": "zhao", "text": "审计服务的负责人是赵敏。"}
+  ],
+  "questions": [
+    {"id": "g01", "question": "认证服务依赖哪些服务？这些服务的负责人是谁？", "answer_entities": ["用户服务", "张伟"]},
+    {"id": "g02", "question": "订单服务直接依赖哪些服务？", "answer_entities": ["认证服务", "支付服务"]},
+    {"id": "g03", "question": "支付服务依赖哪个服务，负责人是谁？", "answer_entities": ["审计服务", "赵敏"]},
+    {"id": "g04", "question": "通知服务的负责人是谁？", "answer_entities": ["赵敏"]},
+    {"id": "g05", "question": "审计服务依赖哪个服务？", "answer_entities": ["用户服务"]},
+    {"id": "g06", "question": "订单服务间接依赖哪些服务？", "answer_entities": ["认证服务", "支付服务", "审计服务", "用户服务"]},
+    {"id": "g07", "question": "谁负责认证服务和用户服务？", "answer_entities": ["张伟"]},
+    {"id": "g08", "question": "通知服务依赖的用户服务由谁负责？", "answer_entities": ["张伟"]}
+  ]
+}
