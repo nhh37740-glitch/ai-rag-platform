@@ -44,6 +44,8 @@ sudo scripts/set_openrouter_key.sh --env-file /path/to/runtime.env
 
 脚本不接收位置参数，完整 Key 不会出现在终端输出、错误信息、`ps` 命令行或日志中。若容器重建失败，环境文件已更新但旧容器继续使用旧配置；修复后重新执行脚本即可。
 
+重建前脚本会从运行中的容器读取 `/opt/agent/state` 的实际卷名和 `dev-knowledge.model-env-file` 标签：卷名与 `RAG_STATE_VOLUME_NAME` 不一致时拒绝重建，避免切换到另一个 SQLite 数据库；环境文件与容器实际使用的不一致时要求显式传入 `--env-file`。如果部署时自定义了 `RAG_BOOTSTRAP_ENV_FILE`，执行前也要导出同名变量。
+
 ## 日额度
 
 `auth-facade@0.2.0/DailyQueryQuota` 实施业务规则；通过共享 StateStorePort 注入 `storage@0.3.0` 的原子计数，不 import 数据业务模块。SQLite BEGIN IMMEDIATE 保证多个连接同时占用时不超过20；全站固定服务端身份，不按浏览器传入 user/session/IP 分账。北京时间零点切换日期，重启、临时 key 和改变会话都不能增加额度。

@@ -180,8 +180,21 @@ WORKDIR=$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project
 [ -n "$WORKDIR" ] && [ -f "$WORKDIR/compose.yaml" ] \
     || fail "无法定位 compose 工作目录（${WORKDIR:-空}）；请按部署流程重建容器"
 
+LABEL_ENV_FILE=$(docker inspect -f '{{ index .Config.Labels "dev-knowledge.model-env-file" }}' "$CONTAINER" 2>/dev/null || true)
+if [ -n "$LABEL_ENV_FILE" ] && [ "$LABEL_ENV_FILE" != "$ENV_FILE" ]; then
+    fail "正在更新的环境文件 $ENV_FILE 与运行中容器使用的 $LABEL_ENV_FILE 不一致；请用 --env-file 指定正确路径"
+fi
+
+# 从运行中的容器读取实际状态卷，避免重建时挂到另一个 SQLite 数据库。
+ACTIVE_STATE_VOLUME=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/opt/agent/state"}}{{.Name}}{{end}}{{end}}' "$CONTAINER" 2>/dev/null || true)
+[ -n "$ACTIVE_STATE_VOLUME" ] \
+    || fail "无法从容器 $CONTAINER 读取 /opt/agent/state 卷名；请设置 RAG_STATE_VOLUME_NAME"
+if [ -n "${RAG_STATE_VOLUME_NAME:-}" ] && [ "$RAG_STATE_VOLUME_NAME" != "$ACTIVE_STATE_VOLUME" ]; then
+    fail "RAG_STATE_VOLUME_NAME=$RAG_STATE_VOLUME_NAME 与运行中容器的状态卷 $ACTIVE_STATE_VOLUME 不一致；拒绝重建以免切换数据库"
+fi
+STATE_VOLUME_NAME=$ACTIVE_STATE_VOLUME
+
 BOOTSTRAP_ENV_FILE=${RAG_BOOTSTRAP_ENV_FILE:-/home/ubuntu/.config/ai-rag/bootstrap-admin.env}
-STATE_VOLUME_NAME=${RAG_STATE_VOLUME_NAME:-ai-rag-ragnotebook-state}
 
 printf '重建容器 %s …\n' "$CONTAINER"
 (
