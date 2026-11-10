@@ -73,9 +73,12 @@ def changed_modules(paths):
     modules = {}
     for path in paths:
         parts = path.split("/")
-        if len(parts) < 4 or parts[0] != "modules-src":
+        if len(parts) < 3 or parts[0] != "modules-src":
             continue
         if parts[1] in MODULE_GROUPS:
+            # modules-src/<domain>/README.md is navigation, not a module.
+            if len(parts) < 4:
+                continue
             module = parts[2]
             prefix = "modules-src/" + parts[1] + "/" + parts[2] + "/"
         else:
