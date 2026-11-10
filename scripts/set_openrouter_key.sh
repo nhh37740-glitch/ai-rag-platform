@@ -81,11 +81,13 @@ if [ -n "$KEY_FILE" ]; then
 else
     if [ -t 0 ]; then
         command -v stty >/dev/null 2>&1 || fail "交互输入需要 stty；请改用 --key-file"
-        printf '请输入新的 OpenRouter API Key（输入不回显）：' >&2
         restore_echo() { stty echo 2>/dev/null || true; }
         trap 'restore_echo' EXIT
         trap 'restore_echo; exit 130' HUP INT TERM
+        # Disable echo before the prompt so input typed immediately after it
+        # cannot be echoed by the terminal.
         stty -echo
+        printf '请输入新的 OpenRouter API Key（输入不回显）：' >&2
         IFS= read -r KEY || true
         restore_echo
         trap - EXIT HUP INT TERM
