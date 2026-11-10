@@ -27,7 +27,7 @@
 
 ## 进行中
 
-- Issue #39 / 分支 `ai/39-rag-interview-experiments`：RAG 面试实验与可信评测。已加入排名指标、60 题核验集、检索/切块/图/框架 PoC/模型错误回归；真实模型生成质量和第二个 embedding 对照未完成。结果见 [EXPERIMENTS.md](EXPERIMENTS.md)，待 PR 与 Codex 评审。
+- Issue #39 / [PR #44](https://github.com/nhh37740-glitch/ai-rag-platform/pull/44)：RAG 面试实验与可信评测。已加入排名指标、60 题核验集、检索/切块/图/框架 PoC/模型错误回归；真实模型生成质量和第二个 embedding 对照未完成。结果见 [EXPERIMENTS.md](EXPERIMENTS.md)，待 Codex 评审。
 - [PR #17](https://github.com/nhh37740-glitch/ai-rag-platform/pull/17)：Issue 格式、200 字上限与中性描述校验，待合并后才能在主线检查器中生效。
 
 ## 待规划（尚未自动创建任务）
