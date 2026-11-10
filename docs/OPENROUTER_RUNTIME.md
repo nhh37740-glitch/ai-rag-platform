@@ -9,6 +9,41 @@
 - 本机专用 `.env.openrouter` 已写入用户提供的凭据，受 `.gitignore` 和 `.dockerignore` 排除。应用默认读取此文件；可用 `RAG_LLM_ENV_FILE` 指定运行配置路径。已有环境变量优先；测试设置此变量为空，禁止读本机凭据。
 - 显式 `LLM_PROVIDER=mock` 不使用真实密钥；`LLM_PROVIDER=deepseek` 保留旧配置兼容。响应和 repr 不输出密钥，默认模型异常在记录 trace 前替换为固定错误。
 
+## 服务器替换 Key（运维命令）
+
+OpenRouter Key 过期或轮换时，不修改源码、不重新构建镜像，在服务器上执行：
+
+```bash
+sudo scripts/set_openrouter_key.sh
+```
+
+脚本从标准输入读取新 Key（不回显，不进入 shell 历史或进程列表），然后：
+
+1. 校验格式：必须为 `sk-or-v1-` 开头、仅含字母/数字/`_`/`-`，长度至少 32；
+2. 调用 `https://openrouter.ai/api/v1/key` 验证 Key 可用，401/403 时拒绝写入；
+3. 原子替换环境文件中的 `OPENROUTER_API_KEY` 行，保留其他配置、注释、文件权限和属主；
+4. 通过容器标签定位 compose 工作目录，执行
+   `docker compose --project-name ai-rag up -d --no-build --force-recreate agent`；
+5. 等待容器 `healthy`，并检查 `/api/llm/config` 返回 `server_key_configured: true`。
+
+常用选项：
+
+```bash
+# 只更新文件，稍后由部署流程重建容器
+sudo scripts/set_openrouter_key.sh --no-restart
+
+# 从 0600 文件读取（适合自动化，避免交互输入）
+sudo scripts/set_openrouter_key.sh --key-file /root/openrouter.key
+
+# 服务器暂时无法访问 OpenRouter 时跳过在线校验
+sudo scripts/set_openrouter_key.sh --no-verify
+
+# 指定其他环境文件
+sudo scripts/set_openrouter_key.sh --env-file /path/to/runtime.env
+```
+
+脚本不接收位置参数，完整 Key 不会出现在终端输出、错误信息、`ps` 命令行或日志中。若容器重建失败，环境文件已更新但旧容器继续使用旧配置；修复后重新执行脚本即可。
+
 ## 日额度
 
 `auth-facade@0.2.0/DailyQueryQuota` 实施业务规则；通过共享 StateStorePort 注入 `storage@0.3.0` 的原子计数，不 import 数据业务模块。SQLite BEGIN IMMEDIATE 保证多个连接同时占用时不超过20；全站固定服务端身份，不按浏览器传入 user/session/IP 分账。北京时间零点切换日期，重启、临时 key 和改变会话都不能增加额度。

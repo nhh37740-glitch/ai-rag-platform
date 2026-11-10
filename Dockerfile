@@ -37,7 +37,7 @@ RUN mkdir -p reports
 FROM prepared AS source-tested
 RUN python scripts/check_repo_structure.py \
     && python scripts/check_module_dependencies.py \
-    && sh -n scripts/deploy_compose.sh scripts/run_ci_check.sh \
+    && sh -n scripts/deploy_compose.sh scripts/run_ci_check.sh scripts/set_openrouter_key.sh \
     && python scripts/run_tests.py --mode source --group leaf --junitxml=reports/source-leaf.xml \
     && python scripts/run_tests.py --mode source --group facade --junitxml=reports/source-facade.xml \
     && python scripts/run_tests.py --mode source --group scripts --junitxml=reports/source-integration.xml

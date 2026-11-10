@@ -22,6 +22,12 @@ API 凭据状态只能返回是否已配置，不能返回凭据内容。
 
 管理员可以查看 Provider、Model 并切换全站选择；普通用户不能修改。当前运行中的问答可继续使用启动该次问答时解析的配置。
 
+## 运维替换 Key
+
+OpenRouter Key 只存在于服务器环境文件，不在仓库、镜像或数据库中。轮换 Key 时使用
+`sudo scripts/set_openrouter_key.sh`：脚本从标准输入读取新 Key，在线校验后原子替换
+环境文件，并重建 `ai-rag-agent-1`。详见 `docs/OPENROUTER_RUNTIME.md` 的「服务器替换 Key」。
+
 ## 验收
 
 确认接口能列出 Provider/Model；管理员修改后后续问答使用新模型；普通用户越权修改会被拒绝；响应、数据库、日志不含密钥；模型选择复用 agent_data，不建第七张表；三类用户共享且不超过每日 100 次。
