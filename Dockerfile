@@ -25,7 +25,7 @@ COPY registry.json pytest.ini ./
 
 # Editable installs are used only to run module tests in the disposable build stage.
 RUN pip install --no-cache-dir --no-deps -e specifications \
-    && for module in modules-src/*; do \
+    && for module in modules-src/*/*; do \
          if [ -f "$module/pyproject.toml" ]; then \
            pip install --no-cache-dir --no-deps -e "$module"; \
          fi; \
@@ -33,7 +33,8 @@ RUN pip install --no-cache-dir --no-deps -e specifications \
 RUN mkdir -p reports
 
 FROM prepared AS source-tested
-RUN python scripts/check_module_dependencies.py \
+RUN python scripts/check_repo_structure.py \
+    && python scripts/check_module_dependencies.py \
     && sh -n scripts/deploy_compose.sh scripts/run_ci_check.sh \
     && python scripts/run_tests.py --mode source --group leaf --junitxml=reports/source-leaf.xml \
     && python scripts/run_tests.py --mode source --group facade --junitxml=reports/source-facade.xml \

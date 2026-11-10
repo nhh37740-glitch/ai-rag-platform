@@ -1,6 +1,6 @@
 # Module Interfaces（模块接口规范）
 
-所有模块实现位于根仓库 `modules-src/<module>/`，各目录是独立可安装 Python 包（通常含 `pyproject.toml`、包目录与 `tests/`），但并非独立 Git 仓库。对外只暴露下面这些接口；集成侧 `apps/ragnotebook` 通过这些接口调用。跨模块依赖必须显式声明并只调用对方公开 facade；共享数据结构来自 `specifications.core_specifications`。
+所有模块实现位于根仓库 `modules-src/<业务域>/<module>/`，业务域为 `agent`、`rag`、`data`、`auth`、`platform`；各模块目录是独立可安装 Python 包（通常含 `pyproject.toml`、包目录与 `tests/`），但并非独立 Git 仓库。对外只暴露下面这些接口；集成侧 `apps/ragnotebook` 通过这些接口调用。跨模块依赖必须显式声明并只调用对方公开 facade；共享数据结构来自 `specifications.core_specifications`。
 
 约定：请求级操作以 `RequestContext` 为首参并命名为 `ctx`；构造器与纯工具函数按各自公开接口规范声明参数。除 `generate/stream` 外的同步方法如需阻塞 IO，由调用方 `asyncio.to_thread` 包裹。共享返回类型来自 `core_specifications`。
 
@@ -177,7 +177,7 @@ def build_index(ctx, docs_dir: str, store: VectorStore, embed_fn: Callable) -> i
 
 ## 模块生命周期（subagent 发布流程）
 每个模块是根 Git 仓库中的独立 Python 包与版本化发布单元，不另建嵌套仓库。改动流程为：
-1. 在 `modules-src/<module>` 实现接口并补充模块测试；跨模块调用只用已声明的公开 facade。
+1. 在 `modules-src/<业务域>/<module>` 实现接口并补充模块测试；跨模块调用只用已声明的公开 facade。
 2. 更新共享 `specifications/API_SCHEMA.json`、`specifications/INTERFACES.md` 与模块接口文档，使参数名和返回类型与实现一致。
 3. Jenkins 在 Linux Docker builder 中用 Cython 产出 `.so`，运行模块测试、严格接口规范测试与应用端到端测试；Windows 手动 worker 交付可用 Nuitka 生成 `.exe`。
 4. 发布脚本生成版本化 `artifacts/<module>/<version>/` 元数据与包内接口规范测试；根仓库 `registry.json` pin 发布版本。Linux 交付 ZIP 的逐文件清单记录二进制 SHA-256，外层另有 ZIP SHA-256。

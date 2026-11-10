@@ -62,8 +62,12 @@ def issue_number(body):
 
 
 def changed_modules(paths):
-    return {parts[1] for path in paths if (parts := path.split("/")) and
-            len(parts) >= 3 and parts[0] == "modules-src"}
+    modules = {}
+    for path in paths:
+        parts = path.split("/")
+        if len(parts) >= 4 and parts[0] == "modules-src":
+            modules[parts[2]] = "modules-src/" + parts[1] + "/" + parts[2] + "/"
+    return modules
 
 
 def version_tuple(text):
@@ -72,8 +76,7 @@ def version_tuple(text):
     return tuple(map(int, text.split(".")))
 
 
-def verify_module_version(module, paths, pr):
-    prefix = "modules-src/" + module + "/"
+def verify_module_version(module, prefix, paths, pr):
     code = any(p.startswith(prefix) and p.endswith(".py") and
                "/tests/" not in p and not p.endswith("/test_specification.py") for p in paths)
     if not code:
@@ -131,8 +134,8 @@ def main():
             FAIL.append("Multi-module PR must explain under '## 跨模块原因'")
     if len(files) > 20 and not re.search(r"(?m)^#{2,4}\s*大范围改动原因\s*$", body):
         FAIL.append("Changes to >20 files require '## 大范围改动原因'")
-    for module in sorted(modules):
-        verify_module_version(module, paths, pr)
+    for module, prefix in sorted(modules.items()):
+        verify_module_version(module, prefix, paths, pr)
     print("Guard checked", len(files), "files;", len(modules), "modules")
     for failure in FAIL:
         print("::error::" + failure)

@@ -13,5 +13,5 @@
 
 - **你怎么被调用**：`RequestContext` 永远是第一个入参（命名 `ctx`），`specification_version` 全局唯一；改任何公共签名要先改这里。
 - **你暴露什么**：`API_SCHEMA.json` 的 `modules.<id>.facade` 给出每个模块的公开符号、参数与返回类型；当前 Linux Jenkins 构建用 Cython 生成 `.so`，Windows 目标生成 `.pyd`。独立 Windows worker 的 Nuitka 交付仅在相应流程中使用。
-- **你如何交付**：见 `INTERFACES.md` 的「模块生命周期」——在根仓库 `modules-src/<module>` 中维护独立 Python 包、接口规范与测试，由根仓库流水线编译、校验并将版本化产物写入 `artifacts/<module>/<version>/` 与 `registry.json`。
+- **你如何交付**：见 `INTERFACES.md` 的「模块生命周期」——在根仓库 `modules-src/<业务域>/<module>` 中维护独立 Python 包、接口规范与测试，由根仓库流水线编译、校验并将版本化产物写入 `artifacts/<module>/<version>/` 与 `registry.json`。
 - **你不得做什么**：集成侧只 import 编译后的二进制；不得在 `apps/` 或 `artifacts/` 里放实现源码；不得引入接口规范约束之外的第三方库。

@@ -45,13 +45,13 @@ sequenceDiagram
 | 阅读顺序 | 去哪里找 | 必须回答的一个问题 |
 |---|---|---|
 | 1 | [server.py](../apps/ragnotebook/server.py)，找 `chat`、`runtime = AgentRuntime` | 请求有哪些字段，模型/记忆/工具在哪里装配？ |
-| 2 | [agent_runtime](../modules-src/agent-runtime/agent_runtime/__init__.py)，找 `run` | 第一次给模型什么，为什么收到工具调用后还要再调模型？ |
-| 3 | [llm_gateway](../modules-src/llm-gateway/llm_gateway/__init__.py)，找 `generate` | tool_calls 如何从 HTTP JSON 变成 ToolCall？ |
-| 4 | [tool_runtime](../modules-src/tool-runtime/tool_runtime/__init__.py)，找 `execute` | 模型只能返回参数，真正执行函数的是谁？ |
-| 5 | [rag_tools](../modules-src/rag-tools/rag_tools/__init__.py)，找 `search`、`_run_search_tool` | scope 从哪里来，返回的引用包含哪些字段？ |
-| 6 | [rag_core](../modules-src/rag-core/rag_core/__init__.py)，找 `SqliteVectorStore.search`、`hybrid_search` | 当前如何排序，向量/关键词融合怎么做？ |
-| 7 | [ingestion](../modules-src/ingestion/ingestion/__init__.py)，找 `parse`、`chunk` | 文档如何变成块，默认块大小与重叠是什么？ |
-| 8 | [skill_runtime](../modules-src/skill-runtime/skill_runtime/__init__.py)，找 `render` | Skill 如何匹配并加载，是否是流程执行引擎？ |
+| 2 | [agent_runtime](../modules-src/agent/agent-runtime/agent_runtime/__init__.py)，找 `run` | 第一次给模型什么，为什么收到工具调用后还要再调模型？ |
+| 3 | [llm_gateway](../modules-src/agent/llm-gateway/llm_gateway/__init__.py)，找 `generate` | tool_calls 如何从 HTTP JSON 变成 ToolCall？ |
+| 4 | [tool_runtime](../modules-src/agent/tool-runtime/tool_runtime/__init__.py)，找 `execute` | 模型只能返回参数，真正执行函数的是谁？ |
+| 5 | [rag_tools](../modules-src/rag/rag-tools/rag_tools/__init__.py)，找 `search`、`_run_search_tool` | scope 从哪里来，返回的引用包含哪些字段？ |
+| 6 | [rag_core](../modules-src/rag/rag-core/rag_core/__init__.py)，找 `SqliteVectorStore.search`、`hybrid_search` | 当前如何排序，向量/关键词融合怎么做？ |
+| 7 | [ingestion](../modules-src/rag/ingestion/ingestion/__init__.py)，找 `parse`、`chunk` | 文档如何变成块，默认块大小与重叠是什么？ |
+| 8 | [skill_runtime](../modules-src/agent/skill-runtime/skill_runtime/__init__.py)，找 `render` | Skill 如何匹配并加载，是否是流程执行引擎？ |
 
 阅读源码用于学习。演示运行仍通过 `runtime_boundary.py` 加载 artifacts 下的 `.pyd/.so`。本机有旧二进制签名与新源码不一致，不能以源码看起来正确代替交付验证。
 

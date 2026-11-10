@@ -34,7 +34,7 @@ apps/web 只负责静态网页和 API 调用；apps/ragnotebook 装配 AgentServ
 | **观察者 / 追踪** | 上下文贯穿 + 事件记录 | `RequestContext` + `TraceStore`/`Span`（`/api/trace/{id}`） |
 | **单例** | 全局唯一注册表 | `tool_runtime._GLOBAL` > `default_registry()` |
 | **建造者** | 工厂方法组装对象 | `make_memory`/`make_storage`/`make_runtime` |
-| **模块/分层隔离 + 二进制交付（部署模式）** | 每模块独立包/成品，集成侧无源码 | `modules-src/` ↔ `artifacts/` + `registry.json` + checksum |
+| **模块/分层隔离 + 二进制交付（部署模式）** | 模块按业务域分组、每模块独立包/成品，集成侧无源码 | `modules-src/<域>/<模块>/` ↔ `artifacts/` + `registry.json` + checksum |
 
 ## 3. 模块与接口
 
@@ -126,7 +126,7 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
 ## 5. 关键设计决策
 
 - **接口规范先行**：接口/类型先用 `specifications/` 定死，各模块按 `INTERFACE.md` 实现，减少联调返工。
-- **源码隔离 + 二进制交付**：实现源码在 `modules-src/`，源码用于阅读、模块单测和构建；应用只消费 `artifacts/` 下编译扩展。当前只有 `verify_compiled_runtime.py` 运行验收入口，不支持应用源码模式。
+- **源码隔离 + 二进制交付**：实现源码在 `modules-src/<域>/<模块>/`，源码用于阅读、模块单测和构建；应用只消费 `artifacts/` 下编译扩展。目录导航见 `docs/CODE_TREE.md`。当前只有 `verify_compiled_runtime.py` 运行验收入口，不支持应用源码模式。
 - **接口为替换留出边界**：已经实现 DeepSeek/Mock 与 FastEmbed/hash 的选择；OpenAI provider、pgvector 和 Web MCP 接入仍需实现与测试，不能仅凭接口宣称已可切换。
 - **演示数据边界**：CMRC2018 子集位于 `data/kb/cmrc2018-demo/`，通过正式知识库链路加载；它仅用于展示中文知识导入、检索、回答与引用，不承担向量模型评测。
 

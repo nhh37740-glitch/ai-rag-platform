@@ -10,14 +10,14 @@
 
 ```text
 specifications/       # 接口规范层（唯一共享"源码"）：core-specifications + INTERFACE.md + API_SCHEMA.json + test_specification.py
-modules-src/     # 各模块源码包（构建阶段可见，运行阶段不进入镜像）
+modules-src/<域>/<模块>/  # 按 agent/rag/data/auth/platform 分组的模块源码包（构建可见，运行不进入镜像）
 artifacts/       # 集成 Agent 只读：模块/版本/ 下的二进制 + 接口规范文档 + checksum
 registry.json    # 各模块版本 + checksum 索引
 apps/            # 集成 Agent 编写：agent-server(FastAPI) + web/ 静态前端
 docs/            # PLAN.md 与 architecture/ 说明
 ```
 
-命名约定：模块目录用 `kebab-case`（如 `rag-core`、`tool-runtime`）；当前 Git 发布单元是根目录仓库。各模块以独立 Python 包、接口规范和版本维护，模块目录不是独立 Git 仓库。部分目录含历史本地 `.git`，但没有远程仓库，不应将其误认为已发布的独立仓库。
+命名约定：业务域目录用单数小写（`agent`、`rag`、`data`、`auth`、`platform`），模块目录用 `kebab-case`（如 `modules-src/rag/rag-core`、`modules-src/agent/tool-runtime`）；模块归属以 `scripts/repo_layout.py` 的 `MODULE_GROUPS` 为准。当前 Git 发布单元是根目录仓库。各模块以独立 Python 包、接口规范和版本维护，模块目录不是独立 Git 仓库。部分目录含历史本地 `.git`，但没有远程仓库，不应将其误认为已发布的独立仓库。
 
 ## 架构原则
 

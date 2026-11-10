@@ -9,8 +9,9 @@ import sys
 import tomllib
 from pathlib import Path
 
+from repo_layout import iter_module_dirs
+
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "modules-src"
 ART = ROOT / "artifacts"
 SCHEMA = ROOT / "specifications" / "API_SCHEMA.json"
 
@@ -75,7 +76,7 @@ def main(argv: list[str] | None = None) -> None:
         spec["package"]: module_id
         for module_id, spec in schema.get("modules", {}).items()
     }
-    for mod in sorted(SRC.iterdir()):
+    for mod in iter_module_dirs(ROOT):
         py = mod / "pyproject.toml"
         if not py.exists():
             continue

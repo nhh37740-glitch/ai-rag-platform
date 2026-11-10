@@ -31,31 +31,31 @@ class ModuleDependencyTests(unittest.TestCase):
         self.assertTrue(any("app 不允许依赖 rag_core" in failure for failure in failures))
 
     def test_database_cannot_dynamically_import_rag(self):
-        failures = self.check_fixture({"modules-src/storage/storage/__init__.py": "import importlib\nimportlib.import_module('rag_core')\n"})
+        failures = self.check_fixture({"modules-src/data/storage/storage/__init__.py": "import importlib\nimportlib.import_module('rag_core')\n"})
         self.assertTrue(any("storage 不允许依赖 rag_core" in failure for failure in failures))
 
     def test_same_domain_cycle_is_rejected(self):
         failures = self.check_fixture({
-            "modules-src/rag-core/rag_core/__init__.py": "import ingestion\n",
-            "modules-src/ingestion/ingestion/__init__.py": "import rag_core\n",
+            "modules-src/rag/rag-core/rag_core/__init__.py": "import ingestion\n",
+            "modules-src/rag/ingestion/ingestion/__init__.py": "import rag_core\n",
         })
         self.assertTrue(any("模块循环依赖" in failure for failure in failures))
 
     def test_leaf_cannot_depend_on_upper_facade(self):
-        failures = self.check_fixture({"modules-src/agent-runtime/agent_runtime/__init__.py": "import agent_facade\n"})
+        failures = self.check_fixture({"modules-src/agent/agent-runtime/agent_runtime/__init__.py": "import agent_facade\n"})
         self.assertTrue(any("agent_runtime 不允许依赖 agent_facade" in failure for failure in failures))
 
     def test_auth_cannot_import_public_business_module_or_third_party(self):
         for package in ("observability", "agent_runtime", "rag_core", "memory", "data_facade", "httpx"):
             with self.subTest(package=package):
                 failures = self.check_fixture({
-                    "modules-src/auth-runtime/auth_runtime/__init__.py": f"import {package}\n",
+                    "modules-src/auth/auth-runtime/auth_runtime/__init__.py": f"import {package}\n",
                 })
                 self.assertTrue(any(f"auth_runtime 不允许依赖 {package}" in failure for failure in failures))
 
     def test_auth_can_import_shared_specifications_and_standard_library(self):
         failures = self.check_fixture({
-            "modules-src/auth-runtime/auth_runtime/__init__.py": (
+            "modules-src/auth/auth-runtime/auth_runtime/__init__.py": (
                 "from __future__ import annotations\n"
                 "from core_specifications import AuthPrincipal\n"
                 "import hashlib, hmac, secrets, re, typing\n"
@@ -72,7 +72,7 @@ class ModuleDependencyTests(unittest.TestCase):
             "import importlib\nimportlib.import_module(name='httpx')\n",
             "__import__('rag_core')\n",
         ):
-            failures = self.check_fixture({"modules-src/auth-runtime/auth_runtime/__init__.py": code})
+            failures = self.check_fixture({"modules-src/auth/auth-runtime/auth_runtime/__init__.py": code})
             self.assertTrue(any("auth_runtime 不允许依赖" in failure for failure in failures))
 
     def test_auth_rejects_variable_dynamic_imports_and_parent_package_escape(self):
@@ -83,7 +83,7 @@ class ModuleDependencyTests(unittest.TestCase):
             "import importlib\nimportlib.import_module('.memory', package='parent')\n",
             "from ..memory import MemoryStore\n",
         ):
-            failures = self.check_fixture({"modules-src/auth-runtime/auth_runtime/__init__.py": code})
+            failures = self.check_fixture({"modules-src/auth/auth-runtime/auth_runtime/__init__.py": code})
             self.assertTrue(any("auth_runtime" in failure for failure in failures))
 
     def test_auth_project_can_only_declare_shared_specifications_dependency(self):
@@ -91,7 +91,7 @@ class ModuleDependencyTests(unittest.TestCase):
                                   ("observability", False), ("httpx>=0.27", False), ("rag_core", False)):
             with self.subTest(dependency=dependency):
                 failures = self.check_fixture({
-                    "modules-src/auth-runtime/pyproject.toml":
+                    "modules-src/auth/auth-runtime/pyproject.toml":
                         "[project]\nname = 'auth_runtime'\ndependencies = [" + repr(dependency) + "]\n",
                 })
                 self.assertEqual(bool(failures), not valid)

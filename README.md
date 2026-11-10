@@ -25,10 +25,11 @@ RAGnotebook 是一个面向浏览器的文档问答应用，支持账号注册�
 
 - `apps/ragnotebook/`：RAGnotebook HTTP API 与网页资源。
 - `apps/web/`：只调用 RAGnotebook API 的浏览器页面。
-- `modules-src/*-facade/`：四个业务模块的公开接口。
-- `modules-src/` 其他目录：解析、检索、存储等能力模块。
+- `modules-src/<业务域>/<模块>/`：按 `agent`、`rag`、`data`、`auth`、`platform` 分组的模块源码；四个 facade 位于各自业务域内。
+- `artifacts/<模块>/<版本>/`：运行时加载的二进制与接口元数据。
 - `specifications/`：共享类型与模块接口规范。
-- `scripts/`：依赖边界检查、测试、编译和发布制品脚本。
+- `scripts/`：结构/依赖检查、测试、编译、部署和运维脚本。
+- 完整目录导航见 `docs/CODE_TREE.md`。
 
 ## 源码测试
 
