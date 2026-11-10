@@ -120,6 +120,10 @@ if [ "$VERIFY" -eq 1 ]; then
     esac
 fi
 
+ENV_DIR=$(dirname "$ENV_FILE")
+[ -d "$ENV_DIR" ] || fail "环境文件目录不存在：$ENV_DIR"
+# 规范化路径，保证后续标签比较、写入和 compose 使用同一个绝对路径。
+ENV_FILE=$(cd "$ENV_DIR" && pwd -P)/$(basename "$ENV_FILE")
 [ -f "$ENV_FILE" ] || fail "环境文件不存在：$ENV_FILE（请先用部署流程创建）"
 ENV_DIR=$(dirname "$ENV_FILE")
 ENV_BASE=$(basename "$ENV_FILE")
@@ -181,8 +185,18 @@ WORKDIR=$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project
     || fail "无法定位 compose 工作目录（${WORKDIR:-空}）；请按部署流程重建容器"
 
 LABEL_ENV_FILE=$(docker inspect -f '{{ index .Config.Labels "dev-knowledge.model-env-file" }}' "$CONTAINER" 2>/dev/null || true)
-if [ -n "$LABEL_ENV_FILE" ] && [ "$LABEL_ENV_FILE" != "$ENV_FILE" ]; then
-    fail "正在更新的环境文件 $ENV_FILE 与运行中容器使用的 $LABEL_ENV_FILE 不一致；请用 --env-file 指定正确路径"
+if [ -n "$LABEL_ENV_FILE" ]; then
+    case "$LABEL_ENV_FILE" in
+        /*) ;;
+        *) LABEL_ENV_FILE=$WORKDIR/$LABEL_ENV_FILE ;;
+    esac
+    LABEL_DIR=$(dirname "$LABEL_ENV_FILE")
+    if [ -d "$LABEL_DIR" ]; then
+        LABEL_ENV_FILE=$(cd "$LABEL_DIR" && pwd -P)/$(basename "$LABEL_ENV_FILE")
+    fi
+    if [ "$LABEL_ENV_FILE" != "$ENV_FILE" ]; then
+        fail "正在更新的环境文件 $ENV_FILE 与运行中容器使用的 $LABEL_ENV_FILE 不一致；请用 --env-file 指定正确路径"
+    fi
 fi
 
 # 从运行中的容器读取实际状态卷，避免重建时挂到另一个 SQLite 数据库。
