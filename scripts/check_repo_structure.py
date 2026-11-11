@@ -31,6 +31,7 @@ TOP_LEVEL_ALLOWED = {
     "compose.yaml",
     "data",
     "docs",
+    "experiments",
     "modules-src",
     "pytest.ini",
     "registry.json",
@@ -166,6 +167,9 @@ def _check_artifacts(root: Path) -> list[str]:
             continue
         path = root / relative
         if not path.is_dir():
+            # contract-only 表示接口已登记、二进制尚未重建；发布后再校验产物。
+            if spec.get("status") == "contract-only":
+                continue
             errors.append(f"registry 指向的产物目录不存在：{relative}")
             continue
         for filename in ("VERSION", "checksum.sha256", "INTERFACE.md", "API_SCHEMA.json",

@@ -5,10 +5,14 @@ import ast
 import hashlib
 import json
 import os
+import sys
 import tomllib
 from pathlib import Path
 
-from repo_layout import iter_module_dirs
+# 既支持 `python scripts/package_release_artifacts.py`，也支持测试按
+# `scripts.package_release_artifacts` 导入。
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from repo_layout import iter_module_dirs  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 ARTIFACTS = ROOT / "artifacts"

@@ -7,7 +7,7 @@ import httpx
 
 from core_specifications import ChatMessage, ModelRequestError, RequestContext, ToolCall, ToolDef
 
-__version__ = "0.1.2"
+__version__ = "0.2.0"
 
 
 class LLMProvider(Protocol):
@@ -72,6 +72,30 @@ class DeepSeekProvider:
             raise ModelRequestError("model_connection_failed", "暂时无法连接模型服务，请稍后重试。", 503) from None
         if r.status_code == 429:
             raise ModelRequestError("model_rate_limited", "所选免费模型当前限流，请稍后重试或选择其他模型。", 429)
+        if r.status_code in (401, 403):
+            raise ModelRequestError(
+                "model_auth_failed",
+                "模型服务鉴权失败，请检查服务器端密钥后重试。",
+                502,
+            )
+        if r.status_code == 402:
+            raise ModelRequestError(
+                "model_quota_exhausted",
+                "模型服务额度不足，请稍后重试或联系管理员。",
+                502,
+            )
+        if r.status_code == 404:
+            raise ModelRequestError(
+                "model_not_found",
+                "所选模型不存在或已下线，请重新选择模型。",
+                502,
+            )
+        if r.status_code in (400, 422):
+            raise ModelRequestError(
+                "model_request_rejected",
+                "模型服务拒绝了请求，请检查模型能力或请求参数。",
+                502,
+            )
         if not r.is_success:
             raise ModelRequestError("model_unavailable", "所选模型当前不可用或不支持此请求，请选择其他模型。", 503)
         try:

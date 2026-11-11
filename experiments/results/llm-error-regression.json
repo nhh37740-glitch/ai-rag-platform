@@ -1,0 +1,54 @@
+{
+  "simulated": [
+    {
+      "status": 401,
+      "code": "model_auth_failed",
+      "message": "模型服务鉴权失败，请检查服务器端密钥后重试。",
+      "latency_ms": 1.562
+    },
+    {
+      "status": 402,
+      "code": "model_quota_exhausted",
+      "message": "模型服务额度不足，请稍后重试或联系管理员。",
+      "latency_ms": 0.342
+    },
+    {
+      "status": 404,
+      "code": "model_not_found",
+      "message": "所选模型不存在或已下线，请重新选择模型。",
+      "latency_ms": 0.32
+    },
+    {
+      "status": 400,
+      "code": "model_request_rejected",
+      "message": "模型服务拒绝了请求，请检查模型能力或请求参数。",
+      "latency_ms": 0.336
+    },
+    {
+      "status": 429,
+      "code": "model_rate_limited",
+      "message": "所选免费模型当前限流，请稍后重试或选择其他模型。",
+      "latency_ms": 0.268
+    },
+    {
+      "status": 503,
+      "code": "model_unavailable",
+      "message": "所选模型当前不可用或不支持此请求，请选择其他模型。",
+      "latency_ms": 0.278
+    },
+    {
+      "status": "timeout",
+      "code": "model_timeout",
+      "message": "模型响应超时，请稍后重试或选择其他模型。",
+      "latency_ms": 0.205
+    }
+  ],
+  "real_openrouter": {
+    "status": "error",
+    "http_status": 401,
+    "code": "model_auth_failed",
+    "detail": "{\"error\":{\"message\":\"API key expired.\",\"code\":401,\"metadata\":{\"headers\":{\"WWW-Authenticate\":\"<redacted>=\\\"invalid_token\\\", error_description=\\\"API key expired\\\"\"}}}}",
+    "latency_ms": 214.061
+  },
+  "note": "simulated 使用假 HTTP 响应验证错误码；real_openrouter 是真实请求，只记录脱敏结果。"
+}

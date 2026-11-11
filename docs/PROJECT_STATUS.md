@@ -1,6 +1,6 @@
 # RAGnotebook · Project 进度快照
 
-**更新：2026-10-13。** 此页面是仓库文档中的进度索引，不是 GitHub Projects 看板。实时状态以 [Issues](https://github.com/nhh37740-glitch/ai-rag-platform/issues)、[PR](https://github.com/nhh37740-glitch/ai-rag-platform/pulls) 与 [Actions](https://github.com/nhh37740-glitch/ai-rag-platform/actions) 为准。
+**更新：2026-11-11（增量记录，历史表格未重新审计）。** 此页面是仓库文档中的进度索引，不是 GitHub Projects 看板。实时状态以 [Issues](https://github.com/nhh37740-glitch/ai-rag-platform/issues)、[PR](https://github.com/nhh37740-glitch/ai-rag-platform/pulls) 与 [Actions](https://github.com/nhh37740-glitch/ai-rag-platform/actions) 为准。
 
 ## 当前项目
 
@@ -27,6 +27,7 @@
 
 ## 进行中
 
+- Issue #39 / [PR #44](https://github.com/nhh37740-glitch/ai-rag-platform/pull/44)：RAG 面试实验与可信评测。已加入排名指标、60 题核验集、检索/切块/图/框架 PoC/模型错误回归，并在 2026-11-11 用轮换后的 OpenRouter 密钥完成一次真实检索问答（`experiments/results/real-demo-2026-11-11.json`）；真实模型生成质量评测和第二个 embedding 对照未完成。结果见 [EXPERIMENTS.md](EXPERIMENTS.md)，已处理 Codex 首轮意见，待复审。
 - [PR #17](https://github.com/nhh37740-glitch/ai-rag-platform/pull/17)：Issue 格式、200 字上限与中性描述校验，待合并后才能在主线检查器中生效。
 
 ## 待规划（尚未自动创建任务）

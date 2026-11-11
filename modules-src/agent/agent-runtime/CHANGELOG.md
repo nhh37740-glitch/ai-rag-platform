@@ -1,3 +1,10 @@
+## 0.6.0 - 2026-11-10
+
+- 重复的“工具 + 参数”检索不再执行，返回 `DUPLICATE_RETRIEVAL_MESSAGE` 并记录 `duplicate_query` 守卫事件。
+- 可解析的检索结果全部 0 命中时返回 `NO_EVIDENCE_ANSWER`；未完成要求的检索时也不再直接输出模型回答。
+- 新增 `agent_stop` span，记录 `stop_reason` 与检索调用次数，便于复现和区分“无证据/达到上限/正常回答”。
+- 非 JSON 自定义工具结果视为证据状态未知，保持既有行为；`ERROR:` 开头的已知工具失败不算取得证据，不会绕过无证据守卫。
+
 ## 0.5.1 - 2026-10-13
 
 - Allow caller-provided history and memory-free guest execution.

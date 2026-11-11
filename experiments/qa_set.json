@@ -1,0 +1,711 @@
+{
+  "name": "cmrc2018-demo-curated-60",
+  "version": "1.0.0",
+  "source": "data/kb/cmrc2018-demo/knowledge-documents (CMRC2018 demo subset, CC BY-SA 4.0)",
+  "notes": "由 AI 辅助从原文摘录并逐条核对 evidence 子串，不是独立人工标注。所有答案都能在 evidence 中定位；no_answer 题在语料中没有支持证据；permission 题用 restricted-kb 范围验证越权文档不可见。dev/test 按文档划分：test 文档为 001、005、006、012、020，其余文档全部在 dev，跨文档多跳题只落在同一侧。",
+  "scopes": {
+    "cmrc2018-demo": "全部 24 篇演示文档",
+    "restricted-kb": "仅包含 008、017、024 三篇文档，用于权限边界实验"
+  },
+  "questions": [
+    {
+      "id": "q001",
+      "category": "single_hop",
+      "split": "test",
+      "question": "王处直的字是什么？",
+      "answer": "允明",
+      "documents": ["001-王处直.md"],
+      "evidence": [{"document": "001-王处直.md", "text": "字允明"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q002",
+      "category": "single_hop",
+      "split": "test",
+      "question": "王处直墓在哪里？",
+      "answer": "河北省曲阳县",
+      "documents": ["001-王处直.md"],
+      "evidence": [{"document": "001-王处直.md", "text": "王处直墓位于河北省曲阳县"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q003",
+      "category": "single_hop",
+      "split": "test",
+      "question": "王处直墓中的汉白玉浮雕有多少块？",
+      "answer": "16块",
+      "documents": ["001-王处直.md"],
+      "evidence": [{"document": "001-王处直.md", "text": "汉白玉浮雕为16块"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q004",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "杰米·海纳曼是什么大学的语言学学士？",
+      "answer": "印第安纳大学",
+      "documents": ["002-杰米·海纳曼.md"],
+      "evidence": [{"document": "002-杰米·海纳曼.md", "text": "印第安纳大学语言学学士"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q005",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "杰米·海纳曼以主持什么节目著称？",
+      "answer": "《流言终结者》",
+      "documents": ["002-杰米·海纳曼.md"],
+      "evidence": [{"document": "002-杰米·海纳曼.md", "text": "以其主持的电视节目《流言终结者》著称"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q006",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "金关丈夫出身于什么地方？",
+      "answer": "日本香川县",
+      "documents": ["003-金关丈夫.md"],
+      "evidence": [{"document": "003-金关丈夫.md", "text": "日本香川县人"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q007",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "金关丈夫凭借什么文章取得京都大学医学博士学位？",
+      "answer": "《琉球人的人类学研究》",
+      "documents": ["003-金关丈夫.md"],
+      "evidence": [{"document": "003-金关丈夫.md", "text": "以《琉球人的人类学研究》取得京都大学医学博士学位"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q008",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "现代货箱码头成立于哪一年？",
+      "answer": "1969年",
+      "documents": ["004-现代货箱码头.md"],
+      "evidence": [{"document": "004-现代货箱码头.md", "text": "成立于1969年"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q009",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "现代货箱码头是香港第几大货柜码头营运商？",
+      "answer": "第二大",
+      "documents": ["004-现代货箱码头.md"],
+      "evidence": [{"document": "004-现代货箱码头.md", "text": "是香港第二大货柜码头营运商"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q010",
+      "category": "single_hop",
+      "split": "test",
+      "question": "挪威同性婚姻法何时正式生效？",
+      "answer": "2009年1月1日",
+      "documents": ["005-挪威同性婚姻.md"],
+      "evidence": [{"document": "005-挪威同性婚姻.md", "text": "于2009年1月1日正式生效"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q011",
+      "category": "single_hop",
+      "split": "test",
+      "question": "挪威是全球第几个给予同性婚姻注册的国家？",
+      "answer": "第六个",
+      "documents": ["005-挪威同性婚姻.md"],
+      "evidence": [{"document": "005-挪威同性婚姻.md", "text": "成为全球第六个给予同性婚姻注册的国家"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q012",
+      "category": "single_hop",
+      "split": "test",
+      "question": "“奥卡姆剃刀”的内容是什么？",
+      "answer": "假设最简单而又一致的假设是最佳的",
+      "documents": ["006-归纳偏向.md"],
+      "evidence": [{"document": "006-归纳偏向.md", "text": "奥卡姆剃刀，它假设最简单而又一致的假设是最佳的"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q013",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "以仁王是后白河天皇的第几皇子？",
+      "answer": "第三皇子",
+      "documents": ["007-以仁王.md"],
+      "evidence": [{"document": "007-以仁王.md", "text": "后白河天皇第三皇子"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q014",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "以仁王又被称为什么宫亲王？",
+      "answer": "高仓宫亲王",
+      "documents": ["007-以仁王.md"],
+      "evidence": [{"document": "007-以仁王.md", "text": "因此也被称为高仓宫亲王"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q015",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "什么是静电感应？",
+      "answer": "物体内的电荷因受外界电荷的影响而重新分布",
+      "documents": ["008-静电感应.md"],
+      "evidence": [{"document": "008-静电感应.md", "text": "静电感应是物体内的电荷因受外界电荷的影响而重新分布"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q016",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "静电感应现象由哪两位科学家发现？",
+      "answer": "英国科学家约翰·坎通和瑞典科学家",
+      "documents": ["008-静电感应.md"],
+      "evidence": [{"document": "008-静电感应.md", "text": "由英国科学家约翰·坎通和瑞典科学家分别在1753年和1762年发现"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q017",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "谢尔吉耶夫镇位于哪里？",
+      "answer": "俄罗斯莫斯科州东北部",
+      "documents": ["009-谢尔吉耶夫镇.md"],
+      "evidence": [{"document": "009-谢尔吉耶夫镇.md", "text": "是俄罗斯莫斯科州东北部的一个城市"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q018",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "谢尔吉耶夫镇距莫斯科多少公里？",
+      "answer": "71公里",
+      "documents": ["009-谢尔吉耶夫镇.md"],
+      "evidence": [{"document": "009-谢尔吉耶夫镇.md", "text": "位于莫斯科东北偏北71公里"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q019",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "罗伯特·C·吉芬出生于哪里？",
+      "answer": "宾夕法尼亚州的西切斯特",
+      "documents": ["010-罗伯特·C·吉芬.md"],
+      "evidence": [{"document": "010-罗伯特·C·吉芬.md", "text": "1886年6月29日出生于宾夕法尼亚州的西切斯特"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q020",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "彼得·罗利马是哪个国家的足球员？",
+      "answer": "苏格兰",
+      "documents": ["011-彼得·罗利马.md"],
+      "evidence": [{"document": "011-彼得·罗利马.md", "text": "是一名前苏格兰足球员"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q021",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "罗利马为列斯联上阵多少场？",
+      "answer": "703场",
+      "documents": ["011-彼得·罗利马.md"],
+      "evidence": [{"document": "011-彼得·罗利马.md", "text": "整个足球生涯一共为列斯联上阵703场"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q022",
+      "category": "single_hop",
+      "split": "test",
+      "question": "朱祐杬是明宪宗的第几子？",
+      "answer": "第四子",
+      "documents": ["012-朱祐杬.md"],
+      "evidence": [{"document": "012-朱祐杬.md", "text": "明宪宗第四子"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q023",
+      "category": "single_hop",
+      "split": "test",
+      "question": "朱祐杬的陵墓后来改称什么？",
+      "answer": "显陵",
+      "documents": ["012-朱祐杬.md"],
+      "evidence": [{"document": "012-朱祐杬.md", "text": "嘉靖三年（1524年），正式更名为显陵"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q024",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "项少龙是哪部小说的男主角？",
+      "answer": "《寻秦记》",
+      "documents": ["013-项少龙.md"],
+      "evidence": [{"document": "013-项少龙.md", "text": "是黄易玄幻武侠小说《寻秦记》的男主角"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q025",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "“出家人”字面上的意思是什么？",
+      "answer": "因为宗教信仰而离开家庭，修行的人",
+      "documents": ["014-出家人.md"],
+      "evidence": [{"document": "014-出家人.md", "text": "字面上的意思是“因为宗教信仰而离开家庭，修行的人”"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q026",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "生命热线是什么机构？",
+      "answer": "香港一个志愿服务机构",
+      "documents": ["015-生命热线.md"],
+      "evidence": [{"document": "015-生命热线.md", "text": "是香港一个志愿服务机构"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q027",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "生命热线的24小时预防自杀热线号码是多少？",
+      "answer": "2382 0000",
+      "documents": ["015-生命热线.md"],
+      "evidence": [{"document": "015-生命热线.md", "text": "「24小时预防自杀热线」（2382 0000）"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q028",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "乔许·哈契森因哪部电影成为美国新生代男演员代表人物之一？",
+      "answer": "《饥饿游戏》三部曲",
+      "documents": ["016-乔许·哈却森.md"],
+      "evidence": [{"document": "016-乔许·哈却森.md", "text": "凭借着电影《饥饿游戏》三部曲成为美国新生代男演员中的代表人物之一"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q029",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "魔弹理论又被称为什么理论？",
+      "answer": "皮下注射理论",
+      "documents": ["017-魔弹理论.md"],
+      "evidence": [{"document": "017-魔弹理论.md", "text": "将这种理论称为皮下注射理论"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q030",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "张世昌司职什么位置？",
+      "answer": "守门员",
+      "documents": ["018-张世昌.md"],
+      "evidence": [{"document": "018-张世昌.md", "text": "司职守门员"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q031",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "加拿大中文电台隶属哪个传媒集团？",
+      "answer": "加拿大新时代传媒集团",
+      "documents": ["019-加拿大中文电台.md"],
+      "evidence": [{"document": "019-加拿大中文电台.md", "text": "是加拿大新时代传媒集团旗下的一系列电台"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q032",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "加拿大中文电台在哪些城市设有站台？",
+      "answer": "多伦多、温哥华和卡加利",
+      "documents": ["019-加拿大中文电台.md"],
+      "evidence": [{"document": "019-加拿大中文电台.md", "text": "在多伦多、温哥华和卡加利均设有站台"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q033",
+      "category": "single_hop",
+      "split": "test",
+      "question": "苏锦梁曾任什么局长？",
+      "answer": "香港商务及经济发展局局长",
+      "documents": ["020-苏锦梁.md"],
+      "evidence": [{"document": "020-苏锦梁.md", "text": "香港前商务及经济发展局局长"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q034",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "中国－新西兰自由贸易协定于哪一年签署？",
+      "answer": "2008年4月",
+      "documents": ["021-中国－新西兰自由贸易协定.md"],
+      "evidence": [{"document": "021-中国－新西兰自由贸易协定.md", "text": "于2008年4月签署"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q035",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "新西兰绿党为什么对协定持反对态度？",
+      "answer": "认为协定会影响新西兰劳工的就业机会",
+      "documents": ["021-中国－新西兰自由贸易协定.md"],
+      "evidence": [{"document": "021-中国－新西兰自由贸易协定.md", "text": "绿党成员认为协定会影响新西兰劳工的就业机会"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q036",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "升庵桂湖位于哪里？",
+      "answer": "中国四川省成都市北部新都区",
+      "documents": ["022-升庵桂湖.md"],
+      "evidence": [{"document": "022-升庵桂湖.md", "text": "是一座位于中国四川省成都市北部新都区境内的园林"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q037",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "1982年至1984年间，霍顿执教哪个队？",
+      "answer": "北美足球联赛的多伦多闪电队",
+      "documents": ["023-鲍比·霍顿.md"],
+      "evidence": [{"document": "023-鲍比·霍顿.md", "text": "1982年至1984年间，霍顿执教北美足球联赛的多伦多闪电队"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q038",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "霍顿1998年接替谁成为中国国家足球队主教练？",
+      "answer": "戚务生",
+      "documents": ["023-鲍比·霍顿.md"],
+      "evidence": [{"document": "023-鲍比·霍顿.md", "text": "霍顿接替戚务生成为中国国家足球队主教练"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q039",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "海军十字勋章可以授予哪些人？",
+      "answer": "美国海军、海军陆战队或海岸警卫队的成员，也可授予陆军、空军成员或外籍军人",
+      "documents": ["024-海军十字勋章.md"],
+      "evidence": [{"document": "024-海军十字勋章.md", "text": "它一般授予美国海军，海军陆战队或海岸警卫队的成员，但它也可以授予陆军、空军成员或外籍军人"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q040",
+      "category": "single_hop",
+      "split": "dev",
+      "question": "海军十字勋章建立于哪一天？",
+      "answer": "1919年2月4日",
+      "documents": ["024-海军十字勋章.md"],
+      "evidence": [{"document": "024-海军十字勋章.md", "text": "建立于1919年2月4日"}],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q041",
+      "category": "cross_segment",
+      "split": "test",
+      "question": "王处直墓的壁画面积和汉白玉浮雕数量分别是多少？",
+      "answer": "壁画面积100平方米，汉白玉浮雕16块",
+      "documents": ["001-王处直.md"],
+      "evidence": [
+        {"document": "001-王处直.md", "text": "壁画面积为100平方米"},
+        {"document": "001-王处直.md", "text": "汉白玉浮雕为16块"}
+      ],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q042",
+      "category": "cross_segment",
+      "split": "dev",
+      "question": "杰米·海纳曼在印第安纳大学修得什么学位，又以主持什么节目著称？",
+      "answer": "俄语语言学学位；《流言终结者》",
+      "documents": ["002-杰米·海纳曼.md"],
+      "evidence": [
+        {"document": "002-杰米·海纳曼.md", "text": "在印第安纳大学修得了俄语语言学学位"},
+        {"document": "002-杰米·海纳曼.md", "text": "以其主持的电视节目《流言终结者》著称"}
+      ],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q043",
+      "category": "cross_segment",
+      "split": "dev",
+      "question": "金关丈夫何时进入「闲谷黉」冈山分黉，何时取得京都大学医学博士学位？",
+      "answer": "1910年4月进入；1930年9月取得博士学位",
+      "documents": ["003-金关丈夫.md"],
+      "evidence": [
+        {"document": "003-金关丈夫.md", "text": "明治43年(1910年)4月，金关丈夫13岁即进入儒学教育著名的藩校「闲谷黉」冈山分黉就读"},
+        {"document": "003-金关丈夫.md", "text": "昭和5年(1930年)9月，以《琉球人的人类学研究》取得京都大学医学博士学位"}
+      ],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q044",
+      "category": "cross_segment",
+      "split": "test",
+      "question": "挪威同性婚姻法何时通过、何时生效？",
+      "answer": "2008年6月11日通过，2009年1月1日生效",
+      "documents": ["005-挪威同性婚姻.md"],
+      "evidence": [
+        {"document": "005-挪威同性婚姻.md", "text": "挪威国会于2008年6月11日通过“同性婚姻法”"},
+        {"document": "005-挪威同性婚姻.md", "text": "于2009年1月1日正式生效"}
+      ],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q045",
+      "category": "cross_segment",
+      "split": "dev",
+      "question": "谢尔吉耶夫镇在苏联时代先改了什么名，1930年又改为什么名？",
+      "answer": "1919年去掉「镇」字，1930年改名为扎戈斯克",
+      "documents": ["009-谢尔吉耶夫镇.md"],
+      "evidence": [
+        {"document": "009-谢尔吉耶夫镇.md", "text": "苏联时代先把「镇」字去掉 （1919年）"},
+        {"document": "009-谢尔吉耶夫镇.md", "text": "1930年又以一名布尔什维克党人改名为扎戈斯克"}
+      ],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q046",
+      "category": "cross_segment",
+      "split": "dev",
+      "question": "彼得·罗利马为列斯联上阵多少场、攻入多少球？",
+      "answer": "上阵703场，攻入238球",
+      "documents": ["011-彼得·罗利马.md"],
+      "evidence": [
+        {"document": "011-彼得·罗利马.md", "text": "整个足球生涯一共为列斯联上阵703场"},
+        {"document": "011-彼得·罗利马.md", "text": "攻入238球，成为列斯联目前为止最多入球的球员"}
+      ],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q047",
+      "category": "cross_segment",
+      "split": "dev",
+      "question": "加拿大中文电台温哥华的两家分台分别是什么频率？",
+      "answer": "AM1470 和 FM96.1",
+      "documents": ["019-加拿大中文电台.md"],
+      "evidence": [
+        {"document": "019-加拿大中文电台.md", "text": "分别是AM1470（呼号：）和FM96.1（呼号：）"}
+      ],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q048",
+      "category": "cross_segment",
+      "split": "dev",
+      "question": "升庵桂湖的总面积和水面面积分别是多少？",
+      "answer": "总面积46,600平方米，水面16,000平方米",
+      "documents": ["022-升庵桂湖.md"],
+      "evidence": [
+        {"document": "022-升庵桂湖.md", "text": "总面积46,600m²，其中水面16,000m²"}
+      ],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q049",
+      "category": "multi_hop",
+      "split": "test",
+      "question": "王处直墓和朱祐杬的陵墓分别在哪里？",
+      "answer": "王处直墓在河北省曲阳县；朱祐杬的陵墓在湖北省钟祥市城北7.5公里的纯德山",
+      "documents": ["001-王处直.md", "012-朱祐杬.md"],
+      "evidence": [
+        {"document": "001-王处直.md", "text": "王处直墓位于河北省曲阳县"},
+        {"document": "012-朱祐杬.md", "text": "在湖北省钟祥市城北7.5公里的纯德山"}
+      ],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q050",
+      "category": "multi_hop",
+      "split": "dev",
+      "question": "杰米·海纳曼和乔许·哈契森分别因哪部电视节目或电影著称？",
+      "answer": "杰米·海纳曼以《流言终结者》著称；乔许·哈契森以《饥饿游戏》三部曲著称",
+      "documents": ["002-杰米·海纳曼.md", "016-乔许·哈却森.md"],
+      "evidence": [
+        {"document": "002-杰米·海纳曼.md", "text": "以其主持的电视节目《流言终结者》著称"},
+        {"document": "016-乔许·哈却森.md", "text": "凭借着电影《饥饿游戏》三部曲成为美国新生代男演员中的代表人物之一"}
+      ],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q051",
+      "category": "multi_hop",
+      "split": "dev",
+      "question": "金关丈夫和罗伯特·C·吉芬分别去世时多少岁？",
+      "answer": "金关丈夫享年八十六岁；吉芬生于1886年、卒于1962年，约76岁",
+      "documents": ["003-金关丈夫.md", "010-罗伯特·C·吉芬.md"],
+      "evidence": [
+        {"document": "003-金关丈夫.md", "text": "享年八十六岁"},
+        {"document": "010-罗伯特·C·吉芬.md", "text": "1886年6月29日出生于宾夕法尼亚州的西切斯特"},
+        {"document": "010-罗伯特·C·吉芬.md", "text": "他于1962年12月10日在马里兰州的安纳波利斯去世"}
+      ],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q052",
+      "category": "multi_hop",
+      "split": "dev",
+      "question": "谢尔吉耶夫镇和升庵桂湖分别位于哪个国家？",
+      "answer": "谢尔吉耶夫镇位于俄罗斯；升庵桂湖位于中国四川省成都市",
+      "documents": ["009-谢尔吉耶夫镇.md", "022-升庵桂湖.md"],
+      "evidence": [
+        {"document": "009-谢尔吉耶夫镇.md", "text": "是俄罗斯莫斯科州东北部的一个城市"},
+        {"document": "022-升庵桂湖.md", "text": "是一座位于中国四川省成都市北部新都区境内的园林"}
+      ],
+      "scope": ["cmrc2018-demo"],
+      "answerable": true
+    },
+    {
+      "id": "q053",
+      "category": "no_answer",
+      "split": "test",
+      "question": "杰米·海纳曼获得过奥斯卡奖吗？",
+      "answer": "语料没有提供该信息，不能断言。",
+      "documents": [],
+      "evidence": [],
+      "scope": ["cmrc2018-demo"],
+      "answerable": false
+    },
+    {
+      "id": "q054",
+      "category": "no_answer",
+      "split": "dev",
+      "question": "张世昌的出生日期是哪一天？",
+      "answer": "语料没有提供出生日期，不能断言。",
+      "documents": ["018-张世昌.md"],
+      "evidence": [],
+      "scope": ["cmrc2018-demo"],
+      "answerable": false
+    },
+    {
+      "id": "q055",
+      "category": "no_answer",
+      "split": "dev",
+      "question": "加拿大中文电台的收听率是多少？",
+      "answer": "语料没有提供收听率，不能断言。",
+      "documents": ["019-加拿大中文电台.md"],
+      "evidence": [],
+      "scope": ["cmrc2018-demo"],
+      "answerable": false
+    },
+    {
+      "id": "q056",
+      "category": "no_answer",
+      "split": "dev",
+      "question": "升庵桂湖的门票价格是多少？",
+      "answer": "语料没有提供门票价格，不能断言。",
+      "documents": ["022-升庵桂湖.md"],
+      "evidence": [],
+      "scope": ["cmrc2018-demo"],
+      "answerable": false
+    },
+    {
+      "id": "q057",
+      "category": "permission",
+      "split": "test",
+      "question": "王处直墓在哪里？",
+      "answer": "在 restricted-kb 范围内不可见，应返回证据不足。",
+      "documents": ["001-王处直.md"],
+      "forbidden_documents": ["001-王处直.md"],
+      "evidence": [],
+      "scope": ["restricted-kb"],
+      "answerable": false
+    },
+    {
+      "id": "q058",
+      "category": "permission",
+      "split": "dev",
+      "question": "杰米·海纳曼以主持什么节目著称？",
+      "answer": "在 restricted-kb 范围内不可见，应返回证据不足。",
+      "documents": ["002-杰米·海纳曼.md"],
+      "forbidden_documents": ["002-杰米·海纳曼.md"],
+      "evidence": [],
+      "scope": ["restricted-kb"],
+      "answerable": false
+    },
+    {
+      "id": "q059",
+      "category": "permission",
+      "split": "test",
+      "question": "苏锦梁曾任什么局长？",
+      "answer": "在 restricted-kb 范围内不可见，应返回证据不足。",
+      "documents": ["020-苏锦梁.md"],
+      "forbidden_documents": ["020-苏锦梁.md"],
+      "evidence": [],
+      "scope": ["restricted-kb"],
+      "answerable": false
+    },
+    {
+      "id": "q060",
+      "category": "permission",
+      "split": "dev",
+      "question": "升庵桂湖位于哪里？",
+      "answer": "在 restricted-kb 范围内不可见，应返回证据不足。",
+      "documents": ["022-升庵桂湖.md"],
+      "forbidden_documents": ["022-升庵桂湖.md"],
+      "evidence": [],
+      "scope": ["restricted-kb"],
+      "answerable": false
+    }
+  ]
+}

@@ -16,12 +16,15 @@ from rag_core import (
     MAX_READ_CHUNKS,
     RagClient,
     VectorStore,
+    bm25_hybrid_search,
+    bm25_search,
     document_info,
     embed,
     hybrid_search,
     keyword_search,
     list_documents,
     read_document,
+    rerank_by_lexical_overlap,
     retrieve,
 )
 
@@ -178,6 +181,54 @@ class TestHybridSearch(unittest.TestCase):
             hybrid_search(ctx, "奥卡姆剃刀", store, alpha=1.0)
         with self.assertRaises(ValueError):
             hybrid_search(ctx, "奥卡姆剃刀", store, top_k=0)
+
+
+class TestBM25(unittest.TestCase):
+    def _store(self) -> InMemoryVectorStore:
+        store = InMemoryVectorStore()
+        store.add(f"{KB}/006-归纳偏向", [OCCAM_CHUNK], [[0.0, 1.0]])
+        store.add(f"{KB}/024-海军十字勋章", [MEDAL_CHUNK], [[1.0, 0.0]])
+        store.add(f"{KB}/008-静电感应", ["静电感应是物体内的电荷因受外界电荷的影响而重新分布。"], [[0.5, 0.5]])
+        return store
+
+    def test_exact_term_is_ranked_first(self):
+        result = bm25_search(RequestContext("t", "r"), "奥卡姆剃刀", self._store(), scope=[KB], top_k=3)
+        self.assertEqual(result.citations[0].source_id, f"{KB}/006-归纳偏向")
+        self.assertGreater(result.citations[0].score, 0.0)
+
+    def test_scope_is_enforced(self):
+        result = bm25_search(RequestContext("t", "r"), "奥卡姆剃刀", self._store(), scope=["other-kb"], top_k=3)
+        self.assertEqual(result.citations, [])
+
+    def test_no_match_returns_empty(self):
+        result = bm25_search(RequestContext("t", "r"), "量子纠缠", self._store(), scope=[KB], top_k=3)
+        self.assertEqual(result.citations, [])
+
+    def test_bm25_hybrid_keeps_exact_term_visible(self):
+        store = self._store()
+        with patch("rag_core.embed", return_value=[[1.0, 0.0]]):
+            result = bm25_hybrid_search(
+                RequestContext("t", "r"), "奥卡姆剃刀", store, scope=[KB], top_k=2
+            )
+        self.assertEqual(result.citations[0].source_id, f"{KB}/006-归纳偏向")
+
+    def test_reranker_reorders_recalled_candidates_only(self):
+        hits = [
+            (f"{KB}/024-海军十字勋章", MEDAL_CHUNK, 1.0),
+            (f"{KB}/006-归纳偏向", OCCAM_CHUNK, 0.1),
+        ]
+        reranked = rerank_by_lexical_overlap("奥卡姆剃刀", hits, top_k=2, weight=0.9)
+        self.assertEqual(reranked[0][0], f"{KB}/006-归纳偏向")
+        self.assertEqual({item[0] for item in reranked}, {item[0] for item in hits})
+
+    def test_bm25_rejects_invalid_arguments(self):
+        store = self._store()
+        with self.assertRaises(ValueError):
+            bm25_search(RequestContext("t", "r"), "奥卡姆剃刀", store, top_k=0)
+        with self.assertRaises(ValueError):
+            bm25_hybrid_search(RequestContext("t", "r"), "奥卡姆剃刀", store, alpha=0.0)
+        with self.assertRaises(ValueError):
+            rerank_by_lexical_overlap("q", [], top_k=0)
 
 
 class TestDocumentListing(unittest.TestCase):

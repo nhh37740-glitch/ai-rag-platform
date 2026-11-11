@@ -1,5 +1,6 @@
 import os
 import pathlib
+import re
 import shutil
 import unittest
 import tempfile
@@ -7,7 +8,15 @@ import zipfile
 from pypdf import PdfWriter
 
 from core_specifications import RequestContext
-from ingestion import build_index, chunk, parse, to_markdown
+from ingestion import (
+    build_index,
+    chunk,
+    chunk_structural,
+    chunk_tokens,
+    chunk_with_strategy,
+    parse,
+    to_markdown,
+)
 
 
 class TestIngestion(unittest.TestCase):
@@ -49,6 +58,53 @@ class TestIngestion(unittest.TestCase):
     def test_chunk(self):
         out = chunk(["abcdefghij"], size=4, overlap=1)
         self.assertEqual(out, ["abcd", "defg", "ghij"])
+
+    def test_token_chunk_counts_chinese_characters(self):
+        out = chunk_tokens(["静电感应是物体内的电荷重新分布"], size=5, overlap=1)
+        self.assertEqual(out[0], "静电感应是")
+        self.assertEqual(out[1][0], "是")
+        self.assertGreaterEqual(len(out), 3)
+
+    def test_token_chunk_counts_latin_words(self):
+        out = chunk_tokens(["one two three four five"], size=2, overlap=0)
+        self.assertEqual(out, ["one two", "three four", "five"])
+
+    def test_structural_chunk_keeps_paragraph_boundaries(self):
+        text = "第一段内容。\n\n第二段内容。\n\n第三段内容。"
+        out = chunk_structural([text], size=6, overlap=1)
+        self.assertTrue(all(part for part in out))
+        self.assertIn("第一段内容。", out[0])
+        self.assertTrue(any("第三段内容。" in part for part in out))
+
+    def test_structural_splits_oversized_paragraph(self):
+        out = chunk_structural(["一二三四五六七八九十"], size=3, overlap=1)
+        self.assertGreaterEqual(len(out), 2)
+        self.assertEqual("".join(out)[:3], "一二三")
+
+    def test_structural_chunks_stay_within_budget_after_overlap(self):
+        out = chunk_structural(["a b c\n\nd e f g h"], size=5, overlap=2)
+        token_counts = [len(re.findall(r"[A-Za-z0-9_]+|[一-鿿]", part)) for part in out]
+        self.assertTrue(out)
+        self.assertTrue(all(count <= 5 for count in token_counts), token_counts)
+        self.assertIn("d e f g h", out[-1])
+
+    def test_structural_packs_across_paragraph_elements(self):
+        # parse() returns one element per paragraph; packing must continue
+        # across elements rather than resetting for each one.
+        out = chunk_structural(["a b c", "d e f"], size=6, overlap=0)
+        self.assertEqual(out, ["a b c\n\nd e f"])
+
+    def test_structural_overlap_zero_does_not_duplicate(self):
+        out = chunk_structural(["a b c", "d e f g h"], size=5, overlap=0)
+        token_counts = [len(re.findall(r"[A-Za-z0-9_]+|[一-鿿]", part)) for part in out]
+        self.assertEqual(out, ["a b c", "d e f g h"])
+        self.assertTrue(all(count <= 5 for count in token_counts), token_counts)
+
+    def test_chunk_strategy_dispatch_and_validation(self):
+        self.assertEqual(chunk_with_strategy(["abcdefghij"], "char", 4, 1), ["abcd", "defg", "ghij"])
+        self.assertEqual(chunk_with_strategy(["one two three four five"], "token", 2, 0), ["one two", "three four", "five"])
+        with self.assertRaises(ValueError):
+            chunk_with_strategy(["x"], "unknown")
 
     def test_parse_txt(self):
         d = pathlib.Path("data/_tests"); d.mkdir(parents=True, exist_ok=True)

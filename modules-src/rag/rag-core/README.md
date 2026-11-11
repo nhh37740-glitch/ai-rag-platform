@@ -2,7 +2,7 @@
 
 RAG 检索核心：`VectorStore` 接口规范、`RagClient` 门面、内存/SQLite 向量库、可切换向量化，以及按知识库范围过滤的检索与引用。默认由 FastEmbed 运行 `BAAI/bge-small-zh-v1.5`；模型不可用时直接报错，不会静默切换为 hash。
 
-检索提供四条路径：`retrieve`（向量语义）、`keyword_search`（纯词面，不需要模型）、`hybrid_search`（两者 RRF 融合）、`read_document`（按 source_id 分页读原文），外加 `list_documents` 用于枚举范围内文档。
+检索提供这些路径：`retrieve`（向量语义）、`keyword_search`（词面重合，不需要模型）、`hybrid_search`（向量+词面重合 RRF）、`bm25_search`（Okapi BM25）、`bm25_hybrid_search`（向量+BM25 RRF，实验路径）、`read_document`（按 source_id 分页读原文），外加 `list_documents` 用于枚举范围内文档。`rerank_by_lexical_overlap` 是词面启发式重排，只用于离线对照，不是 cross-encoder。
 
 ## 分页读取
 

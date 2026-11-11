@@ -359,3 +359,18 @@ storage 新增 NotebookStore，data-facade 通过 NotebookStorePort 暴露固定
 真实1CPU/1GB BGE导入在1201秒触发Web的20分钟XHR超时，后台仍计算；容器未OOM。新增可选background=true，网页暂存后接收202/任务号，以GET uploads短请求取得进度及最终result回执。同步API默认201保持兼容。全站导入互斥，忙时409；任务持有临时文件并在完成/失败清理，失败释放互斥且保留权限/删除保护。关闭服务先等待任务，再关闭facade连接；进程内任务不跨重启恢复，缺失记录明确提示检查来源。问题#34为180轮假Docker边界测试预算与解释器启动成本，保留行为断言并使用轻量计数器。
 
 网页按登录用户保存已接受任务的ID/笔记本ID，刷新或重新登录后续看同一任务，不重新提交正文；仅保存任务标识，不保存密钥或文档内容。终态移除本地任务记录，临时连接失败可刷新恢复，服务重启导致记录失效时提示检查来源。
+
+## RAG 面试实验与可信评测（Issue #39，2026-11-10）
+
+本轮不改变四 facade、单 SQLite、六表结构或二进制运行边界。目标是把“解释原理、展示代码、运行实验、拿出真实结果”串起来，并明确哪些能力只是实验、哪些未完成。完整方法、命令、原始结果和失败记录见 [EXPERIMENTS.md](EXPERIMENTS.md)。
+
+- 评测：`evaluation` 新增 `ranking_metrics`（Recall@k、Precision@k、MRR@k、nDCG@k）；`evaluate_qa` 不再用答案长度生成 relevance，judge 失败返回 `status=unavailable` 和原因，不再回退为长度分数。
+- 问题集：`experiments/qa_set.json` 共 60 题，覆盖单跳、跨段、多跳、无答案和权限边界；dev/test 按文档划分（test 文档 001、005、006、012、020），记录参考答案和 evidence 子串。由 AI 辅助整理并核对，不是独立人工标注。
+- 检索：新增真实 BM25、BM25+向量融合和词面重排实验接口。固定 60 题、top_k=5、BGE-small-zh 下，BM25 Recall@5=1.0、MRR@5=1.0；BM25+向量融合没有超过单独 BM25；权限题禁止命中为 0。样本偏精确术语，不能据此替换生产默认检索。
+- 切块：新增 token/结构切块实验接口，生产默认仍是字符 500/50。本次 24 篇文档上 token/结构切块没有可观测检索提升；证据完整率均为 1.0。
+- Lost in the Middle：完成 start/middle/end 控制变量脚本；真实模型密钥 401 expired，结果标记 `mock_not_evidence`，没有位置效应质量结论。
+- 图检索：合成服务依赖图、8 个问题、内存 BFS；向量和图路径实体召回均为 1.0。未引入生产图数据库。
+- 框架 PoC：`llama-index-core==0.12.52` 对 20 题做最小索引，Recall@5=0.95、MRR@5=0.95，与项目基线相同，延迟 11.792 ms vs 9.963 ms；不迁移生产。
+- Agent：已选知识库时，提醒耗尽仍不检索或命中数为 0 返回 `NO_EVIDENCE_ANSWER`；重复 `(tool, arguments)` 不执行并记录 `duplicate_query`；记录 `agent_stop` 停止原因。调用预算为 `max_tool_rounds`，HTTP 层总时限 120 秒，`AgentRuntime` 自身无 wall-clock deadline。
+- 模型错误：模拟 401/402/404/400/429/503/超时均映射为稳定错误码；2026-11-10 旧 OpenRouter key 返回 401 `model_auth_failed`（key expired），2026-11-11 轮换后返回 200 并完成一次真实检索问答，记录已脱敏，无密钥输出。
+- 未完成：第二个中文 embedding 模型对照、真实模型生成质量与位置效应、Cross-encoder reranker、ANN/倒排索引规模压测、后台任务跨重启恢复。未运行过的框架只写“调研”，不写“实践”。

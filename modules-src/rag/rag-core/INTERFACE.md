@@ -10,6 +10,9 @@
 - `retrieve(ctx, query, store, scope='kb', top_k) -> RetrievalResult`；`scope` 可传一个或多个知识库标识
 - `keyword_search(ctx, query, store, scope='kb', top_k=5) -> RetrievalResult`：纯词面打分，不需要向量模型
 - `hybrid_search(ctx, query, store, scope='kb', top_k=5, alpha=0.5) -> RetrievalResult`：向量与词面 RRF 融合
+- `bm25_search(ctx, query, store, scope='kb', top_k=5) -> RetrievalResult`：Okapi BM25，不调用向量模型
+- `bm25_hybrid_search(ctx, query, store, scope='kb', top_k=5, alpha=0.5) -> RetrievalResult`：向量与 BM25 的 RRF 融合
+- `rerank_by_lexical_overlap(query, hits, top_k, weight=0.5) -> list[tuple]`：词面启发式重排，只调整已召回候选；不是 cross-encoder
 - `list_documents(ctx, store, scope='kb') -> list[dict]`：`{source_id,title,knowledge_base_id,chunk_count}`
 - `document_info(ctx, store, source_id) -> dict`：`{source_id,title,knowledge_base_id,chunk_count}`；未知 id 时 chunk_count 为 0
 - `read_document(ctx, store, source_id, max_chunks=DEFAULT_READ_CHUNKS, offset=0) -> RetrievalResult`：**分页**读取原文
