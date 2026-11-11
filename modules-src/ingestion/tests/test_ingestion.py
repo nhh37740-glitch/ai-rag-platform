@@ -88,6 +88,18 @@ class TestIngestion(unittest.TestCase):
         self.assertTrue(all(count <= 5 for count in token_counts), token_counts)
         self.assertIn("d e f g h", out[-1])
 
+    def test_structural_packs_across_paragraph_elements(self):
+        # parse() returns one element per paragraph; packing must continue
+        # across elements rather than resetting for each one.
+        out = chunk_structural(["a b c", "d e f"], size=6, overlap=0)
+        self.assertEqual(out, ["a b c\n\nd e f"])
+
+    def test_structural_overlap_zero_does_not_duplicate(self):
+        out = chunk_structural(["a b c", "d e f g h"], size=5, overlap=0)
+        token_counts = [len(re.findall(r"[A-Za-z0-9_]+|[一-鿿]", part)) for part in out]
+        self.assertEqual(out, ["a b c", "d e f g h"])
+        self.assertTrue(all(count <= 5 for count in token_counts), token_counts)
+
     def test_chunk_strategy_dispatch_and_validation(self):
         self.assertEqual(chunk_with_strategy(["abcdefghij"], "char", 4, 1), ["abcd", "defg", "ghij"])
         self.assertEqual(chunk_with_strategy(["one two three four five"], "token", 2, 0), ["one two", "three four", "five"])

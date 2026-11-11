@@ -4,7 +4,7 @@
 - `to_markdown(path, title='') -> str`
 - `chunk(texts, size=500, overlap=50) -> list[str]`：字符滑动窗口基线。
 - `chunk_tokens(texts, size=500, overlap=50) -> list[str]`：近似 token 滑动窗口；中文按字、英文按词计数。
-- `chunk_structural(texts, size=500, overlap=50) -> list[str]`：按段落打包，超长段落回退到 `chunk_tokens`。
+- `chunk_structural(texts, size=500, overlap=50) -> list[str]`：`texts` 是一篇文档的有序段落列表，按段落跨元素打包，超长段落回退到 `chunk_tokens`；携带上下文不超过 `overlap`。
 - `chunk_with_strategy(texts, strategy, size=500, overlap=50) -> list[str]`：`char`/`token`/`structural`。
 - `build_index(ctx, docs_dir, store, embed_fn, chunker=chunk) -> int`
 

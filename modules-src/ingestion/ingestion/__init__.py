@@ -139,39 +139,40 @@ def chunk_tokens(texts: List[str], size: int = 500, overlap: int = 50) -> List[s
 def chunk_structural(texts: List[str], size: int = 500, overlap: int = 50) -> List[str]:
     """Paragraph-aware packing with a token-approximate budget.
 
+    ``texts`` is the ordered paragraph list of one document (as returned by
+    :func:`parse`); packing continues across elements instead of resetting at
+    each paragraph. Callers must not mix several documents in one call.
+
     Paragraphs are never silently dropped. A paragraph larger than ``size`` is
     split with :func:`chunk_tokens`. When a new paragraph would exceed the
-    budget, the previous chunk is emitted and its last ``overlap`` tokens are
-    carried into the next chunk as context.
+    budget, the previous chunk is emitted and up to ``overlap`` of its trailing
+    tokens are carried into the next chunk, capped so the new chunk still fits.
     """
     if size < 1:
         raise ValueError("size 必须大于 0")
     if overlap < 0 or overlap >= size:
         raise ValueError("overlap 必须在 0 到 size-1 之间")
+    paragraphs = [part.strip() for part in re.split(r"\n\s*\n", "\n\n".join(texts)) if part.strip()]
     out: List[str] = []
-    for text in texts:
-        paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
-        if not paragraphs:
-            continue
-        current = ""
-        for paragraph in paragraphs:
-            if len(_token_spans(paragraph)) > size:
-                if current:
-                    out.append(current)
-                    current = ""
-                out.extend(chunk_tokens([paragraph], size=size, overlap=overlap))
-                continue
-            candidate = (current + "\n\n" + paragraph).strip() if current else paragraph
-            if current and len(_token_spans(candidate)) > size:
+    current = ""
+    for paragraph in paragraphs:
+        if len(_token_spans(paragraph)) > size:
+            if current:
                 out.append(current)
-                allowed_overlap = max(0, size - len(_token_spans(paragraph)))
-                tail = _token_spans(current)[-allowed_overlap:] if allowed_overlap else []
-                prefix = current[tail[0][0] :] if tail else ""
-                current = (prefix + "\n\n" + paragraph).strip()
-            else:
-                current = candidate
-        if current:
+                current = ""
+            out.extend(chunk_tokens([paragraph], size=size, overlap=overlap))
+            continue
+        candidate = (current + "\n\n" + paragraph).strip() if current else paragraph
+        if current and len(_token_spans(candidate)) > size:
             out.append(current)
+            allowed_overlap = max(0, min(overlap, size - len(_token_spans(paragraph))))
+            tail = _token_spans(current)[-allowed_overlap:] if allowed_overlap else []
+            prefix = current[tail[0][0] :] if tail else ""
+            current = (prefix + "\n\n" + paragraph).strip()
+        else:
+            current = candidate
+    if current:
+        out.append(current)
     return out
 
 

@@ -733,7 +733,7 @@
             "overlap": "int=50"
           },
           "returns": "list[str]",
-          "notes": "按段落打包；超长段落回退到 chunk_tokens"
+          "notes": "texts 是一篇文档的有序段落列表，跨元素继续打包；超长段落回退到 chunk_tokens；携带上下文不超过 overlap"
         },
         "chunk_with_strategy": {
           "kind": "function",
