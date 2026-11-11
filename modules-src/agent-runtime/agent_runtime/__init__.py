@@ -308,11 +308,17 @@ class AgentRuntime:
                                 retrieval_calls += 1
                                 executed_queries.add(query_key)
                                 outcome = self.tools.execute(ctx, call, runtime_context)
-                                hit_count = _retrieval_hit_count(outcome)
-                                if hit_count is None:
-                                    evidence_unknown = True
-                                elif hit_count > 0:
-                                    retrieval_evidence = True
+                                if isinstance(outcome, str) and outcome.startswith("ERROR:"):
+                                    # 已知工具失败没有取得证据。保持两个标记为
+                                    # False，让无证据守卫继续生效；只有未知的
+                                    # 自定义工具输出才走兼容放行路径。
+                                    pass
+                                else:
+                                    hit_count = _retrieval_hit_count(outcome)
+                                    if hit_count is None:
+                                        evidence_unknown = True
+                                    elif hit_count > 0:
+                                        retrieval_evidence = True
                         else:
                             outcome = self.tools.execute(ctx, call, runtime_context)
                         messages.append(

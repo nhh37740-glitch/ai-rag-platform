@@ -49,6 +49,15 @@ class TestRankingMetrics(unittest.TestCase):
         self.assertEqual(r["recall_at_k"], 0.0)
         self.assertEqual(r["ndcg_at_k"], 0.0)
 
+    def test_precision_divides_by_requested_k(self):
+        r = ranking_metrics(["a"], ["a"], k=5)
+        self.assertEqual(r["k"], 5)
+        self.assertEqual(r["precision_at_k"], 0.2)
+
+    def test_precision_without_k_uses_returned_count(self):
+        r = ranking_metrics(["a"], ["a"])
+        self.assertEqual(r["precision_at_k"], 1.0)
+
 
 class TestEvaluation(unittest.TestCase):
     def test_qa_metrics_are_structured(self):

@@ -251,7 +251,7 @@ $env:DEEPSEEK_API_KEY = ''
 - **原理与取舍**：结合语言、领域、文本长度、部署资源、延迟、许可证和隐私选择；参考 MTEB/C-MTEB 的相关检索任务，再用项目数据验证。检索指标用 Recall@k、Precision@k、MRR@k、nDCG@k；STS 的 Pearson/Spearman、分类 Accuracy、聚类 V-measure 不能直接证明 RAG 检索效果。换 embedding 后不能混用旧向量。
 - **项目代码**：`modules-src/rag-core/rag_core/__init__.py` 的 `make_embed`；`modules-src/evaluation/evaluation/__init__.py` 的 `ranking_metrics`；`experiments/run_retrieval.py`。
 - **演示命令**：`python experiments/run_retrieval.py --backend fastembed --top-k 5 --output experiments/results/retrieval-fastembed.json`。
-- **实际结果**：BGE-small-zh 向量检索在 52 道可回答题上 Recall@5=0.9808、Precision@5=0.4727、MRR@5=0.9808、nDCG@5=0.9808、证据覆盖 0.9647、平均延迟 10.368 ms。
+- **实际结果**：BGE-small-zh 向量检索在 52 道可回答题上 Recall@5=0.9808、Precision@5=0.2115（固定以 5 为分母）、MRR@5=0.9808、nDCG@5=0.9808、证据覆盖 0.9647、平均延迟 11.055 ms。
 - **限制**：问题集是 AI 辅助整理并核对 evidence，不是独立人工标注；只有 24 篇文档；没有第二个中文 embedding 模型对照。
 - **未完成**：资源允许时增加一个中文 embedding 模型，固定语料、切块、问题集和 k，记录维度、编码方式、质量、耗时和内存；不用 hash 结果替代。
 
@@ -260,7 +260,7 @@ $env:DEEPSEEK_API_KEY = ''
 - **原理与取舍**：BM25/稀疏检索补错误码、术语、人名等词面匹配；向量与词面用 RRF 等融合；Cross-encoder 对候选重排；查询改写、多查询、问题分解；父子块/相邻块补全；HyDE 生成假设文档再检索。重排只能调整已召回候选，不能补回候选集中不存在的证据。
 - **项目代码**：`modules-src/rag-core/rag_core/__init__.py` 的 `keyword_search`、`hybrid_search`、`bm25_search`、`bm25_hybrid_search`、`rerank_by_lexical_overlap`。
 - **演示命令**：同 11.4 的 `run_retrieval.py`。
-- **实际结果**：BM25 Recall@5=1.0、Precision@5=0.5208、MRR@5=1.0、nDCG@5=1.0、证据覆盖 0.9776、延迟 10.283 ms；BM25+向量融合 Recall@5=1.0、MRR@5=0.9872，没有超过单独 BM25；当前 RRF 融合 MRR@5=0.9872；词面重排没有提升。权限题禁止命中均为 0。
+- **实际结果**：BM25 Recall@5=1.0、Precision@5=0.2154（固定以 5 为分母）、MRR@5=1.0、nDCG@5=1.0、证据覆盖 0.9776、延迟 10.239 ms；BM25+向量融合 Recall@5=1.0、MRR@5=0.9872，没有超过单独 BM25；当前 RRF 融合 MRR@5=0.9872；词面重排没有提升。权限题禁止命中均为 0。
 - **限制**：这批题偏精确术语，词面方法占优；样本小；`rerank` 是词面重排，不是 Cross-encoder。
 - **未完成**：Cross-encoder 重排、查询改写和多查询实验；生产默认检索不因这次结果切换。
 

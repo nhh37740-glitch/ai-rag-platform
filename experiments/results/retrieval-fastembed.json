@@ -7,8 +7,8 @@
   "chunk_overlap": 50,
   "top_k": 5,
   "document_count": 24,
-  "elapsed_seconds": 3.95,
-  "max_rss_mb": 315.1,
+  "elapsed_seconds": 4.088,
+  "max_rss_mb": 290.7,
   "strategies": [
     "vector",
     "keyword",
@@ -23,22 +23,22 @@
         "questions": 8,
         "answerable": 8,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.4375,
+        "mean_precision_at_k": 0.2,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 1.0,
-        "mean_latency_ms": 13.16,
+        "mean_latency_ms": 13.07,
         "questions_with_forbidden_hits": 0
       },
       "multi_hop": {
         "questions": 4,
         "answerable": 4,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 1.0,
+        "mean_precision_at_k": 0.4,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 0.7917,
-        "mean_latency_ms": 11.78,
+        "mean_latency_ms": 13.621,
         "questions_with_forbidden_hits": 0
       },
       "no_answer": {
@@ -49,7 +49,7 @@
         "mean_mrr_at_k": null,
         "mean_ndcg_at_k": null,
         "mean_evidence_coverage": null,
-        "mean_latency_ms": 9.817,
+        "mean_latency_ms": 10.169,
         "questions_with_forbidden_hits": 0
       },
       "permission": {
@@ -60,29 +60,29 @@
         "mean_mrr_at_k": null,
         "mean_ndcg_at_k": null,
         "mean_evidence_coverage": null,
-        "mean_latency_ms": 7.462,
+        "mean_latency_ms": 7.708,
         "questions_with_forbidden_hits": 0
       },
       "single_hop": {
         "questions": 40,
         "answerable": 40,
         "mean_recall_at_k": 0.975,
-        "mean_precision_at_k": 0.4271,
+        "mean_precision_at_k": 0.195,
         "mean_mrr_at_k": 0.975,
         "mean_ndcg_at_k": 0.975,
         "mean_evidence_coverage": 0.975,
-        "mean_latency_ms": 10.014,
+        "mean_latency_ms": 10.819,
         "questions_with_forbidden_hits": 0
       },
       "_overall": {
         "questions": 60,
         "answerable": 52,
         "mean_recall_at_k": 0.9808,
-        "mean_precision_at_k": 0.4727,
+        "mean_precision_at_k": 0.2115,
         "mean_mrr_at_k": 0.9808,
         "mean_ndcg_at_k": 0.9808,
         "mean_evidence_coverage": 0.9647,
-        "mean_latency_ms": 10.368
+        "mean_latency_ms": 11.055
       }
     },
     "keyword": {
@@ -90,22 +90,22 @@
         "questions": 8,
         "answerable": 8,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.4583,
+        "mean_precision_at_k": 0.2,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 1.0,
-        "mean_latency_ms": 1.782,
+        "mean_latency_ms": 1.754,
         "questions_with_forbidden_hits": 0
       },
       "multi_hop": {
         "questions": 4,
         "answerable": 4,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.9167,
+        "mean_precision_at_k": 0.4,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 0.9799,
         "mean_evidence_coverage": 0.7083,
-        "mean_latency_ms": 1.676,
+        "mean_latency_ms": 1.781,
         "questions_with_forbidden_hits": 0
       },
       "no_answer": {
@@ -116,7 +116,7 @@
         "mean_mrr_at_k": null,
         "mean_ndcg_at_k": null,
         "mean_evidence_coverage": null,
-        "mean_latency_ms": 1.339,
+        "mean_latency_ms": 1.269,
         "questions_with_forbidden_hits": 0
       },
       "permission": {
@@ -134,22 +134,22 @@
         "questions": 40,
         "answerable": 40,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.4792,
+        "mean_precision_at_k": 0.2,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 1.0,
-        "mean_latency_ms": 1.365,
+        "mean_latency_ms": 1.842,
         "questions_with_forbidden_hits": 0
       },
       "_overall": {
         "questions": 60,
         "answerable": 52,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.5096,
+        "mean_precision_at_k": 0.2154,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 0.9985,
         "mean_evidence_coverage": 0.9776,
-        "mean_latency_ms": 1.362
+        "mean_latency_ms": 1.679
       }
     },
     "hybrid": {
@@ -157,22 +157,22 @@
         "questions": 8,
         "answerable": 8,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.4375,
+        "mean_precision_at_k": 0.2,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 1.0,
-        "mean_latency_ms": 14.479,
+        "mean_latency_ms": 14.943,
         "questions_with_forbidden_hits": 0
       },
       "multi_hop": {
         "questions": 4,
         "answerable": 4,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 1.0,
+        "mean_precision_at_k": 0.4,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 0.7083,
-        "mean_latency_ms": 13.457,
+        "mean_latency_ms": 14.025,
         "questions_with_forbidden_hits": 0
       },
       "no_answer": {
@@ -183,7 +183,7 @@
         "mean_mrr_at_k": null,
         "mean_ndcg_at_k": null,
         "mean_evidence_coverage": null,
-        "mean_latency_ms": 12.006,
+        "mean_latency_ms": 11.181,
         "questions_with_forbidden_hits": 0
       },
       "permission": {
@@ -194,29 +194,29 @@
         "mean_mrr_at_k": null,
         "mean_ndcg_at_k": null,
         "mean_evidence_coverage": null,
-        "mean_latency_ms": 7.999,
+        "mean_latency_ms": 7.899,
         "questions_with_forbidden_hits": 0
       },
       "single_hop": {
         "questions": 40,
         "answerable": 40,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.4,
+        "mean_precision_at_k": 0.2,
         "mean_mrr_at_k": 0.9833,
         "mean_ndcg_at_k": 0.9875,
         "mean_evidence_coverage": 1.0,
-        "mean_latency_ms": 11.59,
+        "mean_latency_ms": 11.845,
         "questions_with_forbidden_hits": 0
       },
       "_overall": {
         "questions": 60,
         "answerable": 52,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.4519,
+        "mean_precision_at_k": 0.2154,
         "mean_mrr_at_k": 0.9872,
         "mean_ndcg_at_k": 0.9904,
         "mean_evidence_coverage": 0.9776,
-        "mean_latency_ms": 11.888
+        "mean_latency_ms": 12.096
       }
     },
     "bm25": {
@@ -224,22 +224,22 @@
         "questions": 8,
         "answerable": 8,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.4583,
+        "mean_precision_at_k": 0.2,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 1.0,
-        "mean_latency_ms": 12.077,
+        "mean_latency_ms": 11.846,
         "questions_with_forbidden_hits": 0
       },
       "multi_hop": {
         "questions": 4,
         "answerable": 4,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 1.0,
+        "mean_precision_at_k": 0.4,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 0.7083,
-        "mean_latency_ms": 11.482,
+        "mean_latency_ms": 11.82,
         "questions_with_forbidden_hits": 0
       },
       "no_answer": {
@@ -250,7 +250,7 @@
         "mean_mrr_at_k": null,
         "mean_ndcg_at_k": null,
         "mean_evidence_coverage": null,
-        "mean_latency_ms": 10.895,
+        "mean_latency_ms": 9.844,
         "questions_with_forbidden_hits": 0
       },
       "permission": {
@@ -261,29 +261,29 @@
         "mean_mrr_at_k": null,
         "mean_ndcg_at_k": null,
         "mean_evidence_coverage": null,
-        "mean_latency_ms": 1.169,
+        "mean_latency_ms": 1.133,
         "questions_with_forbidden_hits": 0
       },
       "single_hop": {
         "questions": 40,
         "answerable": 40,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.4854,
+        "mean_precision_at_k": 0.2,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 1.0,
-        "mean_latency_ms": 10.654,
+        "mean_latency_ms": 10.71,
         "questions_with_forbidden_hits": 0
       },
       "_overall": {
         "questions": 60,
         "answerable": 52,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.5208,
+        "mean_precision_at_k": 0.2154,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 0.9776,
-        "mean_latency_ms": 10.283
+        "mean_latency_ms": 10.239
       }
     },
     "bm25_hybrid": {
@@ -291,22 +291,22 @@
         "questions": 8,
         "answerable": 8,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.4583,
+        "mean_precision_at_k": 0.2,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 1.0,
-        "mean_latency_ms": 25.82,
+        "mean_latency_ms": 25.919,
         "questions_with_forbidden_hits": 0
       },
       "multi_hop": {
         "questions": 4,
         "answerable": 4,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 1.0,
+        "mean_precision_at_k": 0.4,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 0.5833,
-        "mean_latency_ms": 23.203,
+        "mean_latency_ms": 24.052,
         "questions_with_forbidden_hits": 0
       },
       "no_answer": {
@@ -317,7 +317,7 @@
         "mean_mrr_at_k": null,
         "mean_ndcg_at_k": null,
         "mean_evidence_coverage": null,
-        "mean_latency_ms": 21.901,
+        "mean_latency_ms": 19.517,
         "questions_with_forbidden_hits": 0
       },
       "permission": {
@@ -328,29 +328,29 @@
         "mean_mrr_at_k": null,
         "mean_ndcg_at_k": null,
         "mean_evidence_coverage": null,
-        "mean_latency_ms": 8.539,
+        "mean_latency_ms": 8.975,
         "questions_with_forbidden_hits": 0
       },
       "single_hop": {
         "questions": 40,
         "answerable": 40,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.4083,
+        "mean_precision_at_k": 0.2,
         "mean_mrr_at_k": 0.9833,
         "mean_ndcg_at_k": 0.9875,
         "mean_evidence_coverage": 1.0,
-        "mean_latency_ms": 20.331,
+        "mean_latency_ms": 20.067,
         "questions_with_forbidden_hits": 0
       },
       "_overall": {
         "questions": 60,
         "answerable": 52,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.4615,
+        "mean_precision_at_k": 0.2154,
         "mean_mrr_at_k": 0.9872,
         "mean_ndcg_at_k": 0.9904,
         "mean_evidence_coverage": 0.9679,
-        "mean_latency_ms": 20.573
+        "mean_latency_ms": 20.337
       }
     },
     "rerank": {
@@ -358,22 +358,22 @@
         "questions": 8,
         "answerable": 8,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 0.4583,
+        "mean_precision_at_k": 0.2,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 1.0,
-        "mean_latency_ms": 13.795,
+        "mean_latency_ms": 14.691,
         "questions_with_forbidden_hits": 0
       },
       "multi_hop": {
         "questions": 4,
         "answerable": 4,
         "mean_recall_at_k": 1.0,
-        "mean_precision_at_k": 1.0,
+        "mean_precision_at_k": 0.4,
         "mean_mrr_at_k": 1.0,
         "mean_ndcg_at_k": 1.0,
         "mean_evidence_coverage": 0.8333,
-        "mean_latency_ms": 12.272,
+        "mean_latency_ms": 12.872,
         "questions_with_forbidden_hits": 0
       },
       "no_answer": {
@@ -384,7 +384,7 @@
         "mean_mrr_at_k": null,
         "mean_ndcg_at_k": null,
         "mean_evidence_coverage": null,
-        "mean_latency_ms": 10.339,
+        "mean_latency_ms": 10.464,
         "questions_with_forbidden_hits": 0
       },
       "permission": {
@@ -395,29 +395,29 @@
         "mean_mrr_at_k": null,
         "mean_ndcg_at_k": null,
         "mean_evidence_coverage": null,
-        "mean_latency_ms": 7.401,
+        "mean_latency_ms": 7.677,
         "questions_with_forbidden_hits": 0
       },
       "single_hop": {
         "questions": 40,
         "answerable": 40,
         "mean_recall_at_k": 0.975,
-        "mean_precision_at_k": 0.4104,
+        "mean_precision_at_k": 0.195,
         "mean_mrr_at_k": 0.975,
         "mean_ndcg_at_k": 0.975,
         "mean_evidence_coverage": 0.975,
-        "mean_latency_ms": 10.401,
+        "mean_latency_ms": 10.55,
         "questions_with_forbidden_hits": 0
       },
       "_overall": {
         "questions": 60,
         "answerable": 52,
         "mean_recall_at_k": 0.9808,
-        "mean_precision_at_k": 0.4631,
+        "mean_precision_at_k": 0.2115,
         "mean_mrr_at_k": 0.9808,
         "mean_ndcg_at_k": 0.9808,
         "mean_evidence_coverage": 0.9679,
-        "mean_latency_ms": 10.774
+        "mean_latency_ms": 11.059
       }
     }
   },
@@ -433,14 +433,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.293,
+      "latency_ms": 19.14,
       "id": "q001",
       "question": "王处直的字是什么？"
     },
@@ -454,14 +454,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 3,
       "forbidden_hits": [],
-      "latency_ms": 2.896,
+      "latency_ms": 19.687,
       "id": "q001",
       "question": "王处直的字是什么？"
     },
@@ -476,14 +476,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 15.678,
+      "latency_ms": 20.176,
       "id": "q001",
       "question": "王处直的字是什么？"
     },
@@ -497,14 +497,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 3,
       "forbidden_hits": [],
-      "latency_ms": 15.22,
+      "latency_ms": 27.293,
       "id": "q001",
       "question": "王处直的字是什么？"
     },
@@ -519,14 +519,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 18.681,
+      "latency_ms": 18.626,
       "id": "q001",
       "question": "王处直的字是什么？"
     },
@@ -541,14 +541,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.268,
+      "latency_ms": 11.157,
       "id": "q001",
       "question": "王处直的字是什么？"
     },
@@ -563,14 +563,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.581,
+      "latency_ms": 9.219,
       "id": "q002",
       "question": "王处直墓在哪里？"
     },
@@ -584,14 +584,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 3,
       "forbidden_hits": [],
-      "latency_ms": 0.974,
+      "latency_ms": 1.02,
       "id": "q002",
       "question": "王处直墓在哪里？"
     },
@@ -606,14 +606,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.53,
+      "latency_ms": 9.713,
       "id": "q002",
       "question": "王处直墓在哪里？"
     },
@@ -627,14 +627,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 3,
       "forbidden_hits": [],
-      "latency_ms": 9.007,
+      "latency_ms": 7.946,
       "id": "q002",
       "question": "王处直墓在哪里？"
     },
@@ -649,14 +649,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 20.575,
+      "latency_ms": 16.494,
       "id": "q002",
       "question": "王处直墓在哪里？"
     },
@@ -671,14 +671,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.081,
+      "latency_ms": 9.056,
       "id": "q002",
       "question": "王处直墓在哪里？"
     },
@@ -693,14 +693,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.261,
+      "latency_ms": 10.954,
       "id": "q003",
       "question": "王处直墓中的汉白玉浮雕有多少块？"
     },
@@ -715,7 +715,7 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
@@ -737,14 +737,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.103,
+      "latency_ms": 11.178,
       "id": "q003",
       "question": "王处直墓中的汉白玉浮雕有多少块？"
     },
@@ -759,14 +759,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.62,
+      "latency_ms": 10.038,
       "id": "q003",
       "question": "王处直墓中的汉白玉浮雕有多少块？"
     },
@@ -781,14 +781,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 20.462,
+      "latency_ms": 20.776,
       "id": "q003",
       "question": "王处直墓中的汉白玉浮雕有多少块？"
     },
@@ -803,14 +803,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.383,
+      "latency_ms": 11.99,
       "id": "q003",
       "question": "王处直墓中的汉白玉浮雕有多少块？"
     },
@@ -825,14 +825,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.106,
+      "latency_ms": 20.135,
       "id": "q004",
       "question": "杰米·海纳曼是什么大学的语言学学士？"
     },
@@ -847,14 +847,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.45,
+      "latency_ms": 2.402,
       "id": "q004",
       "question": "杰米·海纳曼是什么大学的语言学学士？"
     },
@@ -869,14 +869,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.595,
+      "latency_ms": 12.493,
       "id": "q004",
       "question": "杰米·海纳曼是什么大学的语言学学士？"
     },
@@ -891,14 +891,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.355,
+      "latency_ms": 10.395,
       "id": "q004",
       "question": "杰米·海纳曼是什么大学的语言学学士？"
     },
@@ -913,14 +913,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 21.114,
+      "latency_ms": 20.926,
       "id": "q004",
       "question": "杰米·海纳曼是什么大学的语言学学士？"
     },
@@ -935,14 +935,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.502,
+      "latency_ms": 11.316,
       "id": "q004",
       "question": "杰米·海纳曼是什么大学的语言学学士？"
     },
@@ -957,14 +957,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.13,
+      "latency_ms": 10.095,
       "id": "q005",
       "question": "杰米·海纳曼以主持什么节目著称？"
     },
@@ -979,14 +979,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.364,
+      "latency_ms": 1.311,
       "id": "q005",
       "question": "杰米·海纳曼以主持什么节目著称？"
     },
@@ -1001,14 +1001,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.384,
+      "latency_ms": 11.428,
       "id": "q005",
       "question": "杰米·海纳曼以主持什么节目著称？"
     },
@@ -1023,14 +1023,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.861,
+      "latency_ms": 9.526,
       "id": "q005",
       "question": "杰米·海纳曼以主持什么节目著称？"
     },
@@ -1045,14 +1045,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 19.794,
+      "latency_ms": 20.097,
       "id": "q005",
       "question": "杰米·海纳曼以主持什么节目著称？"
     },
@@ -1067,14 +1067,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.654,
+      "latency_ms": 10.254,
       "id": "q005",
       "question": "杰米·海纳曼以主持什么节目著称？"
     },
@@ -1091,14 +1091,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.25,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.522,
+      "latency_ms": 9.426,
       "id": "q006",
       "question": "金关丈夫出身于什么地方？"
     },
@@ -1114,14 +1114,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 4,
       "forbidden_hits": [],
-      "latency_ms": 1.201,
+      "latency_ms": 1.178,
       "id": "q006",
       "question": "金关丈夫出身于什么地方？"
     },
@@ -1138,14 +1138,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.25,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.481,
+      "latency_ms": 10.816,
       "id": "q006",
       "question": "金关丈夫出身于什么地方？"
     },
@@ -1161,14 +1161,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 4,
       "forbidden_hits": [],
-      "latency_ms": 9.338,
+      "latency_ms": 9.391,
       "id": "q006",
       "question": "金关丈夫出身于什么地方？"
     },
@@ -1185,14 +1185,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.25,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 18.545,
+      "latency_ms": 18.482,
       "id": "q006",
       "question": "金关丈夫出身于什么地方？"
     },
@@ -1209,14 +1209,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.25,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.344,
+      "latency_ms": 9.575,
       "id": "q006",
       "question": "金关丈夫出身于什么地方？"
     },
@@ -1232,14 +1232,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.567,
+      "latency_ms": 12.863,
       "id": "q007",
       "question": "金关丈夫凭借什么文章取得京都大学医学博士学位？"
     },
@@ -1255,14 +1255,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.909,
+      "latency_ms": 1.79,
       "id": "q007",
       "question": "金关丈夫凭借什么文章取得京都大学医学博士学位？"
     },
@@ -1278,14 +1278,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 14.089,
+      "latency_ms": 15.107,
       "id": "q007",
       "question": "金关丈夫凭借什么文章取得京都大学医学博士学位？"
     },
@@ -1301,14 +1301,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 23.547,
+      "latency_ms": 12.603,
       "id": "q007",
       "question": "金关丈夫凭借什么文章取得京都大学医学博士学位？"
     },
@@ -1324,14 +1324,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 27.655,
+      "latency_ms": 24.583,
       "id": "q007",
       "question": "金关丈夫凭借什么文章取得京都大学医学博士学位？"
     },
@@ -1347,14 +1347,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.259,
+      "latency_ms": 13.278,
       "id": "q007",
       "question": "金关丈夫凭借什么文章取得京都大学医学博士学位？"
     },
@@ -1369,14 +1369,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.787,
+      "latency_ms": 9.518,
       "id": "q008",
       "question": "现代货箱码头成立于哪一年？"
     },
@@ -1392,14 +1392,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.296,
+      "latency_ms": 1.236,
       "id": "q008",
       "question": "现代货箱码头成立于哪一年？"
     },
@@ -1415,14 +1415,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.223,
+      "latency_ms": 11.028,
       "id": "q008",
       "question": "现代货箱码头成立于哪一年？"
     },
@@ -1438,14 +1438,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.78,
+      "latency_ms": 9.484,
       "id": "q008",
       "question": "现代货箱码头成立于哪一年？"
     },
@@ -1461,14 +1461,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 21.41,
+      "latency_ms": 19.388,
       "id": "q008",
       "question": "现代货箱码头成立于哪一年？"
     },
@@ -1484,14 +1484,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.956,
+      "latency_ms": 10.13,
       "id": "q008",
       "question": "现代货箱码头成立于哪一年？"
     },
@@ -1506,14 +1506,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.171,
+      "latency_ms": 11.389,
       "id": "q009",
       "question": "现代货箱码头是香港第几大货柜码头营运商？"
     },
@@ -1529,14 +1529,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.548,
+      "latency_ms": 1.54,
       "id": "q009",
       "question": "现代货箱码头是香港第几大货柜码头营运商？"
     },
@@ -1552,14 +1552,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.892,
+      "latency_ms": 12.952,
       "id": "q009",
       "question": "现代货箱码头是香港第几大货柜码头营运商？"
     },
@@ -1575,14 +1575,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.986,
+      "latency_ms": 11.143,
       "id": "q009",
       "question": "现代货箱码头是香港第几大货柜码头营运商？"
     },
@@ -1597,14 +1597,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 22.386,
+      "latency_ms": 22.229,
       "id": "q009",
       "question": "现代货箱码头是香港第几大货柜码头营运商？"
     },
@@ -1620,14 +1620,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.777,
+      "latency_ms": 11.6,
       "id": "q009",
       "question": "现代货箱码头是香港第几大货柜码头营运商？"
     },
@@ -1642,14 +1642,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.789,
+      "latency_ms": 10.057,
       "id": "q010",
       "question": "挪威同性婚姻法何时正式生效？"
     },
@@ -1664,14 +1664,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.269,
+      "latency_ms": 1.305,
       "id": "q010",
       "question": "挪威同性婚姻法何时正式生效？"
     },
@@ -1686,14 +1686,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.78,
+      "latency_ms": 11.161,
       "id": "q010",
       "question": "挪威同性婚姻法何时正式生效？"
     },
@@ -1708,14 +1708,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.621,
+      "latency_ms": 9.419,
       "id": "q010",
       "question": "挪威同性婚姻法何时正式生效？"
     },
@@ -1730,14 +1730,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 19.118,
+      "latency_ms": 19.364,
       "id": "q010",
       "question": "挪威同性婚姻法何时正式生效？"
     },
@@ -1752,14 +1752,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.757,
+      "latency_ms": 9.809,
       "id": "q010",
       "question": "挪威同性婚姻法何时正式生效？"
     },
@@ -1774,14 +1774,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.223,
+      "latency_ms": 10.984,
       "id": "q011",
       "question": "挪威是全球第几个给予同性婚姻注册的国家？"
     },
@@ -1796,14 +1796,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.567,
+      "latency_ms": 1.569,
       "id": "q011",
       "question": "挪威是全球第几个给予同性婚姻注册的国家？"
     },
@@ -1818,14 +1818,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.99,
+      "latency_ms": 12.627,
       "id": "q011",
       "question": "挪威是全球第几个给予同性婚姻注册的国家？"
     },
@@ -1840,14 +1840,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.47,
+      "latency_ms": 11.313,
       "id": "q011",
       "question": "挪威是全球第几个给予同性婚姻注册的国家？"
     },
@@ -1862,14 +1862,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 23.277,
+      "latency_ms": 22.678,
       "id": "q011",
       "question": "挪威是全球第几个给予同性婚姻注册的国家？"
     },
@@ -1884,14 +1884,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.718,
+      "latency_ms": 11.792,
       "id": "q011",
       "question": "挪威是全球第几个给予同性婚姻注册的国家？"
     },
@@ -1914,7 +1914,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.475,
+      "latency_ms": 9.976,
       "id": "q012",
       "question": "“奥卡姆剃刀”的内容是什么？"
     },
@@ -1930,14 +1930,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 3,
       "forbidden_hits": [],
-      "latency_ms": 1.197,
+      "latency_ms": 1.227,
       "id": "q012",
       "question": "“奥卡姆剃刀”的内容是什么？"
     },
@@ -1954,14 +1954,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.25,
+        "precision_at_k": 0.2,
         "mrr_at_k": 0.3333,
         "ndcg_at_k": 0.5
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.205,
+      "latency_ms": 11.052,
       "id": "q012",
       "question": "“奥卡姆剃刀”的内容是什么？"
     },
@@ -1977,14 +1977,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 3,
       "forbidden_hits": [],
-      "latency_ms": 10.735,
+      "latency_ms": 8.99,
       "id": "q012",
       "question": "“奥卡姆剃刀”的内容是什么？"
     },
@@ -2001,14 +2001,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.25,
+        "precision_at_k": 0.2,
         "mrr_at_k": 0.3333,
         "ndcg_at_k": 0.5
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 18.73,
+      "latency_ms": 18.696,
       "id": "q012",
       "question": "“奥卡姆剃刀”的内容是什么？"
     },
@@ -2031,7 +2031,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.81,
+      "latency_ms": 10.037,
       "id": "q012",
       "question": "“奥卡姆剃刀”的内容是什么？"
     },
@@ -2046,14 +2046,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.216,
+      "latency_ms": 10.255,
       "id": "q013",
       "question": "以仁王是后白河天皇的第几皇子？"
     },
@@ -2068,14 +2068,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.358,
+      "latency_ms": 1.353,
       "id": "q013",
       "question": "以仁王是后白河天皇的第几皇子？"
     },
@@ -2090,14 +2090,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.221,
+      "latency_ms": 11.018,
       "id": "q013",
       "question": "以仁王是后白河天皇的第几皇子？"
     },
@@ -2112,14 +2112,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.94,
+      "latency_ms": 9.945,
       "id": "q013",
       "question": "以仁王是后白河天皇的第几皇子？"
     },
@@ -2134,14 +2134,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 21.42,
+      "latency_ms": 19.58,
       "id": "q013",
       "question": "以仁王是后白河天皇的第几皇子？"
     },
@@ -2156,14 +2156,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.875,
+      "latency_ms": 10.479,
       "id": "q013",
       "question": "以仁王是后白河天皇的第几皇子？"
     },
@@ -2178,14 +2178,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.061,
+      "latency_ms": 9.454,
       "id": "q014",
       "question": "以仁王又被称为什么宫亲王？"
     },
@@ -2201,14 +2201,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.253,
+      "latency_ms": 1.285,
       "id": "q014",
       "question": "以仁王又被称为什么宫亲王？"
     },
@@ -2224,14 +2224,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.473,
+      "latency_ms": 11.229,
       "id": "q014",
       "question": "以仁王又被称为什么宫亲王？"
     },
@@ -2247,14 +2247,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.489,
+      "latency_ms": 9.4,
       "id": "q014",
       "question": "以仁王又被称为什么宫亲王？"
     },
@@ -2270,14 +2270,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 18.695,
+      "latency_ms": 19.107,
       "id": "q014",
       "question": "以仁王又被称为什么宫亲王？"
     },
@@ -2293,14 +2293,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.027,
+      "latency_ms": 9.834,
       "id": "q014",
       "question": "以仁王又被称为什么宫亲王？"
     },
@@ -2315,14 +2315,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.574,
+      "latency_ms": 8.778,
       "id": "q015",
       "question": "什么是静电感应？"
     },
@@ -2336,14 +2336,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 4,
       "forbidden_hits": [],
-      "latency_ms": 1.024,
+      "latency_ms": 0.97,
       "id": "q015",
       "question": "什么是静电感应？"
     },
@@ -2358,14 +2358,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.309,
+      "latency_ms": 9.637,
       "id": "q015",
       "question": "什么是静电感应？"
     },
@@ -2379,14 +2379,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 4,
       "forbidden_hits": [],
-      "latency_ms": 8.211,
+      "latency_ms": 8.034,
       "id": "q015",
       "question": "什么是静电感应？"
     },
@@ -2401,14 +2401,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 16.679,
+      "latency_ms": 17.004,
       "id": "q015",
       "question": "什么是静电感应？"
     },
@@ -2423,14 +2423,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.829,
+      "latency_ms": 9.293,
       "id": "q015",
       "question": "什么是静电感应？"
     },
@@ -2445,14 +2445,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.937,
+      "latency_ms": 9.851,
       "id": "q016",
       "question": "静电感应现象由哪两位科学家发现？"
     },
@@ -2467,14 +2467,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.411,
+      "latency_ms": 1.369,
       "id": "q016",
       "question": "静电感应现象由哪两位科学家发现？"
     },
@@ -2489,14 +2489,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.261,
+      "latency_ms": 11.437,
       "id": "q016",
       "question": "静电感应现象由哪两位科学家发现？"
     },
@@ -2511,14 +2511,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.035,
+      "latency_ms": 10.28,
       "id": "q016",
       "question": "静电感应现象由哪两位科学家发现？"
     },
@@ -2533,14 +2533,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 20.538,
+      "latency_ms": 20.855,
       "id": "q016",
       "question": "静电感应现象由哪两位科学家发现？"
     },
@@ -2555,14 +2555,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.326,
+      "latency_ms": 10.553,
       "id": "q016",
       "question": "静电感应现象由哪两位科学家发现？"
     },
@@ -2578,14 +2578,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.117,
+      "latency_ms": 9.719,
       "id": "q017",
       "question": "谢尔吉耶夫镇位于哪里？"
     },
@@ -2601,14 +2601,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.159,
+      "latency_ms": 1.172,
       "id": "q017",
       "question": "谢尔吉耶夫镇位于哪里？"
     },
@@ -2624,14 +2624,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.207,
+      "latency_ms": 10.975,
       "id": "q017",
       "question": "谢尔吉耶夫镇位于哪里？"
     },
@@ -2647,14 +2647,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.986,
+      "latency_ms": 8.974,
       "id": "q017",
       "question": "谢尔吉耶夫镇位于哪里？"
     },
@@ -2670,14 +2670,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 18.277,
+      "latency_ms": 18.1,
       "id": "q017",
       "question": "谢尔吉耶夫镇位于哪里？"
     },
@@ -2693,14 +2693,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.301,
+      "latency_ms": 9.184,
       "id": "q017",
       "question": "谢尔吉耶夫镇位于哪里？"
     },
@@ -2716,14 +2716,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.722,
+      "latency_ms": 10.593,
       "id": "q018",
       "question": "谢尔吉耶夫镇距莫斯科多少公里？"
     },
@@ -2739,14 +2739,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.295,
+      "latency_ms": 1.298,
       "id": "q018",
       "question": "谢尔吉耶夫镇距莫斯科多少公里？"
     },
@@ -2762,14 +2762,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.397,
+      "latency_ms": 11.195,
       "id": "q018",
       "question": "谢尔吉耶夫镇距莫斯科多少公里？"
     },
@@ -2785,14 +2785,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.982,
+      "latency_ms": 10.004,
       "id": "q018",
       "question": "谢尔吉耶夫镇距莫斯科多少公里？"
     },
@@ -2808,14 +2808,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 19.622,
+      "latency_ms": 19.824,
       "id": "q018",
       "question": "谢尔吉耶夫镇距莫斯科多少公里？"
     },
@@ -2831,14 +2831,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.213,
+      "latency_ms": 10.44,
       "id": "q018",
       "question": "谢尔吉耶夫镇距莫斯科多少公里？"
     },
@@ -2854,14 +2854,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.736,
+      "latency_ms": 14.364,
       "id": "q019",
       "question": "罗伯特·C·吉芬出生于哪里？"
     },
@@ -2877,14 +2877,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.233,
+      "latency_ms": 1.98,
       "id": "q019",
       "question": "罗伯特·C·吉芬出生于哪里？"
     },
@@ -2900,14 +2900,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.904,
+      "latency_ms": 16.272,
       "id": "q019",
       "question": "罗伯特·C·吉芬出生于哪里？"
     },
@@ -2923,14 +2923,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.939,
+      "latency_ms": 11.06,
       "id": "q019",
       "question": "罗伯特·C·吉芬出生于哪里？"
     },
@@ -2946,14 +2946,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 18.677,
+      "latency_ms": 18.662,
       "id": "q019",
       "question": "罗伯特·C·吉芬出生于哪里？"
     },
@@ -2969,14 +2969,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.977,
+      "latency_ms": 10.197,
       "id": "q019",
       "question": "罗伯特·C·吉芬出生于哪里？"
     },
@@ -2991,14 +2991,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.87,
+      "latency_ms": 10.546,
       "id": "q020",
       "question": "彼得·罗利马是哪个国家的足球员？"
     },
@@ -3013,14 +3013,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.332,
+      "latency_ms": 1.478,
       "id": "q020",
       "question": "彼得·罗利马是哪个国家的足球员？"
     },
@@ -3035,14 +3035,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.134,
+      "latency_ms": 11.562,
       "id": "q020",
       "question": "彼得·罗利马是哪个国家的足球员？"
     },
@@ -3057,14 +3057,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.567,
+      "latency_ms": 9.574,
       "id": "q020",
       "question": "彼得·罗利马是哪个国家的足球员？"
     },
@@ -3079,14 +3079,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 20.056,
+      "latency_ms": 24.358,
       "id": "q020",
       "question": "彼得·罗利马是哪个国家的足球员？"
     },
@@ -3101,14 +3101,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.475,
+      "latency_ms": 10.814,
       "id": "q020",
       "question": "彼得·罗利马是哪个国家的足球员？"
     },
@@ -3123,14 +3123,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.519,
+      "latency_ms": 9.379,
       "id": "q021",
       "question": "罗利马为列斯联上阵多少场？"
     },
@@ -3145,14 +3145,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.292,
+      "latency_ms": 1.185,
       "id": "q021",
       "question": "罗利马为列斯联上阵多少场？"
     },
@@ -3167,14 +3167,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.84,
+      "latency_ms": 10.901,
       "id": "q021",
       "question": "罗利马为列斯联上阵多少场？"
     },
@@ -3189,14 +3189,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.881,
+      "latency_ms": 9.182,
       "id": "q021",
       "question": "罗利马为列斯联上阵多少场？"
     },
@@ -3211,14 +3211,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 19.17,
+      "latency_ms": 18.631,
       "id": "q021",
       "question": "罗利马为列斯联上阵多少场？"
     },
@@ -3233,14 +3233,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.759,
+      "latency_ms": 9.809,
       "id": "q021",
       "question": "罗利马为列斯联上阵多少场？"
     },
@@ -3255,14 +3255,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.138,
+      "latency_ms": 9.615,
       "id": "q022",
       "question": "朱祐杬是明宪宗的第几子？"
     },
@@ -3278,14 +3278,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.215,
+      "latency_ms": 1.201,
       "id": "q022",
       "question": "朱祐杬是明宪宗的第几子？"
     },
@@ -3301,14 +3301,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.635,
+      "latency_ms": 10.427,
       "id": "q022",
       "question": "朱祐杬是明宪宗的第几子？"
     },
@@ -3324,14 +3324,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.361,
+      "latency_ms": 9.373,
       "id": "q022",
       "question": "朱祐杬是明宪宗的第几子？"
     },
@@ -3347,14 +3347,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 18.602,
+      "latency_ms": 19.033,
       "id": "q022",
       "question": "朱祐杬是明宪宗的第几子？"
     },
@@ -3369,14 +3369,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.699,
+      "latency_ms": 11.272,
       "id": "q022",
       "question": "朱祐杬是明宪宗的第几子？"
     },
@@ -3391,14 +3391,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.355,
+      "latency_ms": 9.63,
       "id": "q023",
       "question": "朱祐杬的陵墓后来改称什么？"
     },
@@ -3414,14 +3414,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.236,
+      "latency_ms": 1.303,
       "id": "q023",
       "question": "朱祐杬的陵墓后来改称什么？"
     },
@@ -3437,14 +3437,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.514,
+      "latency_ms": 11.795,
       "id": "q023",
       "question": "朱祐杬的陵墓后来改称什么？"
     },
@@ -3460,14 +3460,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.465,
+      "latency_ms": 14.68,
       "id": "q023",
       "question": "朱祐杬的陵墓后来改称什么？"
     },
@@ -3483,14 +3483,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 18.517,
+      "latency_ms": 18.94,
       "id": "q023",
       "question": "朱祐杬的陵墓后来改称什么？"
     },
@@ -3505,14 +3505,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.631,
+      "latency_ms": 9.896,
       "id": "q023",
       "question": "朱祐杬的陵墓后来改称什么？"
     },
@@ -3527,14 +3527,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.424,
+      "latency_ms": 10.224,
       "id": "q024",
       "question": "项少龙是哪部小说的男主角？"
     },
@@ -3549,14 +3549,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.221,
+      "latency_ms": 1.375,
       "id": "q024",
       "question": "项少龙是哪部小说的男主角？"
     },
@@ -3571,14 +3571,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.741,
+      "latency_ms": 10.664,
       "id": "q024",
       "question": "项少龙是哪部小说的男主角？"
     },
@@ -3593,14 +3593,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.783,
+      "latency_ms": 9.921,
       "id": "q024",
       "question": "项少龙是哪部小说的男主角？"
     },
@@ -3615,14 +3615,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 19.153,
+      "latency_ms": 19.275,
       "id": "q024",
       "question": "项少龙是哪部小说的男主角？"
     },
@@ -3637,14 +3637,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.015,
+      "latency_ms": 10.06,
       "id": "q024",
       "question": "项少龙是哪部小说的男主角？"
     },
@@ -3659,14 +3659,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.646,
+      "latency_ms": 9.677,
       "id": "q025",
       "question": "“出家人”字面上的意思是什么？"
     },
@@ -3681,14 +3681,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.263,
+      "latency_ms": 1.238,
       "id": "q025",
       "question": "“出家人”字面上的意思是什么？"
     },
@@ -3703,14 +3703,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.27,
+      "latency_ms": 10.791,
       "id": "q025",
       "question": "“出家人”字面上的意思是什么？"
     },
@@ -3725,14 +3725,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.706,
+      "latency_ms": 9.406,
       "id": "q025",
       "question": "“出家人”字面上的意思是什么？"
     },
@@ -3747,14 +3747,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 19.28,
+      "latency_ms": 19.247,
       "id": "q025",
       "question": "“出家人”字面上的意思是什么？"
     },
@@ -3769,14 +3769,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.118,
+      "latency_ms": 10.215,
       "id": "q025",
       "question": "“出家人”字面上的意思是什么？"
     },
@@ -3791,14 +3791,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.218,
+      "latency_ms": 8.476,
       "id": "q026",
       "question": "生命热线是什么机构？"
     },
@@ -3813,14 +3813,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 4,
       "forbidden_hits": [],
-      "latency_ms": 1.083,
+      "latency_ms": 1.157,
       "id": "q026",
       "question": "生命热线是什么机构？"
     },
@@ -3836,14 +3836,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.407,
+      "latency_ms": 9.181,
       "id": "q026",
       "question": "生命热线是什么机构？"
     },
@@ -3858,14 +3858,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 4,
       "forbidden_hits": [],
-      "latency_ms": 8.599,
+      "latency_ms": 8.723,
       "id": "q026",
       "question": "生命热线是什么机构？"
     },
@@ -3881,14 +3881,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 26.274,
+      "latency_ms": 16.977,
       "id": "q026",
       "question": "生命热线是什么机构？"
     },
@@ -3903,14 +3903,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.066,
+      "latency_ms": 8.158,
       "id": "q026",
       "question": "生命热线是什么机构？"
     },
@@ -3926,14 +3926,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.58,
+      "latency_ms": 11.274,
       "id": "q027",
       "question": "生命热线的24小时预防自杀热线号码是多少？"
     },
@@ -3949,14 +3949,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.614,
+      "latency_ms": 1.788,
       "id": "q027",
       "question": "生命热线的24小时预防自杀热线号码是多少？"
     },
@@ -3972,14 +3972,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.95,
+      "latency_ms": 13.687,
       "id": "q027",
       "question": "生命热线的24小时预防自杀热线号码是多少？"
     },
@@ -3995,14 +3995,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.884,
+      "latency_ms": 12.196,
       "id": "q027",
       "question": "生命热线的24小时预防自杀热线号码是多少？"
     },
@@ -4018,14 +4018,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 22.291,
+      "latency_ms": 22.062,
       "id": "q027",
       "question": "生命热线的24小时预防自杀热线号码是多少？"
     },
@@ -4041,14 +4041,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.028,
+      "latency_ms": 11.549,
       "id": "q027",
       "question": "生命热线的24小时预防自杀热线号码是多少？"
     },
@@ -4064,14 +4064,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.548,
+      "latency_ms": 13.531,
       "id": "q028",
       "question": "乔许·哈契森因哪部电影成为美国新生代男演员代表人物之一？"
     },
@@ -4088,14 +4088,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.25,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.856,
+      "latency_ms": 1.894,
       "id": "q028",
       "question": "乔许·哈契森因哪部电影成为美国新生代男演员代表人物之一？"
     },
@@ -4111,14 +4111,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 22.031,
+      "latency_ms": 15.145,
       "id": "q028",
       "question": "乔许·哈契森因哪部电影成为美国新生代男演员代表人物之一？"
     },
@@ -4134,14 +4134,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 23.81,
+      "latency_ms": 12.978,
       "id": "q028",
       "question": "乔许·哈契森因哪部电影成为美国新生代男演员代表人物之一？"
     },
@@ -4157,14 +4157,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 28.527,
+      "latency_ms": 26.707,
       "id": "q028",
       "question": "乔许·哈契森因哪部电影成为美国新生代男演员代表人物之一？"
     },
@@ -4180,14 +4180,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 14.78,
+      "latency_ms": 14.476,
       "id": "q028",
       "question": "乔许·哈契森因哪部电影成为美国新生代男演员代表人物之一？"
     },
@@ -4203,14 +4203,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.514,
+      "latency_ms": 9.593,
       "id": "q029",
       "question": "魔弹理论又被称为什么理论？"
     },
@@ -4226,14 +4226,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.205,
+      "latency_ms": 1.276,
       "id": "q029",
       "question": "魔弹理论又被称为什么理论？"
     },
@@ -4249,14 +4249,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.979,
+      "latency_ms": 10.848,
       "id": "q029",
       "question": "魔弹理论又被称为什么理论？"
     },
@@ -4272,14 +4272,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.32,
+      "latency_ms": 9.738,
       "id": "q029",
       "question": "魔弹理论又被称为什么理论？"
     },
@@ -4295,14 +4295,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 18.901,
+      "latency_ms": 18.98,
       "id": "q029",
       "question": "魔弹理论又被称为什么理论？"
     },
@@ -4318,14 +4318,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.589,
+      "latency_ms": 10.251,
       "id": "q029",
       "question": "魔弹理论又被称为什么理论？"
     },
@@ -4341,14 +4341,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 7.901,
+      "latency_ms": 8.845,
       "id": "q030",
       "question": "张世昌司职什么位置？"
     },
@@ -4362,14 +4362,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 3,
       "forbidden_hits": [],
-      "latency_ms": 1.112,
+      "latency_ms": 1.128,
       "id": "q030",
       "question": "张世昌司职什么位置？"
     },
@@ -4385,14 +4385,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.127,
+      "latency_ms": 9.626,
       "id": "q030",
       "question": "张世昌司职什么位置？"
     },
@@ -4406,14 +4406,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 3,
       "forbidden_hits": [],
-      "latency_ms": 8.785,
+      "latency_ms": 8.857,
       "id": "q030",
       "question": "张世昌司职什么位置？"
     },
@@ -4429,14 +4429,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 16.854,
+      "latency_ms": 17.059,
       "id": "q030",
       "question": "张世昌司职什么位置？"
     },
@@ -4452,14 +4452,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.309,
+      "latency_ms": 8.567,
       "id": "q030",
       "question": "张世昌司职什么位置？"
     },
@@ -4475,14 +4475,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.798,
+      "latency_ms": 10.105,
       "id": "q031",
       "question": "加拿大中文电台隶属哪个传媒集团？"
     },
@@ -4498,14 +4498,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.341,
+      "latency_ms": 1.396,
       "id": "q031",
       "question": "加拿大中文电台隶属哪个传媒集团？"
     },
@@ -4520,14 +4520,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.068,
+      "latency_ms": 11.56,
       "id": "q031",
       "question": "加拿大中文电台隶属哪个传媒集团？"
     },
@@ -4542,14 +4542,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.223,
+      "latency_ms": 10.139,
       "id": "q031",
       "question": "加拿大中文电台隶属哪个传媒集团？"
     },
@@ -4564,14 +4564,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 20.208,
+      "latency_ms": 20.502,
       "id": "q031",
       "question": "加拿大中文电台隶属哪个传媒集团？"
     },
@@ -4586,14 +4586,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.911,
+      "latency_ms": 10.515,
       "id": "q031",
       "question": "加拿大中文电台隶属哪个传媒集团？"
     },
@@ -4609,14 +4609,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.945,
+      "latency_ms": 11.403,
       "id": "q032",
       "question": "加拿大中文电台在哪些城市设有站台？"
     },
@@ -4631,14 +4631,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.388,
+      "latency_ms": 1.401,
       "id": "q032",
       "question": "加拿大中文电台在哪些城市设有站台？"
     },
@@ -4653,14 +4653,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.31,
+      "latency_ms": 12.54,
       "id": "q032",
       "question": "加拿大中文电台在哪些城市设有站台？"
     },
@@ -4675,14 +4675,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.947,
+      "latency_ms": 10.767,
       "id": "q032",
       "question": "加拿大中文电台在哪些城市设有站台？"
     },
@@ -4697,14 +4697,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 21.423,
+      "latency_ms": 22.135,
       "id": "q032",
       "question": "加拿大中文电台在哪些城市设有站台？"
     },
@@ -4719,14 +4719,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.296,
+      "latency_ms": 11.444,
       "id": "q032",
       "question": "加拿大中文电台在哪些城市设有站台？"
     },
@@ -4742,14 +4742,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.24,
+      "latency_ms": 8.991,
       "id": "q033",
       "question": "苏锦梁曾任什么局长？"
     },
@@ -4763,14 +4763,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 3,
       "forbidden_hits": [],
-      "latency_ms": 1.105,
+      "latency_ms": 1.098,
       "id": "q033",
       "question": "苏锦梁曾任什么局长？"
     },
@@ -4786,14 +4786,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.286,
+      "latency_ms": 9.409,
       "id": "q033",
       "question": "苏锦梁曾任什么局长？"
     },
@@ -4807,14 +4807,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 3,
       "forbidden_hits": [],
-      "latency_ms": 8.74,
+      "latency_ms": 8.869,
       "id": "q033",
       "question": "苏锦梁曾任什么局长？"
     },
@@ -4830,14 +4830,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 17.07,
+      "latency_ms": 17.494,
       "id": "q033",
       "question": "苏锦梁曾任什么局长？"
     },
@@ -4853,14 +4853,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.634,
+      "latency_ms": 9.271,
       "id": "q033",
       "question": "苏锦梁曾任什么局长？"
     },
@@ -4875,14 +4875,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.167,
+      "latency_ms": 11.446,
       "id": "q034",
       "question": "中国－新西兰自由贸易协定于哪一年签署？"
     },
@@ -4897,14 +4897,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.494,
+      "latency_ms": 1.551,
       "id": "q034",
       "question": "中国－新西兰自由贸易协定于哪一年签署？"
     },
@@ -4920,14 +4920,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.633,
+      "latency_ms": 14.225,
       "id": "q034",
       "question": "中国－新西兰自由贸易协定于哪一年签署？"
     },
@@ -4942,14 +4942,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.779,
+      "latency_ms": 19.739,
       "id": "q034",
       "question": "中国－新西兰自由贸易协定于哪一年签署？"
     },
@@ -4965,14 +4965,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 22.178,
+      "latency_ms": 25.751,
       "id": "q034",
       "question": "中国－新西兰自由贸易协定于哪一年签署？"
     },
@@ -4988,14 +4988,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.836,
+      "latency_ms": 11.86,
       "id": "q034",
       "question": "中国－新西兰自由贸易协定于哪一年签署？"
     },
@@ -5011,14 +5011,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.305,
+      "latency_ms": 11.265,
       "id": "q035",
       "question": "新西兰绿党为什么对协定持反对态度？"
     },
@@ -5034,14 +5034,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.464,
+      "latency_ms": 1.405,
       "id": "q035",
       "question": "新西兰绿党为什么对协定持反对态度？"
     },
@@ -5057,14 +5057,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.439,
+      "latency_ms": 12.745,
       "id": "q035",
       "question": "新西兰绿党为什么对协定持反对态度？"
     },
@@ -5080,14 +5080,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.765,
+      "latency_ms": 11.007,
       "id": "q035",
       "question": "新西兰绿党为什么对协定持反对态度？"
     },
@@ -5103,14 +5103,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 21.628,
+      "latency_ms": 21.725,
       "id": "q035",
       "question": "新西兰绿党为什么对协定持反对态度？"
     },
@@ -5126,14 +5126,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.708,
+      "latency_ms": 11.821,
       "id": "q035",
       "question": "新西兰绿党为什么对协定持反对态度？"
     },
@@ -5148,14 +5148,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.922,
+      "latency_ms": 9.569,
       "id": "q036",
       "question": "升庵桂湖位于哪里？"
     },
@@ -5171,14 +5171,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.041,
+      "latency_ms": 1.143,
       "id": "q036",
       "question": "升庵桂湖位于哪里？"
     },
@@ -5194,14 +5194,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.793,
+      "latency_ms": 10.075,
       "id": "q036",
       "question": "升庵桂湖位于哪里？"
     },
@@ -5217,14 +5217,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.474,
+      "latency_ms": 8.44,
       "id": "q036",
       "question": "升庵桂湖位于哪里？"
     },
@@ -5240,14 +5240,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 17.458,
+      "latency_ms": 17.312,
       "id": "q036",
       "question": "升庵桂湖位于哪里？"
     },
@@ -5263,14 +5263,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.076,
+      "latency_ms": 9.265,
       "id": "q036",
       "question": "升庵桂湖位于哪里？"
     },
@@ -5285,14 +5285,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.749,
+      "latency_ms": 10.6,
       "id": "q037",
       "question": "1982年至1984年间，霍顿执教哪个队？"
     },
@@ -5308,14 +5308,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.318,
+      "latency_ms": 1.388,
       "id": "q037",
       "question": "1982年至1984年间，霍顿执教哪个队？"
     },
@@ -5331,14 +5331,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.899,
+      "latency_ms": 11.651,
       "id": "q037",
       "question": "1982年至1984年间，霍顿执教哪个队？"
     },
@@ -5354,14 +5354,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.537,
+      "latency_ms": 9.249,
       "id": "q037",
       "question": "1982年至1984年间，霍顿执教哪个队？"
     },
@@ -5377,14 +5377,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 18.849,
+      "latency_ms": 19.137,
       "id": "q037",
       "question": "1982年至1984年间，霍顿执教哪个队？"
     },
@@ -5400,14 +5400,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.013,
+      "latency_ms": 10.535,
       "id": "q037",
       "question": "1982年至1984年间，霍顿执教哪个队？"
     },
@@ -5423,14 +5423,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.301,
+      "latency_ms": 12.173,
       "id": "q038",
       "question": "霍顿1998年接替谁成为中国国家足球队主教练？"
     },
@@ -5447,14 +5447,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.25,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.653,
+      "latency_ms": 1.626,
       "id": "q038",
       "question": "霍顿1998年接替谁成为中国国家足球队主教练？"
     },
@@ -5470,14 +5470,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.248,
+      "latency_ms": 13.408,
       "id": "q038",
       "question": "霍顿1998年接替谁成为中国国家足球队主教练？"
     },
@@ -5494,14 +5494,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.25,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.001,
+      "latency_ms": 10.876,
       "id": "q038",
       "question": "霍顿1998年接替谁成为中国国家足球队主教练？"
     },
@@ -5517,14 +5517,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 22.103,
+      "latency_ms": 23.091,
       "id": "q038",
       "question": "霍顿1998年接替谁成为中国国家足球队主教练？"
     },
@@ -5540,14 +5540,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.186,
+      "latency_ms": 12.101,
       "id": "q038",
       "question": "霍顿1998年接替谁成为中国国家足球队主教练？"
     },
@@ -5562,14 +5562,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.689,
+      "latency_ms": 10.177,
       "id": "q039",
       "question": "海军十字勋章可以授予哪些人？"
     },
@@ -5584,14 +5584,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.349,
+      "latency_ms": 1.306,
       "id": "q039",
       "question": "海军十字勋章可以授予哪些人？"
     },
@@ -5606,14 +5606,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.042,
+      "latency_ms": 11.137,
       "id": "q039",
       "question": "海军十字勋章可以授予哪些人？"
     },
@@ -5628,14 +5628,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.129,
+      "latency_ms": 10.163,
       "id": "q039",
       "question": "海军十字勋章可以授予哪些人？"
     },
@@ -5650,14 +5650,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 19.804,
+      "latency_ms": 19.721,
       "id": "q039",
       "question": "海军十字勋章可以授予哪些人？"
     },
@@ -5672,14 +5672,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.253,
+      "latency_ms": 10.214,
       "id": "q039",
       "question": "海军十字勋章可以授予哪些人？"
     },
@@ -5694,14 +5694,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.47,
+      "latency_ms": 9.483,
       "id": "q040",
       "question": "海军十字勋章建立于哪一天？"
     },
@@ -5716,14 +5716,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.23,
+      "latency_ms": 1.271,
       "id": "q040",
       "question": "海军十字勋章建立于哪一天？"
     },
@@ -5739,14 +5739,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.518,
+      "latency_ms": 10.926,
       "id": "q040",
       "question": "海军十字勋章建立于哪一天？"
     },
@@ -5761,14 +5761,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.281,
+      "latency_ms": 9.274,
       "id": "q040",
       "question": "海军十字勋章建立于哪一天？"
     },
@@ -5783,14 +5783,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 19.22,
+      "latency_ms": 19.059,
       "id": "q040",
       "question": "海军十字勋章建立于哪一天？"
     },
@@ -5805,14 +5805,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.588,
+      "latency_ms": 9.915,
       "id": "q040",
       "question": "海军十字勋章建立于哪一天？"
     },
@@ -5827,14 +5827,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.395,
+      "latency_ms": 12.683,
       "id": "q041",
       "question": "王处直墓的壁画面积和汉白玉浮雕数量分别是多少？"
     },
@@ -5849,14 +5849,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.727,
+      "latency_ms": 1.708,
       "id": "q041",
       "question": "王处直墓的壁画面积和汉白玉浮雕数量分别是多少？"
     },
@@ -5871,14 +5871,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 14.484,
+      "latency_ms": 14.39,
       "id": "q041",
       "question": "王处直墓的壁画面积和汉白玉浮雕数量分别是多少？"
     },
@@ -5893,14 +5893,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.604,
+      "latency_ms": 12.15,
       "id": "q041",
       "question": "王处直墓的壁画面积和汉白玉浮雕数量分别是多少？"
     },
@@ -5915,14 +5915,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 36.645,
+      "latency_ms": 25.667,
       "id": "q041",
       "question": "王处直墓的壁画面积和汉白玉浮雕数量分别是多少？"
     },
@@ -5937,14 +5937,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.85,
+      "latency_ms": 13.234,
       "id": "q041",
       "question": "王处直墓的壁画面积和汉白玉浮雕数量分别是多少？"
     },
@@ -5959,14 +5959,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 14.997,
+      "latency_ms": 14.751,
       "id": "q042",
       "question": "杰米·海纳曼在印第安纳大学修得什么学位，又以主持什么节目著称？"
     },
@@ -5981,14 +5981,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 2.14,
+      "latency_ms": 2.029,
       "id": "q042",
       "question": "杰米·海纳曼在印第安纳大学修得什么学位，又以主持什么节目著称？"
     },
@@ -6003,14 +6003,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 16.757,
+      "latency_ms": 16.944,
       "id": "q042",
       "question": "杰米·海纳曼在印第安纳大学修得什么学位，又以主持什么节目著称？"
     },
@@ -6025,14 +6025,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.43,
+      "latency_ms": 13.074,
       "id": "q042",
       "question": "杰米·海纳曼在印第安纳大学修得什么学位，又以主持什么节目著称？"
     },
@@ -6047,14 +6047,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 27.778,
+      "latency_ms": 27.844,
       "id": "q042",
       "question": "杰米·海纳曼在印第安纳大学修得什么学位，又以主持什么节目著称？"
     },
@@ -6069,14 +6069,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 19.288,
+      "latency_ms": 15.335,
       "id": "q042",
       "question": "杰米·海纳曼在印第安纳大学修得什么学位，又以主持什么节目著称？"
     },
@@ -6092,14 +6092,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 19.196,
+      "latency_ms": 15.336,
       "id": "q043",
       "question": "金关丈夫何时进入「闲谷黉」冈山分黉，何时取得京都大学医学博士学位？"
     },
@@ -6115,14 +6115,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 2.19,
+      "latency_ms": 2.128,
       "id": "q043",
       "question": "金关丈夫何时进入「闲谷黉」冈山分黉，何时取得京都大学医学博士学位？"
     },
@@ -6138,14 +6138,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 18.12,
+      "latency_ms": 17.545,
       "id": "q043",
       "question": "金关丈夫何时进入「闲谷黉」冈山分黉，何时取得京都大学医学博士学位？"
     },
@@ -6161,14 +6161,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.381,
+      "latency_ms": 12.879,
       "id": "q043",
       "question": "金关丈夫何时进入「闲谷黉」冈山分黉，何时取得京都大学医学博士学位？"
     },
@@ -6184,14 +6184,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 27.366,
+      "latency_ms": 28.934,
       "id": "q043",
       "question": "金关丈夫何时进入「闲谷黉」冈山分黉，何时取得京都大学医学博士学位？"
     },
@@ -6207,14 +6207,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 15.583,
+      "latency_ms": 24.03,
       "id": "q043",
       "question": "金关丈夫何时进入「闲谷黉」冈山分黉，何时取得京都大学医学博士学位？"
     },
@@ -6229,14 +6229,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.697,
+      "latency_ms": 11.432,
       "id": "q044",
       "question": "挪威同性婚姻法何时通过、何时生效？"
     },
@@ -6251,14 +6251,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.418,
+      "latency_ms": 1.433,
       "id": "q044",
       "question": "挪威同性婚姻法何时通过、何时生效？"
     },
@@ -6273,14 +6273,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.111,
+      "latency_ms": 13.298,
       "id": "q044",
       "question": "挪威同性婚姻法何时通过、何时生效？"
     },
@@ -6295,14 +6295,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.849,
+      "latency_ms": 9.914,
       "id": "q044",
       "question": "挪威同性婚姻法何时通过、何时生效？"
     },
@@ -6317,14 +6317,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 20.595,
+      "latency_ms": 20.86,
       "id": "q044",
       "question": "挪威同性婚姻法何时通过、何时生效？"
     },
@@ -6339,14 +6339,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.12,
+      "latency_ms": 11.562,
       "id": "q044",
       "question": "挪威同性婚姻法何时通过、何时生效？"
     },
@@ -6361,14 +6361,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.811,
+      "latency_ms": 13.336,
       "id": "q045",
       "question": "谢尔吉耶夫镇在苏联时代先改了什么名，1930年又改为什么名？"
     },
@@ -6384,14 +6384,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.859,
+      "latency_ms": 1.947,
       "id": "q045",
       "question": "谢尔吉耶夫镇在苏联时代先改了什么名，1930年又改为什么名？"
     },
@@ -6407,14 +6407,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 15.077,
+      "latency_ms": 15.242,
       "id": "q045",
       "question": "谢尔吉耶夫镇在苏联时代先改了什么名，1930年又改为什么名？"
     },
@@ -6430,14 +6430,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.18,
+      "latency_ms": 12.413,
       "id": "q045",
       "question": "谢尔吉耶夫镇在苏联时代先改了什么名，1930年又改为什么名？"
     },
@@ -6453,14 +6453,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 25.239,
+      "latency_ms": 26.322,
       "id": "q045",
       "question": "谢尔吉耶夫镇在苏联时代先改了什么名，1930年又改为什么名？"
     },
@@ -6476,14 +6476,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 14.02,
+      "latency_ms": 14.159,
       "id": "q045",
       "question": "谢尔吉耶夫镇在苏联时代先改了什么名，1930年又改为什么名？"
     },
@@ -6498,14 +6498,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.667,
+      "latency_ms": 12.365,
       "id": "q046",
       "question": "彼得·罗利马为列斯联上阵多少场、攻入多少球？"
     },
@@ -6520,14 +6520,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.564,
+      "latency_ms": 1.558,
       "id": "q046",
       "question": "彼得·罗利马为列斯联上阵多少场、攻入多少球？"
     },
@@ -6542,14 +6542,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.053,
+      "latency_ms": 14.376,
       "id": "q046",
       "question": "彼得·罗利马为列斯联上阵多少场、攻入多少球？"
     },
@@ -6564,14 +6564,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.578,
+      "latency_ms": 10.621,
       "id": "q046",
       "question": "彼得·罗利马为列斯联上阵多少场、攻入多少球？"
     },
@@ -6586,14 +6586,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 22.223,
+      "latency_ms": 22.606,
       "id": "q046",
       "question": "彼得·罗利马为列斯联上阵多少场、攻入多少球？"
     },
@@ -6608,14 +6608,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.895,
+      "latency_ms": 12.699,
       "id": "q046",
       "question": "彼得·罗利马为列斯联上阵多少场、攻入多少球？"
     },
@@ -6631,14 +6631,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.343,
+      "latency_ms": 12.838,
       "id": "q047",
       "question": "加拿大中文电台温哥华的两家分台分别是什么频率？"
     },
@@ -6653,14 +6653,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.831,
+      "latency_ms": 1.703,
       "id": "q047",
       "question": "加拿大中文电台温哥华的两家分台分别是什么频率？"
     },
@@ -6676,14 +6676,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.852,
+      "latency_ms": 14.388,
       "id": "q047",
       "question": "加拿大中文电台温哥华的两家分台分别是什么频率？"
     },
@@ -6698,14 +6698,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.637,
+      "latency_ms": 12.298,
       "id": "q047",
       "question": "加拿大中文电台温哥华的两家分台分别是什么频率？"
     },
@@ -6720,14 +6720,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 24.337,
+      "latency_ms": 32.001,
       "id": "q047",
       "question": "加拿大中文电台温哥华的两家分台分别是什么频率？"
     },
@@ -6742,14 +6742,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.285,
+      "latency_ms": 14.363,
       "id": "q047",
       "question": "加拿大中文电台温哥华的两家分台分别是什么频率？"
     },
@@ -6765,14 +6765,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.3333,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.171,
+      "latency_ms": 11.816,
       "id": "q048",
       "question": "升庵桂湖的总面积和水面面积分别是多少？"
     },
@@ -6787,14 +6787,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.529,
+      "latency_ms": 1.53,
       "id": "q048",
       "question": "升庵桂湖的总面积和水面面积分别是多少？"
     },
@@ -6809,14 +6809,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.377,
+      "latency_ms": 13.364,
       "id": "q048",
       "question": "升庵桂湖的总面积和水面面积分别是多少？"
     },
@@ -6831,14 +6831,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.958,
+      "latency_ms": 11.421,
       "id": "q048",
       "question": "升庵桂湖的总面积和水面面积分别是多少？"
     },
@@ -6853,14 +6853,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 22.374,
+      "latency_ms": 23.118,
       "id": "q048",
       "question": "升庵桂湖的总面积和水面面积分别是多少？"
     },
@@ -6875,14 +6875,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.5,
+        "precision_at_k": 0.2,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.319,
+      "latency_ms": 12.15,
       "id": "q048",
       "question": "升庵桂湖的总面积和水面面积分别是多少？"
     },
@@ -6897,14 +6897,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.566,
+      "latency_ms": 11.456,
       "id": "q049",
       "question": "王处直墓和朱祐杬的陵墓分别在哪里？"
     },
@@ -6920,14 +6920,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 0.6667,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 0.9197
       },
       "evidence_coverage": 0.5,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.498,
+      "latency_ms": 1.432,
       "id": "q049",
       "question": "王处直墓和朱祐杬的陵墓分别在哪里？"
     },
@@ -6942,14 +6942,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 0.5,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.239,
+      "latency_ms": 12.898,
       "id": "q049",
       "question": "王处直墓和朱祐杬的陵墓分别在哪里？"
     },
@@ -6964,14 +6964,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 0.5,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.703,
+      "latency_ms": 11.325,
       "id": "q049",
       "question": "王处直墓和朱祐杬的陵墓分别在哪里？"
     },
@@ -6986,14 +6986,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 0.5,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 21.615,
+      "latency_ms": 22.425,
       "id": "q049",
       "question": "王处直墓和朱祐杬的陵墓分别在哪里？"
     },
@@ -7008,14 +7008,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.362,
+      "latency_ms": 12.128,
       "id": "q049",
       "question": "王处直墓和朱祐杬的陵墓分别在哪里？"
     },
@@ -7030,14 +7030,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.738,
+      "latency_ms": 18.881,
       "id": "q050",
       "question": "杰米·海纳曼和乔许·哈契森分别因哪部电视节目或电影著称？"
     },
@@ -7052,14 +7052,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.901,
+      "latency_ms": 1.928,
       "id": "q050",
       "question": "杰米·海纳曼和乔许·哈契森分别因哪部电视节目或电影著称？"
     },
@@ -7074,14 +7074,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 15.34,
+      "latency_ms": 15.649,
       "id": "q050",
       "question": "杰米·海纳曼和乔许·哈契森分别因哪部电视节目或电影著称？"
     },
@@ -7096,14 +7096,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.359,
+      "latency_ms": 12.639,
       "id": "q050",
       "question": "杰米·海纳曼和乔许·哈契森分别因哪部电视节目或电影著称？"
     },
@@ -7118,14 +7118,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 25.827,
+      "latency_ms": 26.957,
       "id": "q050",
       "question": "杰米·海纳曼和乔许·哈契森分别因哪部电视节目或电影著称？"
     },
@@ -7140,14 +7140,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.583,
+      "latency_ms": 14.587,
       "id": "q050",
       "question": "杰米·海纳曼和乔许·哈契森分别因哪部电视节目或电影著称？"
     },
@@ -7162,14 +7162,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 0.6667,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.429,
+      "latency_ms": 11.981,
       "id": "q051",
       "question": "金关丈夫和罗伯特·C·吉芬分别去世时多少岁？"
     },
@@ -7184,14 +7184,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 0.3333,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.661,
+      "latency_ms": 2.141,
       "id": "q051",
       "question": "金关丈夫和罗伯特·C·吉芬分别去世时多少岁？"
     },
@@ -7206,14 +7206,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 0.3333,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 13.391,
+      "latency_ms": 14.016,
       "id": "q051",
       "question": "金关丈夫和罗伯特·C·吉芬分别去世时多少岁？"
     },
@@ -7228,14 +7228,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 0.3333,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.063,
+      "latency_ms": 11.251,
       "id": "q051",
       "question": "金关丈夫和罗伯特·C·吉芬分别去世时多少岁？"
     },
@@ -7250,14 +7250,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 0.3333,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 22.252,
+      "latency_ms": 23.752,
       "id": "q051",
       "question": "金关丈夫和罗伯特·C·吉芬分别去世时多少岁？"
     },
@@ -7272,14 +7272,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 0.3333,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.191,
+      "latency_ms": 12.626,
       "id": "q051",
       "question": "金关丈夫和罗伯特·C·吉芬分别去世时多少岁？"
     },
@@ -7294,14 +7294,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 0.5,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.389,
+      "latency_ms": 12.167,
       "id": "q052",
       "question": "谢尔吉耶夫镇和升庵桂湖分别位于哪个国家？"
     },
@@ -7316,14 +7316,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.644,
+      "latency_ms": 1.624,
       "id": "q052",
       "question": "谢尔吉耶夫镇和升庵桂湖分别位于哪个国家？"
     },
@@ -7338,14 +7338,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.856,
+      "latency_ms": 13.536,
       "id": "q052",
       "question": "谢尔吉耶夫镇和升庵桂湖分别位于哪个国家？"
     },
@@ -7360,14 +7360,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.805,
+      "latency_ms": 12.067,
       "id": "q052",
       "question": "谢尔吉耶夫镇和升庵桂湖分别位于哪个国家？"
     },
@@ -7382,14 +7382,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 0.5,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 23.118,
+      "latency_ms": 23.074,
       "id": "q052",
       "question": "谢尔吉耶夫镇和升庵桂湖分别位于哪个国家？"
     },
@@ -7404,14 +7404,14 @@
       "metrics": {
         "k": 5,
         "recall_at_k": 1.0,
-        "precision_at_k": 1.0,
+        "precision_at_k": 0.4,
         "mrr_at_k": 1.0,
         "ndcg_at_k": 1.0
       },
       "evidence_coverage": 1.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.951,
+      "latency_ms": 12.148,
       "id": "q052",
       "question": "谢尔吉耶夫镇和升庵桂湖分别位于哪个国家？"
     },
@@ -7433,7 +7433,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.714,
+      "latency_ms": 10.518,
       "id": "q053",
       "question": "杰米·海纳曼获得过奥斯卡奖吗？"
     },
@@ -7455,7 +7455,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.297,
+      "latency_ms": 1.238,
       "id": "q053",
       "question": "杰米·海纳曼获得过奥斯卡奖吗？"
     },
@@ -7477,7 +7477,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.158,
+      "latency_ms": 11.425,
       "id": "q053",
       "question": "杰米·海纳曼获得过奥斯卡奖吗？"
     },
@@ -7521,7 +7521,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 19.33,
+      "latency_ms": 19.632,
       "id": "q053",
       "question": "杰米·海纳曼获得过奥斯卡奖吗？"
     },
@@ -7543,7 +7543,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.06,
+      "latency_ms": 11.317,
       "id": "q053",
       "question": "杰米·海纳曼获得过奥斯卡奖吗？"
     },
@@ -7565,7 +7565,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.524,
+      "latency_ms": 9.72,
       "id": "q054",
       "question": "张世昌的出生日期是哪一天？"
     },
@@ -7588,7 +7588,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.364,
+      "latency_ms": 1.212,
       "id": "q054",
       "question": "张世昌的出生日期是哪一天？"
     },
@@ -7611,7 +7611,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.856,
+      "latency_ms": 10.95,
       "id": "q054",
       "question": "张世昌的出生日期是哪一天？"
     },
@@ -7633,7 +7633,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.167,
+      "latency_ms": 9.791,
       "id": "q054",
       "question": "张世昌的出生日期是哪一天？"
     },
@@ -7656,7 +7656,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 28.407,
+      "latency_ms": 19.392,
       "id": "q054",
       "question": "张世昌的出生日期是哪一天？"
     },
@@ -7679,7 +7679,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.455,
+      "latency_ms": 9.882,
       "id": "q054",
       "question": "张世昌的出生日期是哪一天？"
     },
@@ -7702,7 +7702,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.634,
+      "latency_ms": 10.08,
       "id": "q055",
       "question": "加拿大中文电台的收听率是多少？"
     },
@@ -7724,7 +7724,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.455,
+      "latency_ms": 1.359,
       "id": "q055",
       "question": "加拿大中文电台的收听率是多少？"
     },
@@ -7746,7 +7746,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 14.307,
+      "latency_ms": 11.367,
       "id": "q055",
       "question": "加拿大中文电台的收听率是多少？"
     },
@@ -7768,7 +7768,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 12.607,
+      "latency_ms": 10.132,
       "id": "q055",
       "question": "加拿大中文电台的收听率是多少？"
     },
@@ -7790,7 +7790,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 20.319,
+      "latency_ms": 20.211,
       "id": "q055",
       "question": "加拿大中文电台的收听率是多少？"
     },
@@ -7812,7 +7812,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.138,
+      "latency_ms": 10.222,
       "id": "q055",
       "question": "加拿大中文电台的收听率是多少？"
     },
@@ -7835,7 +7835,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.395,
+      "latency_ms": 10.358,
       "id": "q056",
       "question": "升庵桂湖的门票价格是多少？"
     },
@@ -7858,7 +7858,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 1.24,
+      "latency_ms": 1.267,
       "id": "q056",
       "question": "升庵桂湖的门票价格是多少？"
     },
@@ -7880,7 +7880,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 11.704,
+      "latency_ms": 10.983,
       "id": "q056",
       "question": "升庵桂湖的门票价格是多少？"
     },
@@ -7903,7 +7903,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 10.002,
+      "latency_ms": 9.647,
       "id": "q056",
       "question": "升庵桂湖的门票价格是多少？"
     },
@@ -7925,7 +7925,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 19.547,
+      "latency_ms": 18.832,
       "id": "q056",
       "question": "升庵桂湖的门票价格是多少？"
     },
@@ -7948,7 +7948,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.703,
+      "latency_ms": 10.435,
       "id": "q056",
       "question": "升庵桂湖的门票价格是多少？"
     },
@@ -7971,7 +7971,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.168,
+      "latency_ms": 7.408,
       "id": "q057",
       "question": "王处直墓在哪里？"
     },
@@ -7990,7 +7990,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 0,
       "forbidden_hits": [],
-      "latency_ms": 0.2,
+      "latency_ms": 0.17,
       "id": "q057",
       "question": "王处直墓在哪里？"
     },
@@ -8013,7 +8013,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.691,
+      "latency_ms": 7.964,
       "id": "q057",
       "question": "王处直墓在哪里？"
     },
@@ -8032,7 +8032,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 0,
       "forbidden_hits": [],
-      "latency_ms": 1.057,
+      "latency_ms": 1.046,
       "id": "q057",
       "question": "王处直墓在哪里？"
     },
@@ -8055,7 +8055,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.231,
+      "latency_ms": 8.643,
       "id": "q057",
       "question": "王处直墓在哪里？"
     },
@@ -8078,7 +8078,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 6.844,
+      "latency_ms": 7.507,
       "id": "q057",
       "question": "王处直墓在哪里？"
     },
@@ -8100,7 +8100,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.115,
+      "latency_ms": 8.765,
       "id": "q058",
       "question": "杰米·海纳曼以主持什么节目著称？"
     },
@@ -8119,7 +8119,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 0,
       "forbidden_hits": [],
-      "latency_ms": 0.224,
+      "latency_ms": 0.227,
       "id": "q058",
       "question": "杰米·海纳曼以主持什么节目著称？"
     },
@@ -8141,7 +8141,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.471,
+      "latency_ms": 9.022,
       "id": "q058",
       "question": "杰米·海纳曼以主持什么节目著称？"
     },
@@ -8160,7 +8160,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 0,
       "forbidden_hits": [],
-      "latency_ms": 1.233,
+      "latency_ms": 1.228,
       "id": "q058",
       "question": "杰米·海纳曼以主持什么节目著称？"
     },
@@ -8182,7 +8182,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 9.886,
+      "latency_ms": 10.286,
       "id": "q058",
       "question": "杰米·海纳曼以主持什么节目著称？"
     },
@@ -8204,7 +8204,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.659,
+      "latency_ms": 8.851,
       "id": "q058",
       "question": "杰米·海纳曼以主持什么节目著称？"
     },
@@ -8226,7 +8226,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 6.627,
+      "latency_ms": 6.827,
       "id": "q059",
       "question": "苏锦梁曾任什么局长？"
     },
@@ -8245,7 +8245,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 0,
       "forbidden_hits": [],
-      "latency_ms": 0.208,
+      "latency_ms": 0.227,
       "id": "q059",
       "question": "苏锦梁曾任什么局长？"
     },
@@ -8267,7 +8267,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 6.695,
+      "latency_ms": 6.998,
       "id": "q059",
       "question": "苏锦梁曾任什么局长？"
     },
@@ -8286,7 +8286,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 0,
       "forbidden_hits": [],
-      "latency_ms": 1.176,
+      "latency_ms": 1.127,
       "id": "q059",
       "question": "苏锦梁曾任什么局长？"
     },
@@ -8308,7 +8308,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 7.635,
+      "latency_ms": 8.204,
       "id": "q059",
       "question": "苏锦梁曾任什么局长？"
     },
@@ -8330,7 +8330,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 6.668,
+      "latency_ms": 6.835,
       "id": "q059",
       "question": "苏锦梁曾任什么局长？"
     },
@@ -8353,7 +8353,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 6.938,
+      "latency_ms": 7.833,
       "id": "q060",
       "question": "升庵桂湖位于哪里？"
     },
@@ -8372,7 +8372,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 0,
       "forbidden_hits": [],
-      "latency_ms": 0.186,
+      "latency_ms": 0.194,
       "id": "q060",
       "question": "升庵桂湖位于哪里？"
     },
@@ -8395,7 +8395,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 7.138,
+      "latency_ms": 7.614,
       "id": "q060",
       "question": "升庵桂湖位于哪里？"
     },
@@ -8414,7 +8414,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 0,
       "forbidden_hits": [],
-      "latency_ms": 1.209,
+      "latency_ms": 1.13,
       "id": "q060",
       "question": "升庵桂湖位于哪里？"
     },
@@ -8437,7 +8437,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 8.405,
+      "latency_ms": 8.765,
       "id": "q060",
       "question": "升庵桂湖位于哪里？"
     },
@@ -8460,7 +8460,7 @@
       "evidence_coverage": 0.0,
       "hit_count": 5,
       "forbidden_hits": [],
-      "latency_ms": 7.433,
+      "latency_ms": 7.515,
       "id": "q060",
       "question": "升庵桂湖位于哪里？"
     }

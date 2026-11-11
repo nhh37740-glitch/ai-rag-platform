@@ -53,7 +53,9 @@ def ranking_metrics(
 
     hits = [item for item in ranked if item in relevant_set]
     recall = len(set(hits)) / len(relevant_set)
-    precision = len(hits) / len(ranked) if ranked else 0.0
+    # Precision@k divides by the requested cut-off, not by how many unique
+    # results the retriever happened to return.
+    precision = len(hits) / cut if cut else 0.0
     reciprocal_rank = 0.0
     for rank, item in enumerate(ranked, start=1):
         if item in relevant_set:

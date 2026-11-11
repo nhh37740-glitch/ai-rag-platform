@@ -263,6 +263,21 @@ class ListEmptyThenClaimsProvider:
         return "根据资料 [1]，答案是龙肉。", []
 
 
+class ZeroThenToolErrorProvider:
+    """零命中后又触发一个已知工具失败，再尝试用引用标注收尾。"""
+
+    def __init__(self):
+        self.calls = 0
+
+    async def generate(self, ctx, messages, tools=None):
+        self.calls += 1
+        if self.calls == 1:
+            return "", [ToolCall("search-empty", "search_knowledge_base", {"query": "不存在的术语"})]
+        if self.calls == 2:
+            return "", [ToolCall("read-error", "read_knowledge_document", {"source_id": "missing"})]
+        return "根据资料 [1]，答案是龙肉。", []
+
+
 class RepeatQueryProvider:
     """连续两轮提交完全相同的检索参数。"""
 
@@ -588,6 +603,44 @@ class TestRetrievalRouting(unittest.TestCase):
         )
         self.assertEqual(answer, NO_EVIDENCE_ANSWER)
         stops = [event for event in tracing.get("trace-list-empty") if event.span == "agent_stop"]
+        self.assertEqual(stops[-1].meta["stop_reason"], "no_evidence")
+
+    def test_tool_error_does_not_bypass_no_evidence_guard(self):
+        registry = ToolRegistry()
+        registry.register(
+            ToolDef("search_knowledge_base", "检索", {"type": "object"}),
+            lambda query, *, ctx, runtime_context: json.dumps(
+                {"tool": "search_knowledge_base", "query": query, "hit_count": 0, "citations": []},
+                ensure_ascii=False,
+            ),
+            context_aware=True,
+        )
+
+        def broken_read(source_id, *, ctx, runtime_context):
+            raise ValueError("document not found")
+
+        registry.register(
+            ToolDef("read_knowledge_document", "读文档", {"type": "object"}),
+            broken_read,
+            context_aware=True,
+        )
+        tracing = make_trace_store()
+        runtime = AgentRuntime(
+            provider=ZeroThenToolErrorProvider(),
+            memory=make_memory(":memory:"),
+            tools=registry,
+            skills=SkillRegistry(),
+            tracing=tracing,
+        )
+        answer = _run(
+            runtime.run(
+                RequestContext("trace-tool-error", "request", "user", "session"),
+                "查一个不存在的术语",
+                ["cmrc2018-demo"],
+            )
+        )
+        self.assertEqual(answer, NO_EVIDENCE_ANSWER)
+        stops = [event for event in tracing.get("trace-tool-error") if event.span == "agent_stop"]
         self.assertEqual(stops[-1].meta["stop_reason"], "no_evidence")
 
     def test_duplicate_retrieval_query_is_skipped(self):
