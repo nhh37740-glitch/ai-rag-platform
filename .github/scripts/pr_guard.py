@@ -61,12 +61,30 @@ def issue_number(body):
     return int(matches[0])
 
 
+MODULE_GROUPS = {"agent", "rag", "data", "auth", "platform"}
+
+
 def changed_modules(paths):
+    """Map changed paths to (module id, source prefix) in either layout.
+
+    Flat:    modules-src/<module>/...
+    Grouped: modules-src/<domain>/<module>/...
+    """
     modules = {}
     for path in paths:
         parts = path.split("/")
-        if len(parts) >= 4 and parts[0] == "modules-src":
-            modules[parts[2]] = "modules-src/" + parts[1] + "/" + parts[2] + "/"
+        if len(parts) < 3 or parts[0] != "modules-src":
+            continue
+        if parts[1] in MODULE_GROUPS:
+            # modules-src/<domain>/README.md is navigation, not a module.
+            if len(parts) < 4:
+                continue
+            module = parts[2]
+            prefix = "modules-src/" + parts[1] + "/" + parts[2] + "/"
+        else:
+            module = parts[1]
+            prefix = "modules-src/" + parts[1] + "/"
+        modules[module] = prefix
     return modules
 
 
