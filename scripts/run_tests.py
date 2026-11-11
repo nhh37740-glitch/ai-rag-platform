@@ -10,6 +10,8 @@ import os
 import sys
 from pathlib import Path
 
+from repo_layout import iter_module_dirs, module_dir
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -17,7 +19,7 @@ class SourcePackages(importlib.abc.MetaPathFinder):
     """Force source tests to ignore stale extensions beside __init__.py."""
     def __init__(self):
         self.packages = {
-            spec["package"]: ROOT / "modules-src" / mid / spec["package"]
+            spec["package"]: module_dir(ROOT, mid) / spec["package"]
             for mid, spec in json.loads((ROOT / "specifications/API_SCHEMA.json").read_text(encoding="utf-8"))["modules"].items()
         }
 
@@ -55,7 +57,7 @@ def main(argv=None):
     if args.mode == "binary" and args.group == "specification":
         os.environ["SPEC_STRICT"] = "1"
     if args.group in {"leaf", "facade"}:
-        paths = [str(p / "tests") for p in sorted((ROOT / "modules-src").iterdir())
+        paths = [str(p / "tests") for p in iter_module_dirs(ROOT)
                  if (p / "tests").is_dir() and (p.name.endswith("-facade") == (args.group == "facade"))]
     else:
         paths = {"scripts": ["scripts/tests"], "app": ["apps/ragnotebook/tests"],

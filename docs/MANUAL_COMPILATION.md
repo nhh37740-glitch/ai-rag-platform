@@ -18,7 +18,7 @@ uv pip install cython nuitka build
 .\.venv\Scripts\python.exe scripts\compile_extension_modules.py
 ```
 
-该脚本遍历 `modules-src/<module-id>/`，编译包入口，并把当前平台的 `.pyd` 或 `.so` 放入 `artifacts/<module-id>/<version>/<package>/`。
+该脚本遍历 `modules-src/<域>/<module-id>/`（业务域归属见 `scripts/repo_layout.py`），编译包入口，并把当前平台的 `.pyd` 或 `.so` 放入 `artifacts/<module-id>/<version>/<package>/`。
 
 只改动了部分模块时，用 `--module` 只编译它们，未指定的模块保持原样：
 

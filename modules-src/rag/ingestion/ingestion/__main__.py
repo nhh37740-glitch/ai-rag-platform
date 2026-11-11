@@ -26,7 +26,7 @@ def _load_dotenv(path: str) -> None:
 
 def main(argv: List[str] | None = None) -> int:
     """独立进程：解析一个目录→分块→embed→写出索引 JSON，供主进程加载。"""
-    _load_dotenv(str(Path(__file__).resolve().parents[2] / ".env"))
+    _load_dotenv(str(Path(__file__).resolve().parents[4] / ".env"))
     args = sys.argv[1:] if argv is None else argv
     docs_dir = "data/kb"
     out = "data/index.json"

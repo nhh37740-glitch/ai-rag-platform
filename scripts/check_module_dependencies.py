@@ -8,7 +8,18 @@ import sys
 import tomllib
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from repo_layout import module_dir
+
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _module_dir(root: Path, module_id: str) -> Path | None:
+    try:
+        return module_dir(root, module_id)
+    except (FileNotFoundError, KeyError):
+        return None
 
 
 def violations(root: Path = ROOT) -> list[str]:
@@ -27,8 +38,9 @@ def violations(root: Path = ROOT) -> list[str]:
     # A public module may be consumed by every domain without consuming those
     # domains in return. Auth has the tighter core + stdlib contract explicitly.
     auth_imports = set(sys.stdlib_module_names) | {"core_specifications", "auth_runtime"}
-    auth_project = root / "modules-src/auth-runtime/pyproject.toml"
-    if auth_project.is_file():
+    auth_dir = _module_dir(root, "auth-runtime")
+    auth_project = auth_dir / "pyproject.toml" if auth_dir else None
+    if auth_project and auth_project.is_file():
         metadata = tomllib.loads(auth_project.read_text(encoding="utf-8"))
         for dependency in metadata.get("project", {}).get("dependencies", []):
             name = re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", dependency.strip())
@@ -38,7 +50,10 @@ def violations(root: Path = ROOT) -> list[str]:
     graph = {package: set() for package in packages}
     files = []
     for mid, spec in schema["modules"].items():
-        directory = root / "modules-src" / mid / spec["package"]
+        module_root = _module_dir(root, mid)
+        if module_root is None:
+            continue
+        directory = module_root / spec["package"]
         files.extend((p, spec["package"]) for p in directory.rglob("*.py"))
     files.extend((p, "app") for p in (root / "apps/ragnotebook").glob("*.py"))
     files.extend((p, "core_specifications") for p in (root / "specifications/core_specifications").rglob("*.py"))

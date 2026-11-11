@@ -419,9 +419,15 @@ class CoreContractTests(unittest.TestCase):
         source = ROOT / "modules-src"
         if not source.is_dir():
             return  # Runtime/release deliberately excludes implementation sources.
+
+        def module_directory(module_id):
+            matches = sorted(path for path in source.glob(f"*/{module_id}") if path.is_dir())
+            self.assertEqual(len(matches), 1, f"{module_id} 源码目录缺失或重复")
+            return matches[0]
+
         schema = _load_json(SPECIFICATIONS / "API_SCHEMA.json")
         for mid, spec in schema["modules"].items():
-            directory = source / mid
+            directory = module_directory(mid)
             with self.subTest(module=mid):
                 self.assertEqual((directory / "VERSION").read_text(encoding="utf-8").strip(), spec["version"])
                 with (directory / "pyproject.toml").open("rb") as handle:

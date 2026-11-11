@@ -63,9 +63,13 @@ RAGnotebook 提供同源的注册/登录/退出/当前用户、管理员用户�
 ```
 <workspace>/
   specifications/            # 接口规范层，唯一共享"源码"：core-specifications + INTERFACE.md + API_SCHEMA.json + test_specification.py
-  modules-src/          # 一级模块 + agent-facade/rag-facade/data-facade；构建可见，运行不可见
-    rag-core/  rag-tools/  memory/  llm-gateway/  tool-runtime/  mcp-gateway/  skill-runtime/
-    agent-runtime/  observability/  evaluation/  ingestion/  mcp-servers/  storage/
+  modules-src/          # 按业务域分组的模块源码；构建可见，运行不可见
+    agent/              #   agent-facade, agent-runtime, evaluation, llm-gateway,
+                        #   mcp-gateway, mcp-servers, skill-runtime, tool-runtime
+    rag/                #   rag-facade, rag-core, rag-tools, ingestion
+    data/               #   data-facade, storage, memory
+    auth/               #   auth-facade, auth-runtime
+    platform/           #   observability
   artifacts/            # 集成 Agent 只读：按 模块/版本/ 存放成品
     rag-core/1.2.0/rag_core.pyd + INTERFACE.md + API_SCHEMA.json + VERSION + CHANGELOG.md + test_specification.py + checksum.sha256
     ...
@@ -75,7 +79,7 @@ RAGnotebook 提供同源的注册/登录/退出/当前用户、管理员用户�
 ```
 
 - `specifications/`：接口与 schema（无实现），所有 subagent 与集成 Agent 可见、可校验。
-- `modules-src/`：实现源码，按独立 Python 包和接口规范划分；当前发布单元是根目录 `ai-rag-platform` 仓库。历史上部分目录带有本地嵌套 Git 元数据，但没有远程仓库，不能把它们当作已发布的独立仓库。运行镜像不带源码，只消费编译产物。
+- `modules-src/`：实现源码，先按业务域（`agent`、`rag`、`data`、`auth`、`platform`）分组，再按独立 Python 包和接口规范划分；模块归属由 `scripts/repo_layout.py` 固定，`scripts/check_repo_structure.py` 校验。当前发布单元是根目录 `ai-rag-platform` 仓库。历史上部分目录带有本地嵌套 Git 元数据，但没有远程仓库，不能把它们当作已发布的独立仓库。运行镜像不带源码，只消费编译产物。
 - `artifacts/`：集成侧只从这里取版本化二进制 + 接口规范文档 + 接口规范测试。
 - 已知限制：Codex 子 Agent 共享文件系统；开发阶段仍以接口规范和源码目录分工。Docker 在部署阶段隔离应用进程、依赖与持久化数据。
 
@@ -104,7 +108,7 @@ RAGnotebook 提供同源的注册/登录/退出/当前用户、管理员用户�
 ## 构建与集成工作流（主 agent 指挥，一模块一 subagent）
 
 1. **接口规范先行**：协调 Agent 维护 `specifications/`（共享类型、各模块接口/schema 与签名闸门），并维护各模块包、`artifacts/` 与 `registry.json` 骨架；接口规范作为模块专职 Agent 的任务边界。
-2. **模块开发（单仓库内按模块分工）**：每个专职 Agent 只改分配给自己的 `modules-src/<module>` 实现与测试；共享接口规范由协调 Agent 更新。模块目录是独立 Python 包与版本单元，不是独立 Git 仓库；根仓库是统一 Git 发布单元。
+2. **模块开发（单仓库内按模块分工）**：每个专职 Agent 只改分配给自己的 `modules-src/<域>/<module>` 实现与测试；共享接口规范由协调 Agent 更新。模块目录是独立 Python 包与版本单元，不是独立 Git 仓库；根仓库是统一 Git 发布单元。
 3. **服务器集成**：Jenkins 在 Linux Docker builder 中编译 Cython 扩展、打包版本化工件，运行模块单测、二进制签名接口规范、包内接口规范测试与应用端到端测试；失败时不部署。
 4. **验收与部署**：服务器 Compose 用候选镜像健康检查并保留原镜像用于失败回滚；操作者从浏览器验收演示入口，不在本机编译 Linux 交付物。
 

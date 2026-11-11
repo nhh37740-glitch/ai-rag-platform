@@ -1,7 +1,7 @@
 {
   "package": "ingestion",
   "delivery": "Cython extension + standalone Nuitka worker (Windows)",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "facade": {
     "parse": {
       "kind": "function",
