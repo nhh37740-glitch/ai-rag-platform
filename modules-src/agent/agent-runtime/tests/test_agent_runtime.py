@@ -1,8 +1,11 @@
 import asyncio
+import json
 import unittest
 
 from agent_runtime import (
+    DUPLICATE_RETRIEVAL_MESSAGE,
     MAX_RETRIEVAL_REMINDERS,
+    NO_EVIDENCE_ANSWER,
     RETRIEVAL_TOOL_NAMES,
     SKIPPED_RETRIEVAL_MESSAGE,
     AgentRuntime,
@@ -234,6 +237,62 @@ class RetrievalPlusFileProvider:
         return "|".join(message.content for message in tool_messages), []
 
 
+class EmptyThenClaimsProvider:
+    """检索返回 0 命中后，仍尝试用引用标注收尾。"""
+
+    def __init__(self):
+        self.calls = 0
+
+    async def generate(self, ctx, messages, tools=None):
+        self.calls += 1
+        if self.calls == 1:
+            return "", [ToolCall("search-empty", "search_knowledge_base", {"query": "不存在的术语"})]
+        return "根据检索结果 [1]，答案是龙肉。", []
+
+
+class ListEmptyThenClaimsProvider:
+    """文档清单为空后，仍尝试用引用标注收尾。"""
+
+    def __init__(self):
+        self.calls = 0
+
+    async def generate(self, ctx, messages, tools=None):
+        self.calls += 1
+        if self.calls == 1:
+            return "", [ToolCall("list-empty", "list_knowledge_documents", {})]
+        return "根据资料 [1]，答案是龙肉。", []
+
+
+class ZeroThenToolErrorProvider:
+    """零命中后又触发一个已知工具失败，再尝试用引用标注收尾。"""
+
+    def __init__(self):
+        self.calls = 0
+
+    async def generate(self, ctx, messages, tools=None):
+        self.calls += 1
+        if self.calls == 1:
+            return "", [ToolCall("search-empty", "search_knowledge_base", {"query": "不存在的术语"})]
+        if self.calls == 2:
+            return "", [ToolCall("read-error", "read_knowledge_document", {"source_id": "missing"})]
+        return "根据资料 [1]，答案是龙肉。", []
+
+
+class RepeatQueryProvider:
+    """连续两轮提交完全相同的检索参数。"""
+
+    def __init__(self):
+        self.calls = 0
+        self.tool_messages = []
+
+    async def generate(self, ctx, messages, tools=None):
+        self.calls += 1
+        if self.calls <= 2:
+            return "", [ToolCall(f"search-{self.calls}", "search_knowledge_base", {"query": "重复查询"})]
+        self.tool_messages = [message.content for message in messages if message.role == "tool"]
+        return "已根据检索回答", []
+
+
 class NeverRetrievesProvider:
     """永远不调用工具，每轮都想直接收尾。"""
 
@@ -338,7 +397,7 @@ class TestRetrievalRouting(unittest.TestCase):
             event for event in tracing.get("trace-bounded") if event.span == "retrieval_guard"
         ]
         self.assertEqual(len(guards), MAX_RETRIEVAL_REMINDERS)
-        self.assertIn("直接回答", answer)
+        self.assertEqual(answer, NO_EVIDENCE_ANSWER)
 
     def test_no_knowledge_base_means_no_retrieval_requirement(self):
         provider = NeverRetrievesProvider()
@@ -487,6 +546,133 @@ class TestRetrievalRouting(unittest.TestCase):
         self.assertEqual(executed, ["search_knowledge_base"])
         self.assertIn("结果:search_knowledge_base", answer)
         self.assertNotIn(SKIPPED_RETRIEVAL_MESSAGE, answer)
+
+    def test_empty_retrieval_blocks_ungrounded_answer(self):
+        registry = ToolRegistry()
+        registry.register(
+            ToolDef("search_knowledge_base", "检索", {"type": "object"}),
+            lambda query, *, ctx, runtime_context: json.dumps(
+                {"tool": "search_knowledge_base", "query": query, "hit_count": 0, "citations": []},
+                ensure_ascii=False,
+            ),
+            context_aware=True,
+        )
+        tracing = make_trace_store()
+        runtime = AgentRuntime(
+            provider=EmptyThenClaimsProvider(),
+            memory=make_memory(":memory:"),
+            tools=registry,
+            skills=SkillRegistry(),
+            tracing=tracing,
+        )
+        answer = _run(
+            runtime.run(
+                RequestContext("trace-empty", "request", "user", "session"),
+                "查一个不存在的术语",
+                ["cmrc2018-demo"],
+            )
+        )
+        self.assertEqual(answer, NO_EVIDENCE_ANSWER)
+        stops = [event for event in tracing.get("trace-empty") if event.span == "agent_stop"]
+        self.assertEqual(stops[-1].meta["stop_reason"], "no_evidence")
+
+    def test_empty_document_listing_does_not_count_as_evidence(self):
+        registry = ToolRegistry()
+        registry.register(
+            ToolDef("list_knowledge_documents", "列目录", {"type": "object"}),
+            lambda *, ctx, runtime_context: json.dumps(
+                {"tool": "list_knowledge_documents", "document_count": 0, "documents": []},
+                ensure_ascii=False,
+            ),
+            context_aware=True,
+        )
+        tracing = make_trace_store()
+        runtime = AgentRuntime(
+            provider=ListEmptyThenClaimsProvider(),
+            memory=make_memory(":memory:"),
+            tools=registry,
+            skills=SkillRegistry(),
+            tracing=tracing,
+        )
+        answer = _run(
+            runtime.run(
+                RequestContext("trace-list-empty", "request", "user", "session"),
+                "知识库里有什么？",
+                ["cmrc2018-demo"],
+            )
+        )
+        self.assertEqual(answer, NO_EVIDENCE_ANSWER)
+        stops = [event for event in tracing.get("trace-list-empty") if event.span == "agent_stop"]
+        self.assertEqual(stops[-1].meta["stop_reason"], "no_evidence")
+
+    def test_tool_error_does_not_bypass_no_evidence_guard(self):
+        registry = ToolRegistry()
+        registry.register(
+            ToolDef("search_knowledge_base", "检索", {"type": "object"}),
+            lambda query, *, ctx, runtime_context: json.dumps(
+                {"tool": "search_knowledge_base", "query": query, "hit_count": 0, "citations": []},
+                ensure_ascii=False,
+            ),
+            context_aware=True,
+        )
+
+        def broken_read(source_id, *, ctx, runtime_context):
+            raise ValueError("document not found")
+
+        registry.register(
+            ToolDef("read_knowledge_document", "读文档", {"type": "object"}),
+            broken_read,
+            context_aware=True,
+        )
+        tracing = make_trace_store()
+        runtime = AgentRuntime(
+            provider=ZeroThenToolErrorProvider(),
+            memory=make_memory(":memory:"),
+            tools=registry,
+            skills=SkillRegistry(),
+            tracing=tracing,
+        )
+        answer = _run(
+            runtime.run(
+                RequestContext("trace-tool-error", "request", "user", "session"),
+                "查一个不存在的术语",
+                ["cmrc2018-demo"],
+            )
+        )
+        self.assertEqual(answer, NO_EVIDENCE_ANSWER)
+        stops = [event for event in tracing.get("trace-tool-error") if event.span == "agent_stop"]
+        self.assertEqual(stops[-1].meta["stop_reason"], "no_evidence")
+
+    def test_duplicate_retrieval_query_is_skipped(self):
+        registry = ToolRegistry()
+        registry.register(
+            ToolDef("search_knowledge_base", "检索", {"type": "object"}),
+            lambda query, *, ctx, runtime_context: json.dumps(
+                {"tool": "search_knowledge_base", "query": query, "hit_count": 1, "citations": [{"text": "证据"}]},
+                ensure_ascii=False,
+            ),
+            context_aware=True,
+        )
+        provider = RepeatQueryProvider()
+        tracing = make_trace_store()
+        runtime = AgentRuntime(
+            provider=provider,
+            memory=make_memory(":memory:"),
+            tools=registry,
+            skills=SkillRegistry(),
+            tracing=tracing,
+        )
+        answer = _run(
+            runtime.run(
+                RequestContext("trace-dup", "request", "user", "session"),
+                "重复查询",
+                ["cmrc2018-demo"],
+            )
+        )
+        self.assertEqual(answer, "已根据检索回答")
+        self.assertEqual(provider.tool_messages.count(DUPLICATE_RETRIEVAL_MESSAGE), 1)
+        guards = [event for event in tracing.get("trace-dup") if event.span == "retrieval_guard"]
+        self.assertTrue(any(event.meta.get("reason") == "duplicate_query" for event in guards))
 
 
 if __name__ == "__main__":

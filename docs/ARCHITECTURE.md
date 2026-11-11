@@ -55,7 +55,7 @@ apps/web 只负责静态网页和 API 调用；apps/ragnotebook 装配 AgentServ
 - `embed(texts)` / `make_embed(backend)`（默认 `fastembed` + `BAAI/bge-small-zh-v1.5`；`hash` 仅显式选择）
 - `InMemoryVectorStore.add(source_id, chunks, embeddings) / search(embedding, top_k)`
 - `retrieve(ctx, query, store, scope, top_k) -> RetrievalResult`、`build_context(result)`
-- 检索原语：`keyword_search`（纯词面，不加载模型）、`hybrid_search`（向量+词面 RRF 融合）、`list_documents`、`read_document`
+- 检索原语：`keyword_search`（纯词面，不加载模型）、`hybrid_search`（向量+词面 RRF 融合）、`bm25_search`、`bm25_hybrid_search`、`rerank_by_lexical_overlap`（词面重排，不是 Cross-encoder）、`list_documents`、`read_document`
 
 ### RAG 工具模块 `rag_tools`
 - `RagTools.tool_definitions()` 向 LLM 暴露五个知识库工具：`search_knowledge_base`、`hybrid_search_knowledge_base`、`keyword_search_knowledge_base`、`list_knowledge_documents`、`read_knowledge_document`
@@ -74,7 +74,7 @@ apps/web 只负责静态网页和 API 调用；apps/ragnotebook 装配 AgentServ
 - `SkillRegistry.load_dir(path) / list(ctx=None) / load(ctx, name) / render(ctx, query)`，选中后惰性加载完整 SKILL.md
 
 ### Agent 编排 `agent_runtime`
-- `AgentRuntime.run(ctx, user_input, knowledge_base_ids) -> str`（记忆/历史/完整 Skill→LLM→工具循环→写记忆；循环上限默认 10 轮且不得配置小于 10；提示词要求已选择知识库时所有问题先检索，执行器最多提醒两次，尚非严格成功闸门）
+- `AgentRuntime.run(ctx, user_input, knowledge_base_ids) -> str`（记忆/历史/完整 Skill→LLM→工具循环→写记忆；循环上限默认 10 轮且不得配置小于 10；已选知识库时提醒耗尽仍不检索、或检索命中数为 0，返回 `NO_EVIDENCE_ANSWER` 并记录 `agent_stop`；重复查询不执行，记录 `retrieval_guard(reason=duplicate_query)`；自身没有 wall-clock deadline）
 - `make_runtime(...)`
 
 ### MCP 网关 `mcp_gateway`
@@ -87,12 +87,13 @@ apps/web 只负责静态网页和 API 调用；apps/ragnotebook 装配 AgentServ
 - CLI `python -m mcp_servers`（stdio 的 `tools/list`、`tools/call`；`MCP_GITHUB_REPO` 切真实）
 
 ### 评测 `evaluation`
-- `evaluate_qa(ctx, qa_set) -> dict`（Recall/Precision/Faithfulness/Answer Relevance）
-- `llm_as_judge(ctx, provider, question, answer, context) -> int`
+- `ranking_metrics(relevant, retrieved, k=None, grades=None)`：Recall@k、Precision@k、MRR@k、nDCG@k
+- `evaluate_qa(ctx, qa_set) -> dict`：检索指标 + 标注为 `token_overlap_heuristic` 的忠实度近似；`answer_relevance` 只接受已完成的 judge 结果，失败为 `None`
+- `llm_as_judge(...) -> {"status", "reason", "score"}`：失败、空响应或不可解析时返回 `status="unavailable"`，不回退为答案长度
 - `evaluate_agent(ctx, trajectory) -> dict`
 
 ### 入库 `ingestion`
-- `parse(path)` / `chunk(texts, size, overlap)` / `build_index(ctx, docs_dir, store, embed_fn)`
+- `parse(path)` / `chunk(texts, size, overlap)`（字符切块）/ `chunk_tokens(...)` / `chunk_structural(...)` / `chunk_with_strategy(...)` / `build_index(ctx, docs_dir, store, embed_fn, chunker=chunk)`
 - CLI `python -m ingestion <dir> --out index.json`（独立进程产索引，主进程读索引）
 
 ### 统一存储 `storage`（已由 DataService 接入 Web）
@@ -144,9 +145,9 @@ FastAPI：`GET /`（聊天页）、`GET /api/demo`（CMRC2018 状态与示例问
 - Web 注册五个 RAG 工具与两个文件/保存工具，未注册 MCP 工具；LangChain/LangGraph/Hermes 未用于实现。
 - Skill 是按匹配规则加载的完整 Markdown 指令，bug-triage/incident-analysis 文档写了业务步骤，不等于自动建单或持久工作流已实现。
 - SSE 与 provider.stream 都在完整生成后返回一次结果；没有真正的 token streaming。
-- retrieval_guard 最多提醒两次，之后可返回未检索答案。引用来源约束与回退顺序主要属于提示词策略，没有严格的输出验证闸门。
+- retrieval_guard 最多提醒两次；已选知识库时，提醒耗尽仍不检索或检索命中数为 0 会返回 `NO_EVIDENCE_ANSWER`，但“有命中”不等于证据支持结论。引用来源约束与回退顺序主要属于提示词策略，没有严格的逐句引用验证闸门。
 - RAG scope 是所选笔记本的过滤范围。服务无用户认证，客户端可提交 user_id，因此不能声称多租户权限隔离。SQLite 记忆不按 session_id 过滤，进程内聊天历史才使用用户/会话联合键。
-- evaluate_qa 的词面重叠与长度分数属于启发式，不能证明回答正确率或真实性；当前没有真实模型的基准对比结论。
+- evaluate_qa 的忠实度是词面重叠启发式；answer_relevance 不再按答案长度生成，judge 失败保持 `unavailable`。当前仍没有真实模型的基准对比结论，检索实验见 [EXPERIMENTS.md](EXPERIMENTS.md)。
 
 ## 管理员与游客
 

@@ -19,6 +19,7 @@ ai-rag-platform/
 ├── registry.json          # 模块版本、checksum 与产物路径索引
 ├── apps/                  # 集成应用层（RAGnotebook HTTP + Web）
 ├── scripts/               # 结构/依赖检查、测试、编译、部署与运维
+├── experiments/           # 固定问题集、可复跑实验脚本与结果（不进入镜像）
 ├── skills/                # 运行时 Skill 资源
 ├── data/                  # 演示知识库与运行时数据（不进入镜像的私有数据）
 ├── docs/                  # 方案、架构、验证记录与运维文档

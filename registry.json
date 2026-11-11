@@ -10,10 +10,10 @@
     },
     "agent-runtime": {
       "name": "agent_runtime",
-      "version": "0.5.1",
-      "checksum": "2a91ead7e955d5db9338fa9b6440fdab2dba88636a21e4c3382d4cbab15d61b8",
-      "path": "artifacts/agent-runtime/0.5.1",
-      "status": "published"
+      "version": "0.6.0",
+      "checksum": "",
+      "path": "artifacts/agent-runtime/0.6.0",
+      "status": "contract-only"
     },
     "auth-facade": {
       "name": "auth_facade",
@@ -38,24 +38,24 @@
     },
     "evaluation": {
       "name": "evaluation",
-      "version": "0.1.1",
-      "checksum": "7cb38863dfcb6de06714962edd1850ac6eabbbf14c2de9e2e4e7ce881d90c84c",
-      "path": "artifacts/evaluation/0.1.1",
-      "status": "published"
+      "version": "0.2.0",
+      "checksum": "",
+      "path": "artifacts/evaluation/0.2.0",
+      "status": "contract-only"
     },
     "ingestion": {
       "name": "ingestion",
-      "version": "0.2.2",
-      "checksum": "2fc08ed058c313fac34e861b8aaa40e2f42ed0d3985d986758490d32eea8e299",
-      "path": "artifacts/ingestion/0.2.2",
-      "status": "published"
+      "version": "0.3.0",
+      "checksum": "",
+      "path": "artifacts/ingestion/0.3.0",
+      "status": "contract-only"
     },
     "llm-gateway": {
       "name": "llm_gateway",
-      "version": "0.1.2",
-      "checksum": "b9d141325c7d6cc7bf1c38f5aff5620ea79309bbe05ce7397a96f630f7f1ce45",
-      "path": "artifacts/llm-gateway/0.1.2",
-      "status": "published"
+      "version": "0.2.0",
+      "checksum": "",
+      "path": "artifacts/llm-gateway/0.2.0",
+      "status": "contract-only"
     },
     "mcp-gateway": {
       "name": "mcp_gateway",
@@ -87,10 +87,10 @@
     },
     "rag-core": {
       "name": "rag_core",
-      "version": "0.5.3",
-      "checksum": "b5e83709afd4ef4d347ef2e9a08bd2e477cb49c9ac3302b41a1701874fd50346",
-      "path": "artifacts/rag-core/0.5.3",
-      "status": "published"
+      "version": "0.6.0",
+      "checksum": "",
+      "path": "artifacts/rag-core/0.6.0",
+      "status": "contract-only"
     },
     "rag-facade": {
       "name": "rag_facade",

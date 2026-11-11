@@ -1,7 +1,7 @@
 {
   "package": "rag_core",
   "delivery": "Cython extension (.pyd/.so)",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "constants": {
     "DEFAULT_READ_CHUNKS": 20,
     "MAX_READ_CHUNKS": 100
@@ -103,6 +103,42 @@
       },
       "returns": "RetrievalResult",
       "notes": "向量与词面排序的 RRF 融合"
+    },
+    "bm25_search": {
+      "kind": "function",
+      "params": {
+        "ctx": "RequestContext",
+        "query": "str",
+        "store": "VectorStore",
+        "scope": "str|list[str]|null",
+        "top_k": "int"
+      },
+      "returns": "RetrievalResult",
+      "notes": "Okapi BM25；中文双字 + 英文词，不调用向量模型"
+    },
+    "bm25_hybrid_search": {
+      "kind": "function",
+      "params": {
+        "ctx": "RequestContext",
+        "query": "str",
+        "store": "VectorStore",
+        "scope": "str|list[str]|null",
+        "top_k": "int",
+        "alpha": "float"
+      },
+      "returns": "RetrievalResult",
+      "notes": "向量与 BM25 的 RRF 融合；生产默认仍为 hybrid_search"
+    },
+    "rerank_by_lexical_overlap": {
+      "kind": "function",
+      "params": {
+        "query": "str",
+        "hits": "list[tuple[str,str,float]]",
+        "top_k": "int",
+        "weight": "float=0.5"
+      },
+      "returns": "list[tuple[str,str,float]]",
+      "notes": "词面启发式重排，只调整已召回候选；不是 cross-encoder"
     },
     "list_documents": {
       "kind": "function",

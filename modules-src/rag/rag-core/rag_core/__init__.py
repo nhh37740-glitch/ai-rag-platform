@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import re
 import threading
@@ -10,7 +11,7 @@ import numpy as np
 
 from core_specifications import Citation, RequestContext, RetrievalResult, VectorStore
 
-__version__ = "0.5.3"
+__version__ = "0.6.0"
 
 DIM = 384
 SearchHit = Tuple[str, str, float]
@@ -276,6 +277,24 @@ def keyword_search(
     return _result_from_hits(normalized, _keyword_hits(normalized, store, scopes, top_k))
 
 
+def _rrf_fuse(
+    vector_hits: List[SearchHit],
+    lexical_hits: List[SearchHit],
+    top_k: int,
+    alpha: float,
+) -> List[SearchHit]:
+    """Reciprocal-rank fusion with a weight on the lexical route."""
+    fused: Dict[Tuple[str, str], float] = {}
+    for rank, (source_id, text, _score) in enumerate(vector_hits, start=1):
+        key = (source_id, text)
+        fused[key] = fused.get(key, 0.0) + (1.0 - alpha) / (60.0 + rank)
+    for rank, (source_id, text, _score) in enumerate(lexical_hits, start=1):
+        key = (source_id, text)
+        fused[key] = fused.get(key, 0.0) + alpha / (60.0 + rank)
+    ordered = sorted(fused.items(), key=lambda item: (-item[1], item[0][0]))
+    return [(source_id, text, score) for (source_id, text), score in ordered[:top_k]]
+
+
 def hybrid_search(
     ctx: RequestContext,
     query: str,
@@ -284,7 +303,7 @@ def hybrid_search(
     top_k: int = 5,
     alpha: float = 0.5,
 ) -> RetrievalResult:
-    """向量与词面的融合检索：RRF 合并两路排名，避免语义模型漏掉原文术语。"""
+    """向量与词面重合的 RRF 融合，避免语义模型漏掉原文术语。"""
     normalized = _require_query(query)
     if top_k < 1:
         raise ValueError("top_k 必须大于 0")
@@ -296,18 +315,132 @@ def hybrid_search(
     query_embedding = embed([normalized])[0]
     vector_hits = store.search(query_embedding, pool_size, scopes)
     keyword_hits = _keyword_hits(normalized, store, scopes, pool_size)
-
-    fused: Dict[Tuple[str, str], float] = {}
-    for rank, (source_id, text, _score) in enumerate(vector_hits, start=1):
-        key = (source_id, text)
-        fused[key] = fused.get(key, 0.0) + (1.0 - alpha) / (60.0 + rank)
-    for rank, (source_id, text, _score) in enumerate(keyword_hits, start=1):
-        key = (source_id, text)
-        fused[key] = fused.get(key, 0.0) + alpha / (60.0 + rank)
-
-    ordered = sorted(fused.items(), key=lambda item: (-item[1], item[0][0]))
-    hits = [(source_id, text, score) for (source_id, text), score in ordered[:top_k]]
+    hits = _rrf_fuse(vector_hits, keyword_hits, top_k, alpha)
     return _result_from_hits(normalized, hits)
+
+
+def _bm25_tokens(text: str) -> List[str]:
+    """BM25 tokens: Latin words plus Chinese character bigrams."""
+    tokens: List[str] = re.findall(r"[a-z0-9_]+", text.lower())
+    for segment in re.findall(r"[一-鿿]+", text):
+        if len(segment) == 1:
+            tokens.append(segment)
+        else:
+            tokens.extend(segment[index : index + 2] for index in range(len(segment) - 1))
+    return tokens
+
+
+def _bm25_hits(
+    query: str,
+    store: VectorStore,
+    scopes: Optional[List[str]],
+    limit: int,
+    k1: float = 1.5,
+    b: float = 0.75,
+) -> List[SearchHit]:
+    """Okapi BM25 over the selected scope, rebuilt per query for small stores."""
+    corpus: List[Tuple[str, str, List[str]]] = []
+    for source_id, _chunk_count in store.list_documents(scopes):
+        for chunk in store.document_chunks(source_id):
+            corpus.append((source_id, chunk, _bm25_tokens(chunk)))
+    if not corpus:
+        return []
+
+    query_terms = list(dict.fromkeys(_bm25_tokens(query)))
+    if not query_terms:
+        return []
+    document_count = len(corpus)
+    average_length = sum(len(tokens) for _, _, tokens in corpus) / document_count
+    document_frequency = {
+        term: sum(1 for _, _, tokens in corpus if term in tokens)
+        for term in query_terms
+    }
+    idf = {
+        term: math.log(1.0 + (document_count - frequency + 0.5) / (frequency + 0.5))
+        for term, frequency in document_frequency.items()
+    }
+
+    scored: List[SearchHit] = []
+    for source_id, text, tokens in corpus:
+        length = len(tokens)
+        if length == 0:
+            continue
+        frequencies: Dict[str, int] = {}
+        for token in tokens:
+            if token in idf:
+                frequencies[token] = frequencies.get(token, 0) + 1
+        if not frequencies:
+            continue
+        score = 0.0
+        for term, frequency in frequencies.items():
+            denominator = frequency + k1 * (1.0 - b + b * length / average_length)
+            score += idf[term] * frequency * (k1 + 1.0) / denominator
+        if score > 0.0:
+            scored.append((source_id, text, score))
+    scored.sort(key=lambda item: (-item[2], item[0], item[1]))
+    return scored[:limit]
+
+
+def bm25_search(
+    ctx: RequestContext,
+    query: str,
+    store: VectorStore,
+    scope: Scope = "kb",
+    top_k: int = 5,
+) -> RetrievalResult:
+    """Pure BM25 lexical retrieval; useful for exact terms and error codes."""
+    normalized = _require_query(query)
+    if top_k < 1:
+        raise ValueError("top_k 必须大于 0")
+    scopes = _normalize_scopes(scope)
+    return _result_from_hits(normalized, _bm25_hits(normalized, store, scopes, top_k))
+
+
+def bm25_hybrid_search(
+    ctx: RequestContext,
+    query: str,
+    store: VectorStore,
+    scope: Scope = "kb",
+    top_k: int = 5,
+    alpha: float = 0.5,
+) -> RetrievalResult:
+    """Vector + BM25 RRF fusion; the production path is still ``hybrid_search``."""
+    normalized = _require_query(query)
+    if top_k < 1:
+        raise ValueError("top_k 必须大于 0")
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("alpha 必须在 0 和 1 之间")
+    scopes = _normalize_scopes(scope)
+    pool_size = max(top_k * 4, 20)
+    query_embedding = embed([normalized])[0]
+    vector_hits = store.search(query_embedding, pool_size, scopes)
+    lexical_hits = _bm25_hits(normalized, store, scopes, pool_size)
+    hits = _rrf_fuse(vector_hits, lexical_hits, top_k, alpha)
+    return _result_from_hits(normalized, hits)
+
+
+def rerank_by_lexical_overlap(
+    query: str,
+    hits: List[SearchHit],
+    top_k: int,
+    weight: float = 0.5,
+) -> List[SearchHit]:
+    """Heuristic reranker for offline comparison, not a cross-encoder.
+
+    It reorders already-recalled candidates by blending their original score
+    with query-token overlap. Because it cannot recover evidence that was never
+    recalled, it is reported separately from a real cross-encoder reranker.
+    """
+    if top_k < 1:
+        raise ValueError("top_k 必须大于 0")
+    if not 0.0 <= weight <= 1.0:
+        raise ValueError("weight 必须在 0 和 1 之间")
+    reranked = [
+        (source_id, text, (1.0 - weight) * float(score) + weight * _keyword_score(query, text))
+        for source_id, text, score in hits
+    ]
+    reranked.sort(key=lambda item: (-item[2], item[0], item[1]))
+    return reranked[:top_k]
 
 
 def list_documents(ctx: RequestContext, store: VectorStore, scope: Scope = "kb") -> List[dict]:
@@ -402,6 +535,9 @@ __all__ = [
     "retrieve",
     "keyword_search",
     "hybrid_search",
+    "bm25_search",
+    "bm25_hybrid_search",
+    "rerank_by_lexical_overlap",
     "list_documents",
     "document_info",
     "read_document",

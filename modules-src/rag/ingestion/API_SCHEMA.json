@@ -1,7 +1,7 @@
 {
   "package": "ingestion",
   "delivery": "Cython extension + standalone Nuitka worker (Windows)",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "facade": {
     "parse": {
       "kind": "function",
@@ -27,7 +27,39 @@
         "size": "int=500",
         "overlap": "int=50"
       },
-      "returns": "list[str]"
+      "returns": "list[str]",
+      "notes": "字符滑动窗口基线；size/overlap 是字符数，不是 token 数"
+    },
+    "chunk_tokens": {
+      "kind": "function",
+      "params": {
+        "texts": "list[str]",
+        "size": "int=500",
+        "overlap": "int=50"
+      },
+      "returns": "list[str]",
+      "notes": "近似 token 滑动窗口；中文按字、英文按词计数"
+    },
+    "chunk_structural": {
+      "kind": "function",
+      "params": {
+        "texts": "list[str]",
+        "size": "int=500",
+        "overlap": "int=50"
+      },
+      "returns": "list[str]",
+      "notes": "texts 是一篇文档的有序段落列表，跨元素继续打包；超长段落回退到 chunk_tokens；携带上下文不超过 overlap"
+    },
+    "chunk_with_strategy": {
+      "kind": "function",
+      "params": {
+        "texts": "list[str]",
+        "strategy": "str",
+        "size": "int=500",
+        "overlap": "int=50"
+      },
+      "returns": "list[str]",
+      "raises": "ValueError for unknown strategy"
     },
     "build_index": {
       "kind": "function",
@@ -35,7 +67,8 @@
         "ctx": "RequestContext",
         "docs_dir": "str",
         "store": "VectorStore",
-        "embed_fn": "callable"
+        "embed_fn": "callable",
+        "chunker": "callable=chunk"
       },
       "returns": "int",
       "blocking_io": true

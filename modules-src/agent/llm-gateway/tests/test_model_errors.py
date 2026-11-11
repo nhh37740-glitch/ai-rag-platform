@@ -7,8 +7,13 @@ from llm_gateway import DeepSeekProvider
 
 
 @pytest.mark.parametrize("status,body,code", [
+    (401, {"error": "invalid key"}, "model_auth_failed"),
+    (403, {"error": "forbidden"}, "model_auth_failed"),
+    (402, {"error": "insufficient credits"}, "model_quota_exhausted"),
+    (404, {"error": "model not found"}, "model_not_found"),
+    (400, {"error": "tools unsupported"}, "model_request_rejected"),
+    (422, {"error": "bad parameters"}, "model_request_rejected"),
     (429, {"error": "credential-must-not-leak"}, "model_rate_limited"),
-    (400, {"error": "tools unsupported"}, "model_unavailable"),
     (503, "provider not available", "model_unavailable"),
     (200, "not JSON", "model_invalid_response"),
     (200, {"choices": []}, "model_invalid_response"),
