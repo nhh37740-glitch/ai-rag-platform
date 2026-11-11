@@ -250,6 +250,19 @@ class EmptyThenClaimsProvider:
         return "根据检索结果 [1]，答案是龙肉。", []
 
 
+class ListEmptyThenClaimsProvider:
+    """文档清单为空后，仍尝试用引用标注收尾。"""
+
+    def __init__(self):
+        self.calls = 0
+
+    async def generate(self, ctx, messages, tools=None):
+        self.calls += 1
+        if self.calls == 1:
+            return "", [ToolCall("list-empty", "list_knowledge_documents", {})]
+        return "根据资料 [1]，答案是龙肉。", []
+
+
 class RepeatQueryProvider:
     """连续两轮提交完全相同的检索参数。"""
 
@@ -546,6 +559,35 @@ class TestRetrievalRouting(unittest.TestCase):
         )
         self.assertEqual(answer, NO_EVIDENCE_ANSWER)
         stops = [event for event in tracing.get("trace-empty") if event.span == "agent_stop"]
+        self.assertEqual(stops[-1].meta["stop_reason"], "no_evidence")
+
+    def test_empty_document_listing_does_not_count_as_evidence(self):
+        registry = ToolRegistry()
+        registry.register(
+            ToolDef("list_knowledge_documents", "列目录", {"type": "object"}),
+            lambda *, ctx, runtime_context: json.dumps(
+                {"tool": "list_knowledge_documents", "document_count": 0, "documents": []},
+                ensure_ascii=False,
+            ),
+            context_aware=True,
+        )
+        tracing = make_trace_store()
+        runtime = AgentRuntime(
+            provider=ListEmptyThenClaimsProvider(),
+            memory=make_memory(":memory:"),
+            tools=registry,
+            skills=SkillRegistry(),
+            tracing=tracing,
+        )
+        answer = _run(
+            runtime.run(
+                RequestContext("trace-list-empty", "request", "user", "session"),
+                "知识库里有什么？",
+                ["cmrc2018-demo"],
+            )
+        )
+        self.assertEqual(answer, NO_EVIDENCE_ANSWER)
+        stops = [event for event in tracing.get("trace-list-empty") if event.span == "agent_stop"]
         self.assertEqual(stops[-1].meta["stop_reason"], "no_evidence")
 
     def test_duplicate_retrieval_query_is_skipped(self):

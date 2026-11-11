@@ -1,5 +1,6 @@
 import os
 import pathlib
+import re
 import shutil
 import unittest
 import tempfile
@@ -79,6 +80,13 @@ class TestIngestion(unittest.TestCase):
         out = chunk_structural(["一二三四五六七八九十"], size=3, overlap=1)
         self.assertGreaterEqual(len(out), 2)
         self.assertEqual("".join(out)[:3], "一二三")
+
+    def test_structural_chunks_stay_within_budget_after_overlap(self):
+        out = chunk_structural(["a b c\n\nd e f g h"], size=5, overlap=2)
+        token_counts = [len(re.findall(r"[A-Za-z0-9_]+|[一-鿿]", part)) for part in out]
+        self.assertTrue(out)
+        self.assertTrue(all(count <= 5 for count in token_counts), token_counts)
+        self.assertIn("d e f g h", out[-1])
 
     def test_chunk_strategy_dispatch_and_validation(self):
         self.assertEqual(chunk_with_strategy(["abcdefghij"], "char", 4, 1), ["abcd", "defg", "ghij"])

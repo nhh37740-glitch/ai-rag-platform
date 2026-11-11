@@ -224,7 +224,7 @@ $env:DEEPSEEK_API_KEY = ''
 - **原理与取舍**：RAG 在推理时检索外部资料，把证据放进上下文再生成；知识更新靠改文档和索引，不改变模型权重。它适合私有资料、可更新知识和来源检查，但不能保证答案正确；返回来源编号也不等于引用真的支持结论。微调适合行为、格式和领域适配，两者可以组合。RAG 不一定更便宜，要算索引、检索、上下文 token 和维护成本。
 - **项目代码**：`apps/ragnotebook/server.py` 的 `chat`；`modules-src/agent-runtime/agent_runtime/__init__.py` 的 `AgentRuntime.run`；`modules-src/rag-tools/rag_tools/__init__.py`；`modules-src/rag-core/rag_core/__init__.py`。项目没有 LLM 微调代码。
 - **演示命令**：`python experiments/run_mock_agent_demo.py --backend fastembed --output experiments/results/mock-agent-demo.json`；服务运行时用 `python scripts/demo_rag_evidence.py --base-url http://127.0.0.1:18080 --question "请查资料，什么是静电感应？"`。
-- **实际结果**：Mock Agent 演示用真实 BGE 检索到 5 个片段，停止原因 `answered_with_evidence`；生成是 Mock 工具 JSON。运行中的服务仍是旧镜像，问答返回 HTTP 503 `model_unavailable`，trace 没有 `rag` 命中；直接检查 OpenRouter 返回 401 expired。不能把这次服务调用说成检索成功或生成质量结果。
+- **实际结果**：Mock Agent 演示用真实 BGE 检索到 5 个片段，停止原因 `answered_with_evidence`；生成是 Mock 工具 JSON。2026-11-11 轮换新 OpenRouter key 后，运行中的 0.9.0 服务返回真实检索命中（`008-静电感应` 等）和带引用的自然语言答案，HTTP 200；旧镜像没有 `agent_stop`，也没有做逐句人工核验，不能报准确率。
 - **限制**：没有真实模型答案质量结论；没有把 Mock 文本说成模型回答。
 - **未完成**：接入可用模型后，对同一问题记录答案、引用和人工核验结果。
 
@@ -305,8 +305,8 @@ $env:DEEPSEEK_API_KEY = ''
 - **原理与取舍**：文档解析、重复导入、部分写入和索引一致性；权限隔离、恶意文档指令和数据泄露；模型密钥失效、限流、超时和异常响应；长任务恢复、OOM、冷启动和资源竞争；日志、备份、版本回滚和真实效果回归。密钥存在或模型列表可见都不能代替实际调用验证。
 - **项目代码**：`modules-src/llm-gateway/llm_gateway/__init__.py` 的错误映射；`scripts/check_llm_errors.py`；`scripts/demo_rag_evidence.py`；后台导入和权限路径见 `apps/ragnotebook/` 与 `docs/PLAN.md` 的 0.9.1 记录。
 - **演示命令**：`python scripts/check_llm_errors.py --output experiments/results/llm-error-regression.json`。
-- **实际结果**：模拟 401/403→`model_auth_failed`、402→`model_quota_exhausted`、404→`model_not_found`、400/422→`model_request_rejected`、429→`model_rate_limited`、其他→`model_unavailable`、超时→`model_timeout`；真实 OpenRouter 返回 401 `model_auth_failed`（API key expired），记录已脱敏。0.9.1 历史记录显示 1 CPU/1 GiB 下 1650 块长文档导入峰值约 520.91 MiB、无 OOM，但这是历史构建结果，不是本轮新测。
-- **限制**：真实模型问答未通过；后台任务仍是进程内任务，不跨重启恢复；没有本轮压测、备份演练或恶意文档测试。
+- **实际结果**：模拟 401/403→`model_auth_failed`、402→`model_quota_exhausted`、404→`model_not_found`、400/422→`model_request_rejected`、429→`model_rate_limited`、其他→`model_unavailable`、超时→`model_timeout`；2026-11-10 旧 key 返回 401 `model_auth_failed`（API key expired），2026-11-11 轮换后返回 200 并完成一次真实问答，记录均已脱敏。0.9.1 历史记录显示 1 CPU/1 GiB 下 1650 块长文档导入峰值约 520.91 MiB、无 OOM，但这是历史构建结果，不是本轮新测。
+- **限制**：真实模型只完成一次演示（`experiments/results/real-demo-2026-11-11.json`），没有按问题集做质量评测；后台任务仍是进程内任务，不跨重启恢复；没有本轮压测、备份演练或恶意文档测试。
 - **未完成**：新密钥后的真实免费模型问答、失败率/额度留证、重启恢复测试、资源上限回归。
 
 ### 11.11 搜索系统与 RAG 有什么区别？
@@ -314,7 +314,7 @@ $env:DEEPSEEK_API_KEY = ''
 - **原理与取舍**：搜索返回排序后的文档或片段供人阅读；RAG 在检索基础上生成整合答案，还要处理生成质量、引用、幻觉和成本。两者共享解析、索引、查询理解、召回、排序、权限和评测能力。何时需要倒排索引或 ANN 取决于规模、延迟和更新要求，不能凭感觉写阈值。
 - **项目代码**：`modules-src/storage/storage/__init__.py` 的 `SqliteVectorStore.search`（JSON 向量 + NumPy 点积）；`scripts/demo_rag_evidence.py` 把检索命中和生成答案分开打印。
 - **演示命令**：`python scripts/demo_rag_evidence.py --base-url http://127.0.0.1:18080 --question "请查资料，什么是静电感应？"`。
-- **实际结果**：演示先列命中的 source_id、score 和片段，再列答案；生成失败时仍保留已有命中，因此能区分“没找到证据”和“找到证据但模型失败”。本次运行中的服务在模型阶段返回 503，trace 没有检索命中，不能据此判断检索失败；Mock Agent 进程内版本用真实 BGE 命中 5 个片段。
+- **实际结果**：演示先列命中的 source_id、score 和片段，再列答案；生成失败时仍保留已有命中，因此能区分“没找到证据”和“找到证据但模型失败”。2026-11-11 新 key 下，运行中的服务返回真实检索命中和带引用的答案；旧镜像没有 `agent_stop`，本轮也没有做逐句核验。Mock Agent 进程内版本用真实 BGE 命中 5 个片段。
 - **限制**：当前没有 ANN/倒排索引，也没有规模压测；24 篇文档的精确排序不能证明大规模性能。
 - **未完成**：规模阈值和延迟压测；不为了面试直接替换当前简单存储。
 

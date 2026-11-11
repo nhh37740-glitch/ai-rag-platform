@@ -72,4 +72,4 @@ python scripts/demo_rag_evidence.py --base-url http://127.0.0.1:18080 \
 - `rerank` 是词面重排，不是 Cross-encoder。
 - 图实验使用合成数据和内存图，不代表生产图数据库选型。
 - LlamaIndex 只跑了最小 PoC，没有迁移生产。
-- 真实 OpenRouter 检查只记录脱敏错误；本次密钥返回 401 expired，没有真实模型质量结论。
+- 2026-11-10 旧 OpenRouter key 返回 401 expired；2026-11-11 轮换后真实问答成功，但仍只有一次演示，没有系统质量结论。

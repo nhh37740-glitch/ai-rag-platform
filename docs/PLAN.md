@@ -368,5 +368,5 @@ storage 新增 NotebookStore，data-facade 通过 NotebookStorePort 暴露固定
 - 图检索：合成服务依赖图、8 个问题、内存 BFS；向量和图路径实体召回均为 1.0。未引入生产图数据库。
 - 框架 PoC：`llama-index-core==0.12.52` 对 20 题做最小索引，Recall@5=0.95、MRR@5=0.95，与项目基线相同，延迟 11.792 ms vs 9.963 ms；不迁移生产。
 - Agent：已选知识库时，提醒耗尽仍不检索或命中数为 0 返回 `NO_EVIDENCE_ANSWER`；重复 `(tool, arguments)` 不执行并记录 `duplicate_query`；记录 `agent_stop` 停止原因。调用预算为 `max_tool_rounds`，HTTP 层总时限 120 秒，`AgentRuntime` 自身无 wall-clock deadline。
-- 模型错误：模拟 401/402/404/400/429/503/超时均映射为稳定错误码；真实 OpenRouter 返回 401 `model_auth_failed`（key expired），记录已脱敏，无密钥输出。
+- 模型错误：模拟 401/402/404/400/429/503/超时均映射为稳定错误码；2026-11-10 旧 OpenRouter key 返回 401 `model_auth_failed`（key expired），2026-11-11 轮换后返回 200 并完成一次真实检索问答，记录已脱敏，无密钥输出。
 - 未完成：第二个中文 embedding 模型对照、真实模型生成质量与位置效应、Cross-encoder reranker、ANN/倒排索引规模压测、后台任务跨重启恢复。未运行过的框架只写“调研”，不写“实践”。

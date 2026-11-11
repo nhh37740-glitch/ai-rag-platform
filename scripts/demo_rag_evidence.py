@@ -18,6 +18,8 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List
 
 
@@ -72,6 +74,7 @@ def main() -> int:
     parser.add_argument("--kb", default="cmrc2018-demo")
     parser.add_argument("--user-id", default="demo-reader")
     parser.add_argument("--session-id", default="demo-session")
+    parser.add_argument("--output", default="", help="optional JSON result path")
     args = parser.parse_args()
 
     base = args.base_url.rstrip("/")
@@ -120,12 +123,38 @@ def main() -> int:
         print("检索命中已经单独列出；请区分“没找到证据”和“找到证据但模型调用失败”。")
     else:
         print(reply.get("answer", ""))
+    stop_reasons = [event.get("meta", {}) for event in stops]
+    quota = reply.get("quota") or error_detail.get("quota") or {}
     print("\n== 停止原因 ==")
-    print(json.dumps([event.get("meta", {}) for event in stops], ensure_ascii=False))
+    print(json.dumps(stop_reasons, ensure_ascii=False))
     print("\n== 额度 ==")
-    print(json.dumps(reply.get("quota") or error_detail.get("quota") or {}, ensure_ascii=False))
+    print(json.dumps(quota, ensure_ascii=False))
     if demo.get("provider") == "mock":
         print("\n注意：当前是 Mock 生成，以上只能证明检索链路和引用字段；不能作为自然语言答案质量证据。")
+    if args.output:
+        result = {
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "base_url": base,
+            "service": {
+                "version": demo.get("version"),
+                "provider": demo.get("provider"),
+                "model": demo.get("model"),
+                "embedding": demo.get("embedding"),
+                "knowledge_base": demo.get("id", args.kb),
+            },
+            "question": args.question,
+            "retrieval_hits": hits,
+            "answer": reply.get("answer", ""),
+            "http_error": error,
+            "error_detail": error_detail,
+            "stop_reasons": stop_reasons,
+            "quota": quota,
+            "mock": demo.get("provider") == "mock",
+        }
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"\n结果已写入 {output}")
     return 0
 
 

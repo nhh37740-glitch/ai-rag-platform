@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -86,6 +87,7 @@ def _register(registry: ToolRegistry, tools: RagTools) -> None:
 
 
 async def _run(question: str, backend: str) -> dict:
+    os.environ["RAG_EMBED"] = backend
     embed_fn = make_embed(backend)
     tracing = make_trace_store()
     tools = RagTools(_store(ROOT / "data" / "kb" / "cmrc2018-demo" / "knowledge-documents", embed_fn), tracing)

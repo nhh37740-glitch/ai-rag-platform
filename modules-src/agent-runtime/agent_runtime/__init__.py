@@ -68,6 +68,11 @@ def _retrieval_hit_count(outcome: str) -> Optional[int]:
         return None
     if isinstance(payload.get("hit_count"), int):
         return payload["hit_count"]
+    if isinstance(payload.get("document_count"), int):
+        return payload["document_count"]
+    documents = payload.get("documents")
+    if isinstance(documents, list):
+        return len(documents)
     citations = payload.get("citations")
     if isinstance(citations, list):
         return len(citations)

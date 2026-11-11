@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import resource
 import statistics
 import sys
@@ -72,6 +73,7 @@ def main() -> int:
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
+    os.environ["RAG_EMBED"] = args.backend
 
     qa = json.loads(Path(args.qa).read_text(encoding="utf-8"))
     docs = _documents(Path(args.docs))

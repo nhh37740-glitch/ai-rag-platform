@@ -164,7 +164,8 @@ def chunk_structural(texts: List[str], size: int = 500, overlap: int = 50) -> Li
             candidate = (current + "\n\n" + paragraph).strip() if current else paragraph
             if current and len(_token_spans(candidate)) > size:
                 out.append(current)
-                tail = _token_spans(current)[-overlap:] if overlap else []
+                allowed_overlap = max(0, size - len(_token_spans(paragraph)))
+                tail = _token_spans(current)[-allowed_overlap:] if allowed_overlap else []
                 prefix = current[tail[0][0] :] if tail else ""
                 current = (prefix + "\n\n" + paragraph).strip()
             else:
